@@ -326,6 +326,7 @@ export function contentMachineRoutes(ctn: Container) {
     responses: { 200: jsonResponse('fundação', z.array(FoundationOut)), ...errorResponses(401) },
   });
   app.get('/foundation', async (c) => {
+    await cm.setup(actor(c).orgId);
     const docs = await cm.repo.listFoundations(actor(c).orgId);
     return c.json(docs.map((d) => ({ ...d, updatedAt: d.updatedAt.toISOString() })));
   });
@@ -356,6 +357,7 @@ export function contentMachineRoutes(ctn: Container) {
     responses: { 200: jsonResponse('prompts', z.array(PromptOut)), ...errorResponses(401) },
   });
   app.get('/prompts', async (c) => {
+    await cm.setup(actor(c).orgId);
     const list = await cm.repo.listPrompts(actor(c).orgId);
     return c.json(list.map((p) => ({ ...p, createdAt: p.createdAt.toISOString() })));
   });
@@ -385,7 +387,10 @@ export function contentMachineRoutes(ctn: Container) {
     summary: 'Fórmulas de gancho que a pauta usa',
     responses: { 200: jsonResponse('fórmulas', z.array(HookOut)), ...errorResponses(401) },
   });
-  app.get('/hooks', async (c) => c.json(await cm.repo.listHooks(actor(c).orgId)));
+  app.get('/hooks', async (c) => {
+    await cm.setup(actor(c).orgId);
+    return c.json(await cm.repo.listHooks(actor(c).orgId));
+  });
 
   // ---------------------------------------------------------------- peças
 

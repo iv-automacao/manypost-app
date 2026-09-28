@@ -10,6 +10,42 @@
 > **Como manter:** ao fechar uma fatia, adicione a onda nova **no topo** e atualize o STATUS.
 > Cada entrada é auto-contida: o que mudou, onde no código, e a prova de que funciona.
 
+## Onda 39 — 2026-09-28 — máquina de conteúdo (`add-content-machine`)
+
+A esteira de conteúdo que rodava fora do produto (n8n + renderizador Python + API de vídeo + banco
+separado) entrou no manypost como área "Máquina", por organização: pauta → roteiro/legenda → arte ou
+vídeo → revisão → agendamento → publicado.
+
+- **Core:** domínio com status fechado e tabela de transições; casos de uso de configuração
+  idempotente (prompts, fórmulas, fundação), identidade visual com extração de paleta, pauta semanal,
+  peça manual, decisões humanas (aprovar, reprovar, refazer roteiro, refazer arte/vídeo, tentar de
+  novo) e gasto por mês. Etapas com posse por trava, transição condicional, duas retentativas
+  automáticas, agendamento idempotente (reaproveita o post já criado) e revisão com checagem
+  determinística de CTA.
+- **Vídeo:** um clipe por cena com narração nativa; o id do pedido é gravado antes da espera
+  (queda não paga de novo), pedido moderado/sem saldo é estornado e a nova tentativa pede só a cena
+  que falhou. Adapter por fila em `infra/ai/video-queue.ts`.
+- **Renderizador (serviço do operador):** `/v2/render` com a marca no pedido (paleta, logo para fundo
+  claro e escuro, slogan, assinatura), `/paleta`, `/montar-reel` (ffmpeg + card final).
+- **Persistência:** migration aditiva `0008_content-machine` (7 tabelas, todas com `org_id`).
+- **Fila:** `content-machine` (3 laços, expiração 1h) + sweeper por minuto, via
+  `PublishingRuntime.registerQueue`.
+- **API/Web:** `/v1/content-machine/*` e as telas Quadro, detalhe da peça, Identidade, Fundação,
+  Prompts e Gastos.
+- **Adapter de texto:** `AI_TOKEN_LIMIT_PARAM` e `AI_SEND_TEMPERATURE` para modelos de raciocínio.
+
+**Provas.** Local: 25 testes de caso de uso com fakes, 8 de adapters, 7 de rota, 30 da web;
+`bun run check` com 1464 passes (as 2 falhas são as conhecidas de caminho com espaço), fronteiras,
+provedores de IA, brand, Drizzle, OpenSpec 34/34 e build com as 5 rotas `/maquina`. `scripts/e2e-content-machine.ts`
+rodou as etapas com modelo e renderizador reais (post até `agendado`, carrossel de 7 artes).
+Produção (post.vantagemanaus.com.br, 28/09): identidade e fundação cadastradas, paleta extraída da
+logo em 2,4 s pelo renderizador interno; post `PME-0928-A` da ideia ao Instagram
+(https://www.instagram.com/p/Dd09lP2leRj/, US$ 0,0027); carrossel `PLANO-0928-A` parado pelo revisor,
+refeito por decisão humana na tela, reaprovado e publicado
+(https://www.instagram.com/p/Dd09zTXlRUU/, US$ 0,007); reels `PLANO-0928-B` gerou 2 cenas e parou em
+`erro` por saldo insuficiente no fornecedor de vídeo, com as 3 tentativas da cena 3 estornadas —
+retoma com "Tentar de novo" depois da recarga.
+
 ## Onda 38 — 2026-08-13 — registro regularizado: modos de custo e qualidade na imagem (entrega de 2026-07-28)
 
 Regularização de registro: a entrega abaixo estava documentada no `CHANGELOG.md` da raiz e na

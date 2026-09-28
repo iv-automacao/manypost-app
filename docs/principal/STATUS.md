@@ -10,6 +10,14 @@
 > **Como manter:** ao fechar uma fatia, atualize as seções abaixo **e** abra uma entrada nova no
 > topo do changelog. Este arquivo é sobre o presente; o changelog é sobre o passado.
 >
+> **Atualização — máquina de conteúdo (2026-09-28, onda 39):** a área "Máquina" leva a ideia até o
+> post publicado dentro do produto (pauta, roteiro, arte ou reels com narração, revisão, agendamento,
+> acompanhamento), com identidade visual, fundação, prompts versionados e gasto por peça. Rodando em
+> produção no fork interno: post e carrossel publicados ponta a ponta em 28/09; reels validado até o
+> limite de saldo do fornecedor de vídeo. Depende de `CONTENT_RENDERER_URL` (serviço do operador) e,
+> para reels, de `VIDEO_PROVIDER_KEY`. As etapas rodam no processo da API. Detalhes e provas na
+> [onda 39](CHANGELOG_ONDAS.md).
+>
 > **Atualização — registro regularizado dos modos de imagem (2026-08-13):** a geração de imagem
 > opera desde 2026-07-28 (PR #55) com dois modos fechados sobre o mesmo `AI_IMAGE_MODEL` —
 > `economy` (renderização `low`, 2 créditos, padrão determinístico) e `quality` (renderização

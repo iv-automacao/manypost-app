@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useApiErrorMessage } from '@/lib/api/errors';
 import { relativeTime } from '@/lib/datetime';
-import { Field, SectionTitle } from './field';
+import { Field, RefreshNotice, SectionTitle } from './field';
 import { useFoundation, useOverview, useUpdateFoundation } from './hooks';
 import { FOUNDATION_KEYS, isExpired, isFilled } from './logic';
 import type { ContentFoundation, FoundationKey } from './types';
@@ -25,9 +25,10 @@ export function FoundationView() {
   const overview = useOverview();
   const foundation = useFoundation();
 
-  if (overview.isError) return null;
+  // sem visão geral nenhuma: o shell mostra o erro. Com ela em cache, refetch que falhou não desmonta os editores
+  if (overview.isError && !overview.data) return null;
   if (overview.isPending || foundation.isPending) return <Skeleton className="h-96 rounded-card" />;
-  if (foundation.isError) {
+  if (!foundation.data) {
     return (
       <Alert variant="destructive">
         <CircleAlert aria-hidden />
@@ -46,6 +47,7 @@ export function FoundationView() {
 
   return (
     <div className="flex flex-col gap-4">
+      {foundation.isError ? <RefreshNotice onRetry={() => void foundation.refetch()} /> : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-reading text-compact leading-relaxed text-graphite">{t('foundation.description')}</p>
         <Badge variant={filled === FOUNDATION_KEYS.length ? 'published' : 'review'} className="w-fit tabular-nums">

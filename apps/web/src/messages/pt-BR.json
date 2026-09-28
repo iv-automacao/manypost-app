@@ -1027,6 +1027,7 @@
       "video": "Geração de vídeo não configurada: reels param na produção."
     },
     "loadError": "Não deu para carregar a máquina.",
+    "refreshError": "Não deu para atualizar agora. A tela mostra a última versão carregada.",
     "optional": "opcional",
     "status": {
       "ideia": "Ideia",
@@ -1097,7 +1098,7 @@
       "notMonday": "A pauta começa numa segunda-feira.",
       "market": "Mercado",
       "submit": "Gerar pauta",
-      "created": "{count, plural, =0 {Nenhuma peça criada} one {# peça criada} other {# peças criadas}} para a semana."
+      "queued": "Pauta em geração. As peças aparecem no quadro em cerca de um minuto."
     },
     "piece": {
       "loadError": "Não deu para carregar a peça.",
@@ -1117,6 +1118,18 @@
       "noDate": "Sem data definida",
       "save": "Salvar ajustes",
       "saved": "Ajustes salvos.",
+      "locked": {
+        "ideia": "A etapa Roteiro ainda vai escrever a legenda. Os ajustes ficam liberados depois dela.",
+        "aprovado": "A peça já foi aprovada e o agendamento usa este texto. Não dá mais para ajustar aqui.",
+        "running": "Uma etapa está rodando nesta peça. Os ajustes ficam liberados quando ela terminar."
+      },
+      "total": "{count, number} de {max, number} caracteres",
+      "totalHint": "Legenda e hashtags contam juntas no limite do Instagram.",
+      "totalOver": "Passou {over, plural, one {# caractere} other {# caracteres}} do limite do Instagram. Encurte a legenda ou tire hashtags.",
+      "staleTitle": "A peça mudou enquanto você editava",
+      "stale": "Há versão nova no servidor de: {fields}. Salvar grava o seu texto por cima.",
+      "discardDraft": "Descartar meu rascunho",
+      "keepDraft": "Manter o meu",
       "script": "Roteiro",
       "scriptEmpty": "O roteiro aparece aqui depois da etapa Roteiro.",
       "hook": "Gancho",

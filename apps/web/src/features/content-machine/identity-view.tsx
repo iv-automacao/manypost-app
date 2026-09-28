@@ -58,8 +58,9 @@ type LogoField = 'logoMediaId' | 'logoDarkMediaId';
 export function IdentityView() {
   const overview = useOverview();
   if (overview.isPending) return <Skeleton className="h-96 rounded-card" />;
-  // erro de carga: o shell já mostra o aviso com "tentar de novo"
-  if (overview.isError) return null;
+  // sem nada em cache: o shell mostra o erro com "tentar de novo". Com a identidade carregada, um
+  // refetch que falhou vira aviso discreto no shell e o formulário (com o rascunho) fica montado.
+  if (!overview.data) return null;
   return <IdentityForm brand={overview.data.brand} rendererOn={overview.data.capabilities.renderer} />;
 }
 

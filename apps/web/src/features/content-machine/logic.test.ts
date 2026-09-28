@@ -7,12 +7,15 @@ import {
   ContentPieceStatuses,
   ContentPromptNames,
 } from '@manypost/contracts';
+import { toLocalInput } from '@/lib/datetime';
 import messages from '@/messages/pt-BR.json';
 import {
   BOARD_COLUMNS,
+  CAPTION_TOTAL_MAX,
   FORMATS,
   FOUNDATION_KEYS,
   MARKETS,
+  PLAN_POLL_WINDOW_MS,
   POLL_ACTIVE_MS,
   POLL_IDLE_MS,
   PROMPT_NAMES,
@@ -22,15 +25,20 @@ import {
   actionsFor,
   brandDraft,
   brandPatchFrom,
+  captionLock,
+  captionPatch,
+  captionValues,
   cleanPalette,
+  clearSaved,
   coverOf,
+  dropFields,
+  editDraft,
   formatBrl,
   formatHashtags,
   formatUsd,
   groupByStatus,
   groupPrompts,
   invalidPaletteRoles,
-  isEditable,
   isExpired,
   isMonday,
   isPaletteEmpty,
@@ -38,12 +46,17 @@ import {
   normalizeHex,
   parseHashtags,
   pollInterval,
+  publishedText,
   readScript,
+  rebaseFields,
   sameDraft,
   sectionFor,
   shiftMonth,
+  shownValues,
+  staleFields,
   topPieces,
   usdToBrl,
+  type CaptionDrafts,
 } from './logic';
 import type { ContentBrand, ContentPiece, ContentPrompt, PieceStatus } from './types';
 
@@ -61,9 +74,9 @@ const piece = (over: Partial<ContentPiece> = {}): ContentPiece => ({
   awareness: '',
   hook: 'gancho',
   plan: {},
-  script: null,
-  caption: '',
-  hashtags: [],
+  script: over.script ?? null,
+  caption: over.caption ?? '',
+  hashtags: over.hashtags ?? [],
   keyword: 'PME-0928-A',
   media: over.media ?? [],
   review: over.review ?? null,
@@ -151,6 +164,18 @@ describe('quadro', () => {
     expect(pollInterval([piece({ status: 'revisao', running: true })])).toBe(POLL_ACTIVE_MS);
   });
 
+  test('depois de pedir a pauta, o quadro acelera pela janela inteira mesmo sem peça automática', () => {
+    const agora = 1_000_000;
+    const ate = agora + PLAN_POLL_WINDOW_MS;
+    const paradas = [piece({ status: 'revisao' })];
+    expect(pollInterval(paradas, ate, agora)).toBe(POLL_ACTIVE_MS);
+    expect(pollInterval(undefined, ate, agora)).toBe(POLL_ACTIVE_MS);
+    expect(pollInterval([], ate, ate - 1)).toBe(POLL_ACTIVE_MS);
+    // janela vencida: volta à regra de sempre
+    expect(pollInterval(paradas, ate, ate)).toBe(POLL_IDLE_MS);
+    expect(pollInterval([piece({ status: 'ideia' })], ate, ate + 1)).toBe(POLL_ACTIVE_MS);
+  });
+
   test('capa é a primeira mídia com URL, pela ordem', () => {
     expect(coverOf(piece())).toBeNull();
     const cover = coverOf(
@@ -167,25 +192,122 @@ describe('quadro', () => {
 });
 
 describe('ações humanas por status', () => {
+  const roteiro = { hook: 'Gancho', slides: [] };
+  const com = (status: PieceStatus) => actionsFor(piece({ status, script: roteiro }));
+  const sem = (status: PieceStatus) => actionsFor(piece({ status, script: null }));
+
   test('revisão e erro têm o conjunto completo; reprovada só reabre pelo roteiro', () => {
-    expect(actionsFor('revisao')).toEqual(['approve', 'redoScript', 'redoProduction', 'reject']);
-    expect(actionsFor('erro')).toEqual(['retry', 'redoScript', 'redoProduction', 'reject']);
-    expect(actionsFor('reprovado')).toEqual(['redoScript']);
+    expect(com('revisao')).toEqual(['approve', 'redoScript', 'redoProduction', 'reject']);
+    expect(com('erro')).toEqual(['retry', 'redoScript', 'redoProduction', 'reject']);
+    expect(com('reprovado')).toEqual(['redoScript']);
+  });
+
+  test('refazer arte/vídeo exige roteiro gravado: erro antes do roteiro não oferece', () => {
+    expect(sem('erro')).toEqual(['retry', 'redoScript', 'reject']);
+    for (const s of STATUSES) expect(sem(s)).not.toContain('redoProduction');
   });
 
   test('etapas automáticas só podem ser descartadas; agendado e publicado não têm ação', () => {
-    for (const s of ['ideia', 'roteiro', 'producao'] as PieceStatus[]) expect(actionsFor(s)).toEqual(['reject']);
-    for (const s of ['aprovado', 'agendado', 'publicado'] as PieceStatus[]) expect(actionsFor(s)).toEqual([]);
+    for (const s of ['ideia', 'roteiro', 'producao'] as PieceStatus[]) expect(com(s)).toEqual(['reject']);
+    for (const s of ['aprovado', 'agendado', 'publicado'] as PieceStatus[]) expect(com(s)).toEqual([]);
   });
 
   test('aprovar e tentar de novo só aparecem onde a transição existe', () => {
-    const com = (a: string) => STATUSES.filter((s) => actionsFor(s).includes(a as never));
-    expect(com('approve')).toEqual(['revisao']);
-    expect(com('retry')).toEqual(['erro']);
+    const onde = (a: string) => STATUSES.filter((s) => com(s).includes(a as never));
+    expect(onde('approve')).toEqual(['revisao']);
+    expect(onde('retry')).toEqual(['erro']);
+  });
+});
+
+describe('legenda: quando pode editar', () => {
+  test('ideia, aprovado e etapa rodando travam, cada um com o seu motivo', () => {
+    const livres = STATUSES.filter((status) => captionLock(piece({ status })) === null);
+    expect(livres).toEqual(['roteiro', 'producao', 'revisao', 'reprovado', 'erro']);
+    expect(captionLock(piece({ status: 'ideia' }))).toBe('ideia');
+    expect(captionLock(piece({ status: 'aprovado' }))).toBe('aprovado');
+    expect(captionLock(piece({ status: 'agendado' }))).toBe('closed');
+    expect(captionLock(piece({ status: 'publicado' }))).toBe('closed');
   });
 
-  test('edição manual acaba no agendamento', () => {
-    expect(STATUSES.filter((s) => !isEditable(s))).toEqual(['agendado', 'publicado']);
+  test('etapa rodando trava qualquer status editável', () => {
+    for (const status of ['roteiro', 'producao', 'revisao', 'reprovado', 'erro'] as PieceStatus[]) {
+      expect(captionLock(piece({ status, running: true }))).toBe('running');
+    }
+    // agendada/publicada continua "fechada", rodando ou não
+    expect(captionLock(piece({ status: 'agendado', running: true }))).toBe('closed');
+  });
+});
+
+describe('legenda: total publicado', () => {
+  test('monta como o agendamento: legenda aparada, linha em branco e hashtags', () => {
+    expect(publishedText('  Oi  ', ['a', 'b'])).toBe('Oi\n\n#a #b');
+    expect(publishedText('Oi', [])).toBe('Oi');
+    expect(publishedText('   ', ['a'])).toBe('#a');
+    expect(publishedText('', [])).toBe('');
+  });
+
+  test('o limite vale para o total: legenda no teto + hashtags passa', () => {
+    const cheia = 'x'.repeat(CAPTION_TOTAL_MAX);
+    expect(publishedText(cheia, []).length).toBe(CAPTION_TOTAL_MAX);
+    expect(publishedText(cheia, ['pme']).length).toBe(CAPTION_TOTAL_MAX + 2 + 4);
+  });
+});
+
+describe('legenda: rascunho por campo', () => {
+  const server = captionValues(
+    piece({ caption: 'Legenda gerada', hashtags: ['saude', 'pme'], scheduledFor: '2026-10-05T13:00:00.000Z' }),
+  );
+
+  test('valores do servidor no formato dos campos', () => {
+    expect(server.caption).toBe('Legenda gerada');
+    expect(server.hashtags).toBe('#saude #pme');
+    expect(server.date).toBe(toLocalInput(new Date('2026-10-05T13:00:00.000Z')));
+    expect(captionValues(piece()).date).toBe('');
+  });
+
+  test('só o campo mexido vira rascunho; o resto acompanha o servidor', () => {
+    const d = editDraft({}, 'caption', 'Minha legenda', server);
+    expect(Object.keys(d)).toEqual(['caption']);
+    const novo = { ...server, hashtags: '#outra' };
+    expect(shownValues(d, novo)).toEqual({ caption: 'Minha legenda', hashtags: '#outra', date: server.date });
+  });
+
+  test('o PATCH leva só os campos mexidos', () => {
+    expect(captionPatch({})).toEqual({});
+    const d = editDraft({}, 'hashtags', '#a, b #a', server);
+    expect(captionPatch(d)).toEqual({ hashtags: ['a', 'b'] });
+    const comData = editDraft(d, 'date', '', server);
+    expect(captionPatch(comData)).toEqual({ hashtags: ['a', 'b'], scheduledFor: null });
+  });
+
+  test('a base é o servidor de quando a edição começou; voltar ao valor do servidor descarta', () => {
+    const d1 = editDraft({}, 'caption', 'A', server);
+    const d2 = editDraft(d1, 'caption', 'AB', { ...server, caption: 'mudou' });
+    expect(d2.caption).toEqual({ value: 'AB', base: 'Legenda gerada' });
+    expect(editDraft(d2, 'caption', 'Legenda gerada', server)).toEqual({});
+  });
+
+  test('servidor mudou por baixo: o campo aparece como desatualizado até descartar ou manter', () => {
+    const d = editDraft(editDraft({}, 'caption', 'Minha', server), 'date', '', server);
+    const novo = { ...server, caption: 'Nova do roteiro' };
+    expect(staleFields(d, server)).toEqual([]);
+    expect(staleFields(d, novo)).toEqual(['caption']);
+    expect(dropFields(d, ['caption'])).toEqual({ date: { value: '', base: server.date } });
+    const mantido = rebaseFields(d, ['caption'], novo);
+    expect(mantido.caption).toEqual({ value: 'Minha', base: 'Nova do roteiro' });
+    expect(staleFields(mantido, novo)).toEqual([]);
+  });
+
+  test('depois de salvar: sai o que foi enviado, fica o que foi digitado durante o envio', () => {
+    const enviado: CaptionDrafts = editDraft(editDraft({}, 'caption', 'Salva', server), 'hashtags', '#x', server);
+    const salvo = { ...server, caption: 'Salva', hashtags: '#x' };
+    expect(clearSaved(enviado, enviado, salvo)).toEqual({});
+    // continuou digitando a legenda enquanto o PATCH ia: fica, reancorada no que foi salvo
+    const depois = editDraft(enviado, 'caption', 'Salva e mais', server);
+    expect(clearSaved(depois, enviado, salvo)).toEqual({ caption: { value: 'Salva e mais', base: 'Salva' } });
+    // campo que não foi no PATCH não é tocado
+    const comData = editDraft(enviado, 'date', '', server);
+    expect(clearSaved(comData, enviado, salvo)).toEqual({ date: { value: '', base: server.date } });
   });
 });
 

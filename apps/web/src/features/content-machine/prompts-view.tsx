@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useApiErrorMessage } from '@/lib/api/errors';
 import { relativeTime } from '@/lib/datetime';
-import { SectionTitle } from './field';
+import { RefreshNotice, SectionTitle } from './field';
 import { useHooks, useOverview, usePrompts, useUpdatePrompt } from './hooks';
 import { PROMPT_NAMES, groupPrompts, type PromptGroup } from './logic';
 import type { PromptName } from './types';
@@ -24,9 +24,10 @@ export function PromptsView() {
   const overview = useOverview();
   const prompts = usePrompts();
 
-  if (overview.isError) return null;
+  // sem visão geral nenhuma: o shell mostra o erro. Com ela em cache, refetch que falhou não desmonta os editores
+  if (overview.isError && !overview.data) return null;
   if (overview.isPending || prompts.isPending) return <Skeleton className="h-96 rounded-card" />;
-  if (prompts.isError) {
+  if (!prompts.data) {
     return (
       <Alert variant="destructive">
         <CircleAlert aria-hidden />
@@ -43,6 +44,7 @@ export function PromptsView() {
   const groups = groupPrompts(prompts.data);
   return (
     <div className="flex flex-col gap-4">
+      {prompts.isError ? <RefreshNotice onRetry={() => void prompts.refetch()} /> : null}
       <p className="max-w-reading text-compact leading-relaxed text-graphite">{t('description')}</p>
       {PROMPT_NAMES.map((name) => (
         <PromptEditor key={name} name={name} group={groups[name]} />

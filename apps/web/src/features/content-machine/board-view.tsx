@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { NewIdeaDialog, PlanWeekDialog } from './create-dialogs';
+import { RefreshNotice } from './field';
 import { PIECES_LIMIT, usePieces } from './hooks';
 import { BOARD_COLUMNS, SIDE_GROUPS, groupByStatus, isAutomatic, type SideGroup } from './logic';
 import { PieceCard } from './piece-card';
@@ -41,7 +42,7 @@ export function BoardView() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-compact tabular-nums text-graphite">
-          {pieces.isSuccess ? t('board.summary', { total: list.length, active: ativas }) : null}
+          {pieces.data ? t('board.summary', { total: list.length, active: ativas }) : null}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={() => setPlanOpen(true)}>
@@ -57,7 +58,8 @@ export function BoardView() {
 
       {pieces.isPending ? (
         <Skeleton className="h-96 rounded-card" />
-      ) : pieces.isError ? (
+      ) : !pieces.data ? (
+        // sem nada em cache: aí sim o erro ocupa o lugar do quadro
         <Alert variant="destructive">
           <CircleAlert aria-hidden />
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -69,6 +71,8 @@ export function BoardView() {
         </Alert>
       ) : (
         <>
+          {/* refetch que falhou com quadro em cache: aviso discreto, o quadro continua na tela */}
+          {pieces.isError ? <RefreshNotice onRetry={() => void pieces.refetch()} /> : null}
           {list.length === 0 ? (
             <p className="rounded-card border border-line bg-surface px-4 py-3 text-compact text-graphite">
               {t('board.empty')}

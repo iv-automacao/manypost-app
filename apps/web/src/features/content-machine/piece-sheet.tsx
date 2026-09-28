@@ -27,21 +27,32 @@ import {
 } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { errorCode, type ApiProblem } from '@/lib/api/client';
 import { useApiErrorMessage } from '@/lib/api/errors';
-import { toLocalInput } from '@/lib/datetime';
-import { Field, SectionTitle } from './field';
+import { Field, RefreshNotice, SectionTitle } from './field';
 import { useDecidePiece, useEditPiece, usePiece } from './hooks';
 import {
+  CAPTION_TOTAL_MAX,
   actionsFor,
+  captionLock,
+  captionPatch,
+  captionValues,
+  clearSaved,
+  dropFields,
+  editDraft,
   formatBrl,
   formatHashtags,
   formatUsd,
-  isEditable,
-  isoFromLocalInput,
   orderedMedia,
   parseHashtags,
+  publishedText,
   readScript,
+  rebaseFields,
+  shownValues,
+  staleFields,
   usdToBrl,
+  type CaptionDrafts,
+  type CaptionField,
   type PieceAction,
 } from './logic';
 import { STATUS_BADGE } from './status-ui';
@@ -77,7 +88,9 @@ function PieceDetail({ id }: { id: string }) {
     );
   }
 
-  if (detail.isError) {
+  // erro só vira tela de erro sem nada em cache; com a peça carregada, o refetch que falhou vira
+  // um aviso discreto e o rascunho da legenda continua montado
+  if (!detail.data) {
     return (
       <>
         <SheetHeader>
@@ -122,6 +135,7 @@ function PieceDetail({ id }: { id: string }) {
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="flex flex-col gap-6">
+          {detail.isError ? <RefreshNotice onRetry={() => void detail.refetch()} /> : null}
           {piece.running ? (
             <Alert>
               <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden />
@@ -207,33 +221,22 @@ function MediaSection({ piece }: { piece: ContentPiece }) {
 
 // ------------------------------------------------------------------ legenda
 
-interface CaptionDraft {
-  caption: string;
-  hashtags: string;
-  date: string;
-}
-
 function CaptionSection({ piece }: { piece: ContentPiece }) {
   const t = useTranslations('maquina');
   const locale = useLocale();
   const errorMessage = useApiErrorMessage();
   const edit = useEditPiece();
-  // null = sem edição em curso: a tela mostra o que o servidor tem (e acompanha o polling)
-  const [draft, setDraft] = useState<CaptionDraft | null>(null);
-  const editable = isEditable(piece.status);
+  // rascunho POR CAMPO: só o que a pessoa mexeu; o resto mostra o servidor (e acompanha o polling)
+  const [drafts, setDrafts] = useState<CaptionDrafts>({});
+  const lock = captionLock(piece);
 
-  const server: CaptionDraft = {
-    caption: piece.caption,
-    hashtags: formatHashtags(piece.hashtags),
-    date: piece.scheduledFor ? toLocalInput(new Date(piece.scheduledFor)) : '',
-  };
-  const value = draft ?? server;
-  const change = (patch: Partial<CaptionDraft>) => setDraft({ ...value, ...patch });
-
-  if (!editable) {
+  if (lock !== null) {
     return (
       <section className="flex flex-col gap-3">
         <SectionTitle>{t('piece.caption')}</SectionTitle>
+        {lock !== 'closed' ? (
+          <p className="text-meta leading-relaxed text-graphite">{t(`piece.locked.${lock}`)}</p>
+        ) : null}
         <p className="whitespace-pre-wrap text-compact leading-relaxed text-ink">
           {piece.caption || t('piece.noCaption')}
         </p>
@@ -252,22 +255,37 @@ function CaptionSection({ piece }: { piece: ContentPiece }) {
     );
   }
 
+  const server = captionValues(piece);
+  const value = shownValues(drafts, server);
+  const change = (field: CaptionField, next: string) => setDrafts((d) => editDraft(d, field, next, server));
+  const dirty = Object.keys(drafts).length > 0;
+  const stale = staleFields(drafts, server);
+  // o limite do Instagram vale para o texto publicado inteiro, não só para a legenda
+  const total = publishedText(value.caption, parseHashtags(value.hashtags)).length;
+  const over = total - CAPTION_TOTAL_MAX;
+  const fieldLabel: Record<CaptionField, string> = {
+    caption: t('piece.caption'),
+    hashtags: t('piece.hashtags'),
+    date: t('piece.scheduledFor'),
+  };
+
+  // a recusa do total (400) chega com o código genérico de post, cuja tradução fala de "canais";
+  // nesse caso o texto da API (que diz o total) é mais útil. 409 cai no padrão: detalhe da API.
+  const saveError = (err: unknown) => {
+    const detail = (err as ApiProblem | undefined)?.detail;
+    return errorCode(err) === 'post.invalid_settings' && detail ? detail : errorMessage(err);
+  };
+
   const save = () => {
+    const sent = drafts;
     edit.mutate(
+      { id: piece.id, patch: captionPatch(sent) },
       {
-        id: piece.id,
-        patch: {
-          caption: value.caption,
-          hashtags: parseHashtags(value.hashtags),
-          scheduledFor: isoFromLocalInput(value.date) ?? null,
-        },
-      },
-      {
-        onSuccess: () => {
-          setDraft(null);
+        onSuccess: (saved) => {
+          setDrafts((d) => clearSaved(d, sent, captionValues(saved)));
           toast.success(t('piece.saved'));
         },
-        onError: (err) => toast.error(errorMessage(err)),
+        onError: (err) => toast.error(saveError(err)),
       },
     );
   };
@@ -275,28 +293,62 @@ function CaptionSection({ piece }: { piece: ContentPiece }) {
   return (
     <section className="flex flex-col gap-3">
       <SectionTitle>{t('piece.caption')}</SectionTitle>
+      {stale.length > 0 ? (
+        <Alert>
+          <CircleAlert aria-hidden />
+          <div className="flex flex-col gap-2">
+            <AlertTitle>{t('piece.staleTitle')}</AlertTitle>
+            <AlertDescription>
+              {t('piece.stale', {
+                fields: new Intl.ListFormat(locale, { type: 'conjunction' }).format(stale.map((f) => fieldLabel[f])),
+              })}
+            </AlertDescription>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => setDrafts((d) => dropFields(d, stale))}>
+                {t('piece.discardDraft')}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setDrafts((d) => rebaseFields(d, stale, server))}>
+                {t('piece.keepDraft')}
+              </Button>
+            </div>
+          </div>
+        </Alert>
+      ) : null}
       <Textarea
         aria-label={t('piece.caption')}
+        aria-describedby="cm-piece-total"
+        aria-invalid={over > 0 || undefined}
         value={value.caption}
-        onChange={(e) => change({ caption: e.target.value })}
+        onChange={(e) => change('caption', e.target.value)}
         placeholder={t('piece.noCaption')}
-        maxLength={2200}
+        maxLength={CAPTION_TOTAL_MAX}
         className="min-h-40"
       />
+      <div id="cm-piece-total" className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 text-meta">
+          <span className="text-graphite">{t('piece.totalHint')}</span>
+          <span className={over > 0 ? 'font-medium tabular-nums text-state-failed' : 'tabular-nums text-graphite'}>
+            {t('piece.total', { count: total, max: CAPTION_TOTAL_MAX })}
+          </span>
+        </div>
+        {over > 0 ? (
+          <p className="text-meta leading-relaxed text-state-failed">{t('piece.totalOver', { over })}</p>
+        ) : null}
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field id="cm-piece-hashtags" label={t('piece.hashtags')} hint={t('piece.hashtagsHint')}>
           <Input
             id="cm-piece-hashtags"
             value={value.hashtags}
-            onChange={(e) => change({ hashtags: e.target.value })}
+            onChange={(e) => change('hashtags', e.target.value)}
           />
         </Field>
         <Field id="cm-piece-date" label={t('piece.scheduledFor')} hint={value.date ? undefined : t('piece.noDate')}>
-          <DateTimePicker id="cm-piece-date" value={value.date} onChange={(date) => change({ date })} />
+          <DateTimePicker id="cm-piece-date" value={value.date} onChange={(date) => change('date', date)} />
         </Field>
       </div>
       <div className="flex justify-end">
-        <Button variant="outline" onClick={save} disabled={draft === null} isLoading={edit.isPending}>
+        <Button variant="outline" onClick={save} disabled={!dirty || over > 0} isLoading={edit.isPending}>
           {t('piece.save')}
         </Button>
       </div>
@@ -515,7 +567,7 @@ function PieceActions({ piece }: { piece: ContentPiece }) {
   const errorMessage = useApiErrorMessage();
   const decide = useDecidePiece();
   const [pedido, setPedido] = useState<Pedido | null>(null);
-  const actions = actionsFor(piece.status);
+  const actions = actionsFor(piece);
   if (actions.length === 0) return null;
 
   const redoProductionLabel = piece.format === 'reels' ? t('actions.redoVideo') : t('actions.redoArt');

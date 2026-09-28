@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { cn } from '@/lib/utils';
 import type { IconType } from '@/types';
+import { RefreshNotice } from './field';
 import { useOverview } from './hooks';
 import { SECTIONS, sectionFor, type SectionKey } from './logic';
 
@@ -81,7 +82,9 @@ export function MaquinaShell({ children }: { children: React.ReactNode }) {
         </Alert>
       ) : null}
 
-      {overview.isError ? (
+      {/* refetch que falhou com a visão geral em cache: só um aviso discreto, as telas seguem montadas */}
+      {overview.isError && overview.data ? <RefreshNotice onRetry={() => void overview.refetch()} /> : null}
+      {overview.isError && !overview.data ? (
         <Alert variant="destructive">
           <TriangleAlert aria-hidden />
           <div className="flex flex-wrap items-center justify-between gap-3">

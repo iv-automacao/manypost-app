@@ -1,6 +1,8 @@
 'use client';
 
+import { CircleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
@@ -35,6 +37,24 @@ export function Field({
       ) : hint ? (
         <p className="text-meta leading-relaxed text-graphite">{hint}</p>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Aviso discreto de refetch que falhou com dados em cache: a tela (e qualquer rascunho) continua
+ * montada com a última versão carregada, em vez de trocar tudo pelo estado de erro.
+ */
+export function RefreshNotice({ onRetry, className }: { onRetry: () => void; className?: string }) {
+  const t = useTranslations('maquina');
+  const tc = useTranslations('common');
+  return (
+    <div role="status" className={cn('flex flex-wrap items-center gap-2 text-meta text-graphite', className)}>
+      <CircleAlert className="size-3.5 shrink-0 text-state-failed" aria-hidden />
+      <span className="min-w-0 flex-1">{t('refreshError')}</span>
+      <Button variant="ghost" size="sm" onClick={onRetry}>
+        {tc('retry')}
+      </Button>
     </div>
   );
 }

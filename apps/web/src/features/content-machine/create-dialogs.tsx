@@ -168,7 +168,10 @@ function NewIdeaForm({ onDone }: { onDone: () => void }) {
   );
 }
 
-/** Pauta da semana: a API escolhe temas pela fundação e cria as peças com o mix padrão. */
+/**
+ * Pauta da semana: a API enfileira a geração (temas pela fundação, mix padrão) e responde na hora;
+ * as peças chegam ao quadro pelo polling.
+ */
 export function PlanWeekDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const t = useTranslations('maquina');
   return (
@@ -199,10 +202,12 @@ function PlanWeekForm({ onDone }: { onDone: () => void }) {
     plan.mutate(
       { weekStart, ...(market ? { market } : {}) },
       {
-        onSuccess: (pieces) => {
-          toast.success(t('plan.created', { count: pieces.length }));
+        // 202: a pauta entrou na fila; o quadro acelera o polling até as peças aparecerem
+        onSuccess: () => {
+          toast.success(t('plan.queued'));
           onDone();
         },
+        // 409 (semana já planejada ou em planejamento): a mensagem da API explica; o diálogo fica aberto
         onError: (err) => toast.error(errorMessage(err)),
       },
     );

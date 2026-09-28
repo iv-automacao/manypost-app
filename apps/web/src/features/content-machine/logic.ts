@@ -5,7 +5,7 @@
  * em runtime são repetidos aqui porque `apps/web` não carrega `@manypost/contracts` no bundle.
  * A paridade com o contrato é assertada em `logic.test.ts`.
  */
-import { addDays, dayKey, startOfWeek } from '@/lib/datetime';
+import { addDays, dayKey, startOfWeek, toLocalInput } from '@/lib/datetime';
 import type {
   BrandPatch,
   ContentBrand,
@@ -100,11 +100,20 @@ export const isAutomatic = (status: PieceStatus): boolean => AUTOMATIC.has(statu
 export const POLL_ACTIVE_MS = 5_000;
 export const POLL_IDLE_MS = 60_000;
 
+/** a pauta é gerada na fila: depois do pedido, o quadro acompanha de perto por ~2 min */
+export const PLAN_POLL_WINDOW_MS = 2 * 60_000;
+
 /**
  * Intervalo de polling do quadro: rápido enquanto alguma peça anda sozinha (ou tem etapa
  * rodando), lento quando tudo espera uma pessoa — o agendado→publicado ainda muda no servidor.
+ * `fastUntil` (epoch ms) força o rápido até lá — a pauta pedida ainda não virou peça nenhuma.
  */
-export function pollInterval(pieces: readonly Pick<ContentPiece, 'status' | 'running'>[] | undefined): number {
+export function pollInterval(
+  pieces: readonly Pick<ContentPiece, 'status' | 'running'>[] | undefined,
+  fastUntil = 0,
+  now = Date.now(),
+): number {
+  if (now < fastUntil) return POLL_ACTIVE_MS;
   if (!pieces) return POLL_IDLE_MS;
   return pieces.some((p) => p.running || isAutomatic(p.status)) ? POLL_ACTIVE_MS : POLL_IDLE_MS;
 }
@@ -122,12 +131,7 @@ export function groupByStatus<T extends Pick<ContentPiece, 'status' | 'scheduled
 
 export type PieceAction = 'approve' | 'reject' | 'redoScript' | 'redoProduction' | 'retry';
 
-/**
- * Ações humanas por status. Espelha a tabela de transições do domínio: aprovar e refazer só onde
- * a transição existe; reprovar descarta o que ainda não foi agendado; reprovada só reabre pelo
- * roteiro. Agendado e publicado não têm ação aqui.
- */
-export function actionsFor(status: PieceStatus): PieceAction[] {
+function actionsByStatus(status: PieceStatus): PieceAction[] {
   switch (status) {
     case 'revisao':
       return ['approve', 'redoScript', 'redoProduction', 'reject'];
@@ -144,8 +148,33 @@ export function actionsFor(status: PieceStatus): PieceAction[] {
   }
 }
 
-/** legenda, hashtags e data só mudam antes do agendamento */
-export const isEditable = (status: PieceStatus): boolean => status !== 'agendado' && status !== 'publicado';
+/**
+ * Ações humanas da peça. Espelha a tabela de transições do domínio: aprovar e refazer só onde
+ * a transição existe; reprovar descarta o que ainda não foi agendado; reprovada só reabre pelo
+ * roteiro. Agendado e publicado não têm ação aqui. Refazer arte/vídeo produz de novo a partir do
+ * roteiro gravado: peça que falhou antes de ter roteiro não oferece (o backend também recusa).
+ */
+export function actionsFor(piece: Pick<ContentPiece, 'status' | 'script'>): PieceAction[] {
+  const actions = actionsByStatus(piece.status);
+  return piece.script ? actions : actions.filter((a) => a !== 'redoProduction');
+}
+
+/**
+ * Por que legenda, hashtags e data não podem ser editadas agora (`null` = podem). Espelha a
+ * recusa do backend (409 `content.invalid_transition`):
+ * - `closed`: agendada ou publicada — o texto já está no post;
+ * - `running`: uma etapa está rodando e vai ler ou reescrever a peça;
+ * - `ideia`: a etapa Roteiro ainda vai escrever a legenda;
+ * - `aprovado`: o agendamento já leu o texto.
+ */
+export type CaptionLock = 'closed' | 'running' | 'ideia' | 'aprovado';
+
+export function captionLock(piece: Pick<ContentPiece, 'status' | 'running'>): CaptionLock | null {
+  if (piece.status === 'agendado' || piece.status === 'publicado') return 'closed';
+  if (piece.running) return 'running';
+  if (piece.status === 'ideia' || piece.status === 'aprovado') return piece.status;
+  return null;
+}
 
 /** mídias com URL, na ordem do carrossel */
 export function orderedMedia(media: readonly PieceMedia[]): (PieceMedia & { url: string })[] {
@@ -172,6 +201,111 @@ export function parseHashtags(text: string): string[] {
 }
 
 export const formatHashtags = (tags: readonly string[]): string => tags.map((t) => `#${t}`).join(' ');
+
+/** limite do Instagram para o texto publicado inteiro — legenda e hashtags contam juntas */
+export const CAPTION_TOTAL_MAX = 2200;
+
+/** texto que vai ao ar, montado como o agendamento monta (espelho de `publishedText` do core) */
+export const publishedText = (caption: string, hashtags: readonly string[]): string =>
+  [caption.trim(), formatHashtags(hashtags)].filter(Boolean).join('\n\n');
+
+// ------------------------------------------------------------------ rascunho da legenda
+
+export const CAPTION_FIELDS = ['caption', 'hashtags', 'date'] as const;
+export type CaptionField = (typeof CAPTION_FIELDS)[number];
+/** os três campos no formato dos inputs (hashtags como texto, data como datetime-local) */
+export type CaptionValues = Record<CaptionField, string>;
+/** campo em edição: o valor digitado e o que o servidor tinha quando a edição começou */
+export interface FieldDraft {
+  value: string;
+  base: string;
+}
+/** só os campos que a pessoa mexeu; os demais mostram (e acompanham) o servidor */
+export type CaptionDrafts = Partial<Record<CaptionField, FieldDraft>>;
+
+export function captionValues(piece: Pick<ContentPiece, 'caption' | 'hashtags' | 'scheduledFor'>): CaptionValues {
+  return {
+    caption: piece.caption,
+    hashtags: formatHashtags(piece.hashtags),
+    date: piece.scheduledFor ? toLocalInput(new Date(piece.scheduledFor)) : '',
+  };
+}
+
+/** o que a tela mostra: rascunho onde houver, servidor no resto */
+export const shownValues = (drafts: CaptionDrafts, server: CaptionValues): CaptionValues => ({
+  caption: drafts.caption?.value ?? server.caption,
+  hashtags: drafts.hashtags?.value ?? server.hashtags,
+  date: drafts.date?.value ?? server.date,
+});
+
+/** digitar num campo guarda valor + base; voltar ao que o servidor tem descarta o rascunho do campo */
+export function editDraft(
+  drafts: CaptionDrafts,
+  field: CaptionField,
+  value: string,
+  server: CaptionValues,
+): CaptionDrafts {
+  const { [field]: current, ...rest } = drafts;
+  if (value === server[field]) return rest;
+  return { ...rest, [field]: { value, base: current?.base ?? server[field] } };
+}
+
+/** campos em edição cujo valor no servidor mudou desde que a edição começou */
+export const staleFields = (drafts: CaptionDrafts, server: CaptionValues): CaptionField[] =>
+  CAPTION_FIELDS.filter((f) => {
+    const d = drafts[f];
+    return d !== undefined && d.base !== server[f];
+  });
+
+/** descarta o rascunho dos campos (a tela volta a mostrar o servidor) */
+export function dropFields(drafts: CaptionDrafts, fields: readonly CaptionField[]): CaptionDrafts {
+  const out: CaptionDrafts = { ...drafts };
+  for (const f of fields) delete out[f];
+  return out;
+}
+
+/** mantém o texto da pessoa e reancora a base na versão nova do servidor (o aviso some) */
+export function rebaseFields(
+  drafts: CaptionDrafts,
+  fields: readonly CaptionField[],
+  server: CaptionValues,
+): CaptionDrafts {
+  const out: CaptionDrafts = { ...drafts };
+  for (const f of fields) {
+    const d = out[f];
+    if (d) out[f] = { value: d.value, base: server[f] };
+  }
+  return out;
+}
+
+/** corpo do PATCH: só os campos mexidos — o que a pessoa não tocou não volta ao valor antigo */
+export function captionPatch(drafts: CaptionDrafts): {
+  caption?: string;
+  hashtags?: string[];
+  scheduledFor?: string | null;
+} {
+  return {
+    ...(drafts.caption ? { caption: drafts.caption.value } : {}),
+    ...(drafts.hashtags ? { hashtags: parseHashtags(drafts.hashtags.value) } : {}),
+    ...(drafts.date ? { scheduledFor: isoFromLocalInput(drafts.date.value) ?? null } : {}),
+  };
+}
+
+/**
+ * Depois de salvar: sai o rascunho do que foi enviado. O que a pessoa digitou durante o envio fica,
+ * reancorado no valor salvo (`saved`), para não aparecer como "mudou no servidor".
+ */
+export function clearSaved(drafts: CaptionDrafts, sent: CaptionDrafts, saved: CaptionValues): CaptionDrafts {
+  const out: CaptionDrafts = {};
+  for (const f of CAPTION_FIELDS) {
+    const d = drafts[f];
+    const s = sent[f];
+    if (!d) continue;
+    if (!s) out[f] = d;
+    else if (d.value !== s.value) out[f] = { value: d.value, base: saved[f] };
+  }
+  return out;
+}
 
 /** próxima segunda-feira (estritamente depois de hoje) no fuso local, como YYYY-MM-DD */
 export function nextMonday(from: Date): string {

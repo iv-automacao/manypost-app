@@ -3,11 +3,12 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
 import { unwrap } from '@/lib/api/unwrap';
-import { pollInterval } from './logic';
+import { PLAN_POLL_WINDOW_MS, pollInterval } from './logic';
 import type {
   BrandPatch,
   ContentBrand,
   ContentOverview,
+  ContentPieceDetail,
   CreatePieceBody,
   EditPieceBody,
   FoundationKey,
@@ -43,17 +44,25 @@ export function useOverview() {
   });
 }
 
+/** a organização está configurada desde a primeira visão geral bem-sucedida; refetch que falha não desfaz */
 function useMachineReady() {
-  return useOverview().isSuccess;
+  return useOverview().data !== undefined;
 }
 
-/** Peças do quadro; polling de 5s enquanto alguma anda sozinha (ver `pollInterval`). */
+/**
+ * Até quando (epoch ms) o quadro acompanha de perto uma pauta pedida. Fica no módulo, e não no
+ * estado do componente, para sobreviver a sair e voltar do quadro durante a janela. O React Query
+ * reavalia `refetchInterval` a cada busca, então a janela vencida volta sozinha ao ritmo normal.
+ */
+let planPollUntil = 0;
+
+/** Peças do quadro; polling de 5s enquanto alguma anda sozinha ou há pauta em geração (ver `pollInterval`). */
 export function usePieces() {
   return useQuery({
     queryKey: cmKeys.pieces,
     queryFn: async () =>
       unwrap(await api.GET('/v1/content-machine/pieces', { params: { query: { limit: PIECES_LIMIT } } })),
-    refetchInterval: (query) => pollInterval(query.state.data),
+    refetchInterval: (query) => pollInterval(query.state.data, planPollUntil),
   });
 }
 
@@ -178,15 +187,36 @@ export function useCreatePiece() {
   });
 }
 
+/** corpo do 202 de `POST /v1/content-machine/plan`: a pauta entrou na fila */
+export interface PlanQueued {
+  queued: true;
+  weekStart: string;
+}
+
+/**
+ * Pede a pauta da semana. O backend agora responde 202 `{ queued, weekStart }` (a pauta é gerada
+ * na fila) e 409 quando a semana já foi ou está sendo planejada. O cliente gerado ainda descreve o
+ * antigo 201 com a lista de peças e não é regenerado aqui (a geração derrubaria as rotas de
+ * billing); este é o único ponto que conhece a forma nova — daí o cast.
+ */
+async function requestPlan(body: PlanWeekBody): Promise<PlanQueued> {
+  return unwrap<unknown>(await api.POST('/v1/content-machine/plan', { body })) as PlanQueued;
+}
+
 export function usePlanWeek() {
   const invalidate = useInvalidatePieces();
   return useMutation({
-    mutationFn: async (body: PlanWeekBody) => unwrap(await api.POST('/v1/content-machine/plan', { body })),
-    onSuccess: () => invalidate(),
+    mutationFn: requestPlan,
+    onSuccess: () => {
+      // a janela vale antes do refetch: a busca disparada pela invalidação já sai no ritmo rápido
+      planPollUntil = Date.now() + PLAN_POLL_WINDOW_MS;
+      invalidate();
+    },
   });
 }
 
 export function useEditPiece() {
+  const queryClient = useQueryClient();
   const invalidate = useInvalidatePieces();
   return useMutation({
     mutationFn: async (input: { id: string; patch: EditPieceBody }) =>
@@ -196,7 +226,11 @@ export function useEditPiece() {
           body: input.patch,
         }),
       ),
-    onSuccess: (_piece, input) => invalidate(input.id),
+    // a peça devolvida entra direto no detalhe: o rascunho limpo não pisca o valor antigo até o refetch
+    onSuccess: (piece) =>
+      queryClient.setQueryData<ContentPieceDetail>(cmKeys.piece(piece.id), (old) => (old ? { ...old, piece } : old)),
+    // salvo ou recusado (409: a peça mudou de etapa), quadro e detalhe releem o servidor
+    onSettled: (_piece, _err, input) => invalidate(input.id),
   });
 }
 

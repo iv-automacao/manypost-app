@@ -13,7 +13,7 @@ export const AllowedContentTransitions: Record<ContentPieceStatus, readonly Cont
   erro: ['ideia', 'roteiro', 'producao', 'aprovado', 'reprovado'],
 };
 
-export function canTransition(from: ContentPieceStatus, to: ContentPieceStatus): boolean {
+export function canContentTransition(from: ContentPieceStatus, to: ContentPieceStatus): boolean {
   return AllowedContentTransitions[from].includes(to);
 }
 

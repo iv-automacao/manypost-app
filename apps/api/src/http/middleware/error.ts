@@ -34,6 +34,11 @@ const STATUS: Record<string, ContentfulStatusCode> = {
   // o bucket/volume falhou, não o pedido do cliente — 502 diz "é do nosso lado", e a mídia
   // pode ser tentada de novo sem mudar nada na requisição
   'media.store_failed': 502,
+  // máquina de conteúdo: a peça mudou de etapa enquanto a pessoa decidia
+  'content.invalid_transition': 409,
+  // falta configurar renderizador, vídeo ou prompt nesta instalação/organização
+  'content.not_configured': 501,
+  'content.generation_failed': 502,
 };
 
 export function errorHandler(err: unknown, c: Context) {

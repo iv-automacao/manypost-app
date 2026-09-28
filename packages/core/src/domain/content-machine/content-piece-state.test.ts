@@ -1,31 +1,31 @@
 import { describe, expect, test } from 'bun:test';
 import { ContentPieceStatuses } from '@manypost/contracts';
-import { AUTOMATIC_STAGES, canTransition, isAutomatic, keywordFor } from './content-piece-state';
+import { AUTOMATIC_STAGES, canContentTransition, isAutomatic, keywordFor } from './content-piece-state';
 
 describe('ciclo de vida da peça', () => {
   test('as etapas automáticas avançam na ordem da esteira', () => {
-    expect(canTransition('ideia', 'roteiro')).toBe(true);
-    expect(canTransition('roteiro', 'producao')).toBe(true);
-    expect(canTransition('producao', 'aprovado')).toBe(true);
-    expect(canTransition('producao', 'revisao')).toBe(true);
-    expect(canTransition('aprovado', 'agendado')).toBe(true);
-    expect(canTransition('agendado', 'publicado')).toBe(true);
+    expect(canContentTransition('ideia', 'roteiro')).toBe(true);
+    expect(canContentTransition('roteiro', 'producao')).toBe(true);
+    expect(canContentTransition('producao', 'aprovado')).toBe(true);
+    expect(canContentTransition('producao', 'revisao')).toBe(true);
+    expect(canContentTransition('aprovado', 'agendado')).toBe(true);
+    expect(canContentTransition('agendado', 'publicado')).toBe(true);
   });
 
   test('publicado é terminal', () => {
-    for (const s of ContentPieceStatuses) expect(canTransition('publicado', s)).toBe(false);
+    for (const s of ContentPieceStatuses) expect(canContentTransition('publicado', s)).toBe(false);
   });
 
   test('a revisão humana aprova, reprova ou manda regerar', () => {
-    expect(canTransition('revisao', 'aprovado')).toBe(true);
-    expect(canTransition('revisao', 'reprovado')).toBe(true);
-    expect(canTransition('revisao', 'roteiro')).toBe(true);
-    expect(canTransition('revisao', 'agendado')).toBe(false);
+    expect(canContentTransition('revisao', 'aprovado')).toBe(true);
+    expect(canContentTransition('revisao', 'reprovado')).toBe(true);
+    expect(canContentTransition('revisao', 'roteiro')).toBe(true);
+    expect(canContentTransition('revisao', 'agendado')).toBe(false);
   });
 
   test('erro pode ser retomado de uma etapa, nunca pulando para publicado', () => {
-    expect(canTransition('erro', 'ideia')).toBe(true);
-    expect(canTransition('erro', 'publicado')).toBe(false);
+    expect(canContentTransition('erro', 'ideia')).toBe(true);
+    expect(canContentTransition('erro', 'publicado')).toBe(false);
   });
 
   test('só os status com etapa automática entram na fila', () => {

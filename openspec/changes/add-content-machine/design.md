@@ -50,13 +50,22 @@ update (`locked_until < now()`), reads its status and runs one stage:
 | `aprovado` | schedule through the publishing use case | `agendado` |
 
 After a successful stage the handler enqueues the piece again when the next status is automatic.
+Retryable failures (provider, timeout, unreadable model output) retry twice with backoff before the
+piece goes to `erro`. Scheduling is idempotent: the post group id is written right after the post is
+created, and a retried stage reuses that group instead of creating another post. The reviewer's
+`SEM_CTA` flag is dropped when the caption contains the exact keyword (checkable without a model).
+Stages run in the API process (`MODE=all|standalone|full`); the dedicated worker does not consume
+this queue. The queue has three local workers so a reel waiting on video does not block text stages.
 The sweeper runs every minute: re-enqueue expired locks; reconcile `agendado` pieces with their post
 group state. Jobs for the queue use a one-hour expiration because video generation can take minutes.
 
 ### D4. External services
-- Renderer (`CONTENT_RENDERER_URL`, `CONTENT_RENDERER_KEY`): `POST /render` returns PNG bytes as
-  base64 for slides; `POST /lint`; `POST /paleta` (image URL → colors); `POST /montar-reel` (clip URLs
-  + closing card → `video/mp4` bytes). Outbound calls reuse the outbound HTTP helper; the renderer URL
+- Renderer (`CONTENT_RENDERER_URL`, `CONTENT_RENDERER_KEY`): `POST /v2/render` returns PNG bytes as
+  base64 for slides, drawn with the brand sent in the request (palette, logos for light and dark
+  backgrounds, slogan, signature); `POST /lint`; `POST /paleta` (image URL → colors + suggested
+  palette); `POST /montar-reel` (clip URLs + closing card → `video/mp4` bytes, duration in the
+  `x-duracao-s` header). The legacy `POST /render` stays for the external pipeline until it is
+  retired. Outbound calls reuse the outbound HTTP helper; the renderer URL
   is operator-configured (internal network allowed by configuration).
 - Video provider (`VIDEO_PROVIDER_KEY`, `VIDEO_PROVIDER_MODEL`): submit, poll until terminal, read the
   cost from the provider estimate. Moderated, failed or cancelled requests are errors, never success.

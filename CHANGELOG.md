@@ -8,6 +8,26 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
 
 ### Added
 
+- **Máquina de conteúdo (`add-content-machine`).** Nova área "Máquina" com a esteira completa por
+  organização: pauta da semana (fórmulas de gancho) → roteiro e legenda (com lint mecânico e uma
+  correção automática) → produção (carrossel, post e story renderizados com a identidade da marca;
+  reels com um clipe por cena gerado com narração nativa e montado com card final) → revisão de
+  conformidade (prompt versionado + checagem determinística de CTA) → agendamento pela esteira de
+  publicação de sempre → acompanhamento até `publicado`. Peça sinalizada para em `revisao` para uma
+  pessoa aprovar, reprovar ou pedir ajuste de roteiro/arte. Identidade visual (logos para fundo
+  claro/escuro, paleta extraída da logo, slogan, assinatura, tom, canal padrão, CTA por direct ou
+  WhatsApp), fundação editorial e prompts versionados ficam no app. Todo gasto (texto por tokens,
+  vídeo pela estimativa do fornecedor, com estorno de pedido moderado) é registrado por peça e por
+  mês. Tabelas novas (migration aditiva `0008_content-machine`), fila `content-machine` + sweeper
+  por minuto, rotas `/v1/content-machine/*`. Variáveis opcionais: `CONTENT_RENDERER_URL`,
+  `CONTENT_RENDERER_KEY`, `VIDEO_PROVIDER_KEY`, `VIDEO_PROVIDER_MODEL`, `VIDEO_PROVIDER_BASE_URL`,
+  `VIDEO_PROVIDER_RESOLUTION`, `CONTENT_TEXT_USD_IN`, `CONTENT_TEXT_USD_OUT`; sem elas a máquina
+  responde que a capacidade não está configurada. As etapas rodam no processo da API (`MODE=all`,
+  `standalone` ou `full`); o worker dedicado não consome esta fila.
+- **Adapter de texto aceita modelos de raciocínio.** `AI_TOKEN_LIMIT_PARAM`
+  (`max_tokens` | `max_completion_tokens`) e `AI_SEND_TEMPERATURE` (padrão `true`) ajustam o
+  pedido do dialeto chat-completions; o padrão mantém o comportamento anterior.
+
 - **A API pública ganhou os campos aditivos que o feed interno já tinha.** `GET
   /public/v1/publications` agora expõe `publishedAt` (quando a entrega de fato aconteceu),
   `updatedAt` (última mutação, o que ordena atividade recente) e `mediaPreview` (primeira mídia do

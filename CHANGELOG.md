@@ -110,7 +110,9 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
   sem modelo de texto.
 - **Publicação com resultado incerto na máquina.** Nova decisão `resolvePublication`: "saiu" marca
   publicação e peça como publicadas (com o link), "não saiu" libera o "tentar de novo" em um post
-  novo. O domínio de publicação ganhou `FAILED → CANCELLED` (descartar post que falhou).
+  novo. O domínio de publicação ganhou `FAILED → CANCELLED` (descartar post que falhou). Descartar ou resolver
+  recalcula o estado do grupo (Quadro e alerta de parcial corretos), e peça em erro cujo post saiu
+  por outro caminho é conciliada como publicada pelo sweeper, sem gerar segunda publicação.
 
 - **As tools MCP de posts viam um post diferente do REST.** `get_post` (e as respostas de
   agendar/reagendar/cancelar via MCP) omitia `media` e `attemptCount` de cada publicação porque o

@@ -46,7 +46,7 @@ refeito por decisão humana na tela, reaprovado e publicado
 `erro` por saldo insuficiente no fornecedor de vídeo, com as 3 tentativas da cena 3 estornadas —
 retoma com "Tentar de novo" depois da recarga.
 
-**Revisões adversariais (28/09).** Três rodadas (60, 29 e 9+ agentes): 37 achados confirmados na
+**Revisões adversariais (28/09).** Quatro rodadas (60, 29, 29 e 29 agentes; a última com 9 achados confirmados, todos corrigidos): 37 achados confirmados na
 primeira (deduplicados em ~20 defeitos), resíduos e 3 regressões na segunda, e uma final sobre as
 rodadas 3 e 4. Tudo corrigido com teste de regressão por achado (core: 440 testes; web: 42) e em
 produção. Destaques: token de posse, espera no banco, agendamento com id escolhido antes, descarte

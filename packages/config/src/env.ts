@@ -183,6 +183,8 @@ const EnvSchema = z
     VIDEO_PROVIDER_MODEL: z.string().default('bytedance/seedance-2.5/text-to-video'),
     /** vazio = endpoint padrão do adapter */
     VIDEO_PROVIDER_BASE_URL: z.string().url().optional(),
+    /** 480p custa menos da metade de 720p; o reels final sai sempre em 1080×1920 */
+    VIDEO_PROVIDER_RESOLUTION: z.enum(['480p', '720p']).default('720p'),
     /** preço de texto por milhão de tokens (entrada/saída), para o registro de gasto da máquina */
     CONTENT_TEXT_USD_IN: z.coerce.number().min(0).default(0.25),
     CONTENT_TEXT_USD_OUT: z.coerce.number().min(0).default(2),
@@ -567,6 +569,7 @@ export function providerEnvVarNames(providerId: string, secretKeys: string[]): s
 export interface ContentMachineConfig {
   renderer: { baseUrl: string; apiKey: string } | null;
   video: { apiKey: string; model: string; baseUrl?: string; timeoutMs: number } | null;
+  videoResolution: '480p' | '720p';
   prices: { textUsdIn: number; textUsdOut: number };
 }
 
@@ -583,6 +586,7 @@ export function contentMachineConfigFromEnv(env: Env): ContentMachineConfig {
           timeoutMs: 60_000,
         }
       : null,
+    videoResolution: env.VIDEO_PROVIDER_RESOLUTION,
     prices: { textUsdIn: env.CONTENT_TEXT_USD_IN, textUsdOut: env.CONTENT_TEXT_USD_OUT },
   };
 }

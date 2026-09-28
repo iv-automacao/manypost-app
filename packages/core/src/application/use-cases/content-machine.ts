@@ -56,6 +56,8 @@ export interface ContentMachineDeps {
   /** rótulo do modelo de texto, só para o registro de gasto */
   textModel: string;
   videoMaxBytes: number;
+  /** resolução pedida ao gerador de vídeo (padrão 720p) */
+  videoResolution?: '480p' | '720p';
   now?: () => Date;
   sleep?: (ms: number) => Promise<void>;
   /** quanto uma execução espera o vídeo antes de soltar a peça e voltar depois */

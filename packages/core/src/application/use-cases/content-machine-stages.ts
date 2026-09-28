@@ -241,7 +241,7 @@ async function etapaVideo(deps: ContentMachineDeps, piece: ContentPieceRecord, b
       prompt: `${cena.visual} ${VIDEO_STYLE}"${cena.locucao}"`,
       durationSec: 6,
       aspect: '9:16',
-      resolution: '720p',
+      resolution: deps.videoResolution ?? '720p',
       audio: true,
     };
     const custo = await video.estimate(pedido);

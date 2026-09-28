@@ -45,6 +45,7 @@ export async function buildContentMachine(
     prices: config.prices,
     textModel: aiConfigFromEnv(env)?.model ?? 'desconhecido',
     videoMaxBytes: env.MEDIA_MAX_VIDEO_MB * 1024 * 1024,
+    videoResolution: config.videoResolution,
     log: (level, msg, data) =>
       log(level === 'error' || level === 'warn' ? level : 'info', msg, data as Record<string, unknown> | undefined),
   };

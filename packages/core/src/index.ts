@@ -48,5 +48,6 @@ export * from './infra/media/sniff';
 export * from './infra/net/ip-classify';
 export * from './infra/net/outbound-http';
 export * from './infra/ai';
+export * from './infra/content-renderer';
 export * from './application/ai/structured';
 export * from './application/ai/shorten';

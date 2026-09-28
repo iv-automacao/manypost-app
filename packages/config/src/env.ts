@@ -181,6 +181,8 @@ const EnvSchema = z
     CONTENT_RENDERER_KEY: z.string().optional(),
     VIDEO_PROVIDER_KEY: z.string().optional(),
     VIDEO_PROVIDER_MODEL: z.string().default('bytedance/seedance-2.5/text-to-video'),
+    /** vazio = endpoint padrão do adapter */
+    VIDEO_PROVIDER_BASE_URL: z.string().url().optional(),
     /** preço de texto por milhão de tokens (entrada/saída), para o registro de gasto da máquina */
     CONTENT_TEXT_USD_IN: z.coerce.number().min(0).default(0.25),
     CONTENT_TEXT_USD_OUT: z.coerce.number().min(0).default(2),
@@ -556,4 +558,31 @@ export function providerSecretsFromEnv(env: Env): Record<string, Record<string, 
 export function providerEnvVarNames(providerId: string, secretKeys: string[]): string[] {
   const map = (PROVIDER_ENV as Record<string, Record<string, string>>)[providerId] ?? {};
   return secretKeys.map((k) => map[k]).filter((v): v is string => Boolean(v));
+}
+
+/**
+ * Máquina de conteúdo (openspec add-content-machine, design D4/D5). Renderizador e vídeo são
+ * opcionais: sem eles a máquina responde que a capacidade não está configurada, nunca falha calada.
+ */
+export interface ContentMachineConfig {
+  renderer: { baseUrl: string; apiKey: string } | null;
+  video: { apiKey: string; model: string; baseUrl?: string; timeoutMs: number } | null;
+  prices: { textUsdIn: number; textUsdOut: number };
+}
+
+export function contentMachineConfigFromEnv(env: Env): ContentMachineConfig {
+  return {
+    renderer: env.CONTENT_RENDERER_URL
+      ? { baseUrl: env.CONTENT_RENDERER_URL, apiKey: env.CONTENT_RENDERER_KEY ?? '' }
+      : null,
+    video: env.VIDEO_PROVIDER_KEY
+      ? {
+          apiKey: env.VIDEO_PROVIDER_KEY,
+          model: env.VIDEO_PROVIDER_MODEL,
+          ...(env.VIDEO_PROVIDER_BASE_URL ? { baseUrl: env.VIDEO_PROVIDER_BASE_URL } : {}),
+          timeoutMs: 60_000,
+        }
+      : null,
+    prices: { textUsdIn: env.CONTENT_TEXT_USD_IN, textUsdOut: env.CONTENT_TEXT_USD_OUT },
+  };
 }

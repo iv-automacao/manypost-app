@@ -3,6 +3,7 @@ import type { ContentPieceStatus } from '@manypost/contracts';
 import type { AiProvider, BudgetGuard } from '../ports/ai-provider';
 import type {
   ContentBrandRecord,
+  ContentLintFinding,
   ContentMachineRepository,
   ContentPieceEventRecord,
   ContentPieceRecord,
@@ -234,8 +235,9 @@ function montar(opts: { revisor?: unknown; lintErro?: boolean; videoFalha?: 'uma
     },
     async lint(req) {
       lintChamadas++;
-      const erro = opts.lintErro && lintChamadas === 1;
-      return { script: req.script, caption: req.caption, hashtags: req.hashtags.slice(0, 5), findings: erro ? [{ nivel: 'erro', codigo: 'SEM_CTA', msg: 'sem palavra-chave' }] : [], hasError: erro };
+      const erro = Boolean(opts.lintErro) && lintChamadas === 1;
+      const findings: ContentLintFinding[] = erro ? [{ nivel: 'erro', codigo: 'SEM_CTA', msg: 'sem palavra-chave' }] : [];
+      return { script: req.script, caption: req.caption, hashtags: req.hashtags.slice(0, 5), findings, hasError: erro };
     },
     async palette() {
       return { colors: ['#0073ca', '#231f20', '#zzzzzz'], suggestion: { primaria: '#0073CA', fundoEscuro: '#231f20', texto: 'azul' } };
@@ -280,7 +282,8 @@ function montar(opts: { revisor?: unknown; lintErro?: boolean; videoFalha?: 'uma
     },
     storage: { put: async () => {}, read: async () => null, delete: async () => {}, publicUrl: (k) => `https://post.exemplo/uploads/${k}` },
     channels: {
-      findMany: async (orgId, ids) => (orgId === ORG ? ids.filter((i) => i === 'canal-ig').map((id) => ({ id, provider: 'instagram-standalone', name: '@teste' })) : []),
+      findMany: async (orgId: string, ids: string[]) =>
+        orgId === ORG ? ids.filter((i) => i === 'canal-ig').map((id) => ({ id, provider: 'instagram-standalone', name: '@teste' })) : [],
     } as unknown as ContentMachineDeps['channels'],
     publishing: {
       getGroup: async (_o, id) => {

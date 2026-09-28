@@ -2245,6 +2245,24 @@
           "updatedAt"
         ]
       },
+      "ContentPlanQueued": {
+        "type": "object",
+        "properties": {
+          "queued": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "weekStart": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "queued",
+          "weekStart"
+        ]
+      },
       "ContentPieceEvent": {
         "type": "object",
         "properties": {
@@ -7311,8 +7329,8 @@
             "clerkAuth": []
           }
         ],
-        "summary": "Gera a pauta da semana e cria as peças",
-        "description": "Sem `slots`, usa o mix padrão (2 carrosséis, 1 reels, 1 post).",
+        "summary": "Pede a pauta da semana; as peças aparecem no quadro quando a geração termina",
+        "description": "Sem `slots`, usa o mix padrão (2 carrosséis, 1 reels, 1 post). A geração roda na fila (o modelo passa do tempo de uma requisição); semana já planejada responde 409.",
         "requestBody": {
           "required": true,
           "content": {
@@ -7380,15 +7398,12 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "peças criadas",
+          "202": {
+            "description": "pauta na fila",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ContentPiece"
-                  }
+                  "$ref": "#/components/schemas/ContentPlanQueued"
                 }
               }
             }
@@ -7413,16 +7428,6 @@
               }
             }
           },
-          "402": {
-            "description": "plano atual não inclui — `extra.requiredTier` diz o plano mínimo",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "404": {
             "description": "não encontrado",
             "content": {
@@ -7433,8 +7438,8 @@
               }
             }
           },
-          "501": {
-            "description": "capacidade não disponível nesta instalação",
+          "409": {
+            "description": "conflito",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7443,8 +7448,8 @@
               }
             }
           },
-          "502": {
-            "description": "provedor externo falhou — o pedido pode ser repetido",
+          "501": {
+            "description": "capacidade não disponível nesta instalação",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7800,7 +7805,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^\\d{4}-\\d{2}$"
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
             },
             "required": false,
             "name": "month",

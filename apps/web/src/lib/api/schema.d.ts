@@ -3444,8 +3444,8 @@ export type paths = {
         get?: never;
         put?: never;
         /**
-         * Gera a pauta da semana e cria as peças
-         * @description Sem `slots`, usa o mix padrão (2 carrosséis, 1 reels, 1 post).
+         * Pede a pauta da semana; as peças aparecem no quadro quando a geração termina
+         * @description Sem `slots`, usa o mix padrão (2 carrosséis, 1 reels, 1 post). A geração roda na fila (o modelo passa do tempo de uma requisição); semana já planejada responde 409.
          */
         post: {
             parameters: {
@@ -3473,13 +3473,13 @@ export type paths = {
                 };
             };
             responses: {
-                /** @description peças criadas */
-                201: {
+                /** @description pauta na fila */
+                202: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ContentPiece"][];
+                        "application/json": components["schemas"]["ContentPlanQueued"];
                     };
                 };
                 /** @description requisição fora do contrato (problem+json) */
@@ -3500,15 +3500,6 @@ export type paths = {
                         "application/problem+json": components["schemas"]["Error"];
                     };
                 };
-                /** @description plano atual não inclui — `extra.requiredTier` diz o plano mínimo */
-                402: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Error"];
-                    };
-                };
                 /** @description não encontrado */
                 404: {
                     headers: {
@@ -3518,8 +3509,8 @@ export type paths = {
                         "application/problem+json": components["schemas"]["Error"];
                     };
                 };
-                /** @description capacidade não disponível nesta instalação */
-                501: {
+                /** @description conflito */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -3527,8 +3518,8 @@ export type paths = {
                         "application/problem+json": components["schemas"]["Error"];
                     };
                 };
-                /** @description provedor externo falhou — o pedido pode ser repetido */
-                502: {
+                /** @description capacidade não disponível nesta instalação */
+                501: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -6794,6 +6785,11 @@ export type components = {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        ContentPlanQueued: {
+            /** @enum {boolean} */
+            queued: true;
+            weekStart: string;
         };
         ContentPieceEvent: {
             id: string;

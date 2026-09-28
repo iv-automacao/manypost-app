@@ -161,6 +161,9 @@ export function actionsFor(piece: Pick<ContentPiece, 'status' | 'script'>, publi
   return piece.script ? actions : actions.filter((a) => a !== 'redoProduction');
 }
 
+/** link de post do Instagram aceito na confirmação de publicação (o mesmo critério do backend) */
+export const isInstagramLink = (s: string): boolean => /^https:\/\/(www\.|m\.)?instagram\.com\//.test(s.trim());
+
 /** a rede não confirmou a publicação: só uma pessoa, olhando o perfil, sabe se saiu */
 export function needsPublicationCheck(piece: Pick<ContentPiece, 'status'>, publicationState?: string | null): boolean {
   return piece.status === 'erro' && publicationState === 'NEEDS_REVIEW';
@@ -174,12 +177,13 @@ export function needsPublicationCheck(piece: Pick<ContentPiece, 'status'>, publi
  * - `ideia`: a etapa Roteiro ainda vai escrever a legenda;
  * - `aprovado`: o agendamento já leu o texto.
  */
-export type CaptionLock = 'closed' | 'running' | 'ideia' | 'aprovado';
+export type CaptionLock = 'closed' | 'running' | 'ideia' | 'aprovado' | 'reprovado';
 
 export function captionLock(piece: Pick<ContentPiece, 'status' | 'running'>): CaptionLock | null {
   if (piece.status === 'agendado' || piece.status === 'publicado') return 'closed';
   if (piece.running) return 'running';
-  if (piece.status === 'ideia' || piece.status === 'aprovado') return piece.status;
+  // reprovada só sai para `ideia`, e o roteiro reescreve a legenda: editar aqui se perderia
+  if (piece.status === 'ideia' || piece.status === 'aprovado' || piece.status === 'reprovado') return piece.status;
   return null;
 }
 

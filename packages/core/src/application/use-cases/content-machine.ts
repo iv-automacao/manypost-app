@@ -51,7 +51,7 @@ export interface ContentMachineDeps {
   media: MediaRepository;
   storage: MediaStorage;
   channels: ChannelRepository;
-  publishing: Pick<PublishingRepository, 'getGroup' | 'transition'>;
+  publishing: Pick<PublishingRepository, 'getGroup' | 'transition' | 'refreshGroupState'>;
   schedulePost: ReturnType<typeof makeSchedulePost>;
   scheduler: JobScheduler;
   audit: AuditLogRepository;
@@ -137,14 +137,21 @@ export async function descartarPost(
   const grupo = await deps.publishing.getGroup(orgId, groupId);
   if (!grupo) return { pendentes: [] };
   const pendentes: string[] = [];
+  let mudou = false;
   for (const pub of grupo.publications) {
     if ((DESCARTAVEIS as readonly string[]).includes(pub.state)) {
-      await deps.publishing.transition(pub.id, [...DESCARTAVEIS], 'CANCELLED', { bumpJobVersion: true });
-      await deps.scheduler.cancelBySingletonKey('publish', pub.id).catch(() => {});
+      // o worker pode ter pegado a publicação entre a leitura e aqui: a transição condicional perde
+      const ok = await deps.publishing.transition(pub.id, [...DESCARTAVEIS], 'CANCELLED', { bumpJobVersion: true });
+      if (ok) {
+        mudou = true;
+        await deps.scheduler.cancelBySingletonKey('publish', pub.id).catch(() => {});
+      } else pendentes.push('PUBLISHING');
     } else if (pub.state === 'PUBLISHING' || pub.state === 'NEEDS_REVIEW') {
       pendentes.push(pub.state);
     }
   }
+  // o estado do grupo (Quadro, calendário, alerta de parcial na home) sai das publicações
+  if (mudou) await deps.publishing.refreshGroupState(grupo.id);
   return { pendentes };
 }
 
@@ -486,8 +493,9 @@ export const makeRequestPlan =
     await deps.scheduler.enqueue(
       CONTENT_PLAN_QUEUE,
       { orgId: actor.orgId, userId: actor.userId, input },
-      // retentativa é feita pelo próprio job, que avisa no sininho se não conseguir
-      { singletonKey: `${actor.orgId}:${from}:${to}`, retryLimit: 0 },
+      // o job tenta de novo e avisa no sininho sozinho (nunca lança); a retentativa da fila só age se
+      // o processo cair no meio (deploy) — seguro, porque o job só gera os slots que faltam
+      { singletonKey: `${actor.orgId}:${from}:${to}`, retryLimit: 1 },
     );
     return { queued: true, weekStart: input.weekStart };
   };
@@ -634,6 +642,20 @@ export const makeDecidePiece =
 
     // reprovar ou refazer tira do ar o post anterior; em voo ou incerto, resolve-se isso antes
     const postAnterior = decision.action === 'reject' || decision.action === 'redo' ? postDaPeca(piece) : null;
+    // o post da peça saiu por outro caminho (ex.: "tentar novamente" no Quadro de publicações): a
+    // peça é marcada como publicada, e nenhuma decisão gera uma segunda publicação
+    const gidAtual = postDaPeca(piece);
+    if (piece.status === 'erro' && gidAtual) {
+      const pub = (await deps.publishing.getGroup(actor.orgId, gidAtual))?.publications[0];
+      if (pub?.state === 'PUBLISHED') {
+        await deps.repo.transition(actor.orgId, pieceId, 'erro', 'publicado', { publishedAt: agora(deps), permalink: pub.releaseUrl, error: null }, {
+          stage: 'publicacao',
+          detail: { conciliado: true },
+        });
+        throw new DomainError(ErrorCodes.ContentInvalidTransition, 'O post desta peça já saiu no Instagram. A peça foi marcada como publicada.');
+      }
+    }
+
     if (postAnterior) {
       const grupo = await deps.publishing.getGroup(actor.orgId, postAnterior);
       const pub = grupo?.publications[0];
@@ -704,7 +726,12 @@ export const makeDecidePiece =
     if (!atualizada) {
       throw new DomainError(ErrorCodes.ContentInvalidTransition, 'a peça mudou de etapa enquanto você decidia; recarregue');
     }
-    if (postAnterior) await descartarPost(deps, actor.orgId, postAnterior);
+    if (postAnterior) {
+      const { pendentes } = await descartarPost(deps, actor.orgId, postAnterior);
+      if (pendentes.length) {
+        deps.log?.('warn', 'content-machine: post anterior não pôde ser descartado', { pieceId, pendentes });
+      }
+    }
     await deps.audit
       .append({ orgId: actor.orgId, actorType: 'USER', actorId: actor.userId, action: `content.piece.${decision.action}`, targetType: 'content_piece', targetId: pieceId })
       .catch(() => {});
@@ -730,12 +757,13 @@ async function resolverPublicacao(
     throw new DomainError(ErrorCodes.ContentInvalidTransition, 'Esta peça não tem publicação com resultado incerto.');
   }
   const link = d.permalink?.trim() || null;
-  if (link && !/^https:\/\/(www\.)?instagram\.com\//.test(link)) {
-    throw new DomainError(ErrorCodes.PostInvalidSettings, 'o link precisa ser de um post do Instagram');
+  if (link && !/^https:\/\/(www\.|m\.)?instagram\.com\//.test(link)) {
+    throw new DomainError(ErrorCodes.ContentInvalidInput, 'O link precisa ser de um post do Instagram (https://www.instagram.com/…).');
   }
   const agora_ = agora(deps);
   if (d.published) {
     await deps.publishing.transition(pub.id, ['NEEDS_REVIEW'], 'PUBLISHED', { publishedAt: agora_, ...(link ? { releaseUrl: link } : {}) });
+    await deps.publishing.refreshGroupState(grupo!.id);
     const r = await deps.repo.transition(actor.orgId, piece.id, 'erro', 'publicado', { publishedAt: agora_, permalink: link, error: null }, {
       stage: 'humano.publicacao_confirmada',
       detail: { por: actor.userId },
@@ -744,6 +772,7 @@ async function resolverPublicacao(
     return r;
   }
   await deps.publishing.transition(pub.id, ['NEEDS_REVIEW'], 'FAILED', { errorMessage: 'confirmado que não saiu na rede' });
+  await deps.publishing.refreshGroupState(grupo!.id);
   const r = await deps.repo.update(actor.orgId, piece.id, { error: 'Confirmado que não saiu. Use "Tentar de novo" para publicar em um post novo.' });
   if (!r) throw new DomainError(ErrorCodes.NotFound, 'peça não encontrada');
   return r;
@@ -787,7 +816,9 @@ export const makeEditPiece =
         ErrorCodes.ContentInvalidTransition,
         editaveis.includes(atual.status)
           ? 'Uma etapa está rodando nesta peça. Espere terminar para ajustar.'
-          : 'Nesta etapa a peça não pode ser editada (a legenda está sendo escrita ou já foi para o agendamento).',
+          : atual.status === 'reprovado'
+            ? 'Peça reprovada: ao refazer o roteiro, a legenda é escrita de novo.'
+            : 'Nesta etapa a peça não pode ser editada (a legenda está sendo escrita ou já foi para o agendamento).',
       );
     }
     return r;

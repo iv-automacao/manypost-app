@@ -58,6 +58,7 @@ import {
   usdToBrl,
   type CaptionDrafts,
   needsPublicationCheck,
+  isInstagramLink,
 } from './logic';
 import type { ContentBrand, ContentPiece, ContentPrompt, PieceStatus } from './types';
 
@@ -223,7 +224,8 @@ describe('ações humanas por status', () => {
 describe('legenda: quando pode editar', () => {
   test('ideia, aprovado e etapa rodando travam, cada um com o seu motivo', () => {
     const livres = STATUSES.filter((status) => captionLock(piece({ status })) === null);
-    expect(livres).toEqual(['roteiro', 'producao', 'revisao', 'reprovado', 'erro']);
+    expect(livres).toEqual(['roteiro', 'producao', 'revisao', 'erro']);
+    expect(captionLock(piece({ status: 'reprovado' }))).toBe('reprovado');
     expect(captionLock(piece({ status: 'ideia' }))).toBe('ideia');
     expect(captionLock(piece({ status: 'aprovado' }))).toBe('aprovado');
     expect(captionLock(piece({ status: 'agendado' }))).toBe('closed');
@@ -231,7 +233,7 @@ describe('legenda: quando pode editar', () => {
   });
 
   test('etapa rodando trava qualquer status editável', () => {
-    for (const status of ['roteiro', 'producao', 'revisao', 'reprovado', 'erro'] as PieceStatus[]) {
+    for (const status of ['roteiro', 'producao', 'revisao', 'erro'] as PieceStatus[]) {
       expect(captionLock(piece({ status, running: true }))).toBe('running');
     }
     // agendada/publicada continua "fechada", rodando ou não
@@ -495,5 +497,14 @@ describe('publicação incerta', () => {
     expect(actionsFor(piece, 'NEEDS_REVIEW')).toEqual([]);
     expect(actionsFor(piece, 'FAILED').length).toBeGreaterThan(0);
     expect(needsPublicationCheck({ status: 'agendado' }, 'NEEDS_REVIEW')).toBe(false);
+  });
+});
+
+describe('link do post na confirmação', () => {
+  test('aceita só post do Instagram com https', () => {
+    expect(isInstagramLink('https://www.instagram.com/p/abc/')).toBe(true);
+    expect(isInstagramLink('https://m.instagram.com/reel/abc')).toBe(true);
+    expect(isInstagramLink('instagram.com/p/abc')).toBe(false);
+    expect(isInstagramLink('https://instagr.am/p/abc')).toBe(false);
   });
 });

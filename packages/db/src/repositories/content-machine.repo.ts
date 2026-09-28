@@ -417,6 +417,24 @@ export function makeContentMachineRepository(db: Db): ContentMachineRepository {
       return rows;
     },
 
+    async erroredWithPost() {
+      const rows = await db
+        .select({
+          orgId: contentPieces.orgId,
+          id: contentPieces.id,
+          postGroupId: sql<string>`coalesce(${contentPieces.plan}->>'agendamentoId', ${contentPieces.postGroupId}::text)`,
+        })
+        .from(contentPieces)
+        .where(
+          and(
+            eq(contentPieces.status, 'erro'),
+            sql`coalesce(${contentPieces.plan}->>'agendamentoId', ${contentPieces.postGroupId}::text) is not null`,
+          ),
+        )
+        .limit(200);
+      return rows;
+    },
+
     async scheduled() {
       return db
         .select({ orgId: contentPieces.orgId, id: contentPieces.id, postGroupId: contentPieces.postGroupId })

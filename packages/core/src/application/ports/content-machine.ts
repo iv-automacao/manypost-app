@@ -280,6 +280,8 @@ export interface ContentMachineRepository {
 
   /** peças automáticas paradas: trava vencida, ou sem trava e sem mudança há `idleSec` */
   stalled(now: Date, idleSec: number): Promise<Array<{ orgId: string; id: string }>>;
+  /** peças em `erro` que já têm post (o post pode ter saído pelo Quadro de publicações) */
+  erroredWithPost(): Promise<Array<{ orgId: string; id: string; postGroupId: string }>>;
   /** peças `agendado` para reconciliar com o estado da publicação */
   scheduled(): Promise<Array<{ orgId: string; id: string; postGroupId: string | null }>>;
 

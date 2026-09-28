@@ -173,6 +173,11 @@ function fakeRepo(relogio: () => Date = () => new Date()) {
     async stalled() {
       return [];
     },
+    async erroredWithPost() {
+      return [...pieces.values()]
+        .filter((p) => p.status === 'erro' && ((p.plan as { agendamentoId?: string }).agendamentoId ?? p.postGroupId))
+        .map((p) => ({ orgId: p.orgId, id: p.id, postGroupId: ((p.plan as { agendamentoId?: string }).agendamentoId ?? p.postGroupId)! }));
+    },
     async scheduled() {
       return [...pieces.values()].filter((p) => p.status === 'agendado').map((p) => ({ orgId: p.orgId, id: p.id, postGroupId: p.postGroupId }));
     },
@@ -295,6 +300,7 @@ function montar(
   const enfileirados: Array<{ queue: string; payload: { pieceId: string }; opts?: { startAfter?: Date } }> = [];
   const agendados: Array<Record<string, unknown>> = [];
   const grupos = new Map<string, { state: string; pubState: string; url: string | null }>();
+  const refreshs: string[] = [];
   const deps: ContentMachineDeps = {
     repo: f.repo,
     ai,
@@ -327,13 +333,19 @@ function montar(
         // id da publicação = id do grupo (um canal por post na máquina)
         return g ? ({ id, state: g.state, publishAt: null, timezone: 'UTC', baseContent: {}, publications: [{ id, state: g.pubState, releaseUrl: g.url, errorMessage: null }] } as never) : null;
       },
+      // como no repositório real: a transição mexe só na publicação; o grupo muda no refresh
       transition: async (pubId, from, to, patch) => {
         const g = grupos.get(pubId);
         if (!g || !(from as string[]).includes(g.pubState)) return false;
         g.pubState = to;
-        if (to === 'CANCELLED') g.state = 'CANCELLED';
         if (patch?.releaseUrl) g.url = patch.releaseUrl;
         return true;
+      },
+      refreshGroupState: async (groupId) => {
+        const g = grupos.get(groupId);
+        if (!g) return;
+        refreshs.push(groupId);
+        g.state = g.pubState === 'CANCELLED' ? 'CANCELLED' : g.pubState === 'PUBLISHED' ? 'DONE' : g.pubState === 'FAILED' || g.pubState === 'NEEDS_REVIEW' ? 'PARTIAL' : 'SCHEDULED';
       },
     },
     schedulePost: (async (input: Record<string, unknown>) => {
@@ -359,7 +371,7 @@ function montar(
     sleep: async () => {},
     now: () => relogio.agora,
   };
-  return { f, deps, chamadas, media, pedidos, enfileirados, agendados, grupos, relogio, run: makeRunContentStage(deps) };
+  return { f, deps, chamadas, media, pedidos, enfileirados, agendados, grupos, refreshs, relogio, run: makeRunContentStage(deps) };
 }
 
 const actor = { orgId: ORG, userId: 'u1' };
@@ -809,6 +821,35 @@ describe('máquina de conteúdo: regressões da revisão adversarial', () => {
     await makeDecidePiece(m.deps)(actor, p.id, { action: 'retry' });
     await avancarAte(m, p.id, ['agendado', 'erro']);
     expect(m.grupos.get(ag!.postGroupId!)?.pubState).toBe('CANCELLED');
+    // o grupo é recalculado: o Quadro não mostra o post descartado como publicado
+    expect(m.refreshs).toContain(ag!.postGroupId!);
+    expect(m.grupos.get(ag!.postGroupId!)?.state).toBe('CANCELLED');
+  });
+
+  it('peça em erro cujo post saiu pelo Quadro é conciliada como publicada (sweeper e decisão)', async () => {
+    const m = await pronto();
+    const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho' });
+    const ag = await avancarAte(m, p.id, ['agendado']);
+    m.grupos.set(ag!.postGroupId!, { state: 'PARTIAL', pubState: 'FAILED', url: null });
+    await makeSweepContent(m.deps)();
+    // alguém clicou "tentar novamente" no Quadro e o post saiu
+    m.grupos.set(ag!.postGroupId!, { state: 'DONE', pubState: 'PUBLISHED', url: 'https://www.instagram.com/p/xyz/' });
+    await expect(makeDecidePiece(m.deps)(actor, p.id, { action: 'redo', stage: 'producao', feedback: 'x' })).rejects.toThrow('já saiu');
+    const r = await m.deps.repo.getPiece(ORG, p.id);
+    expect(r?.status).toBe('publicado');
+    expect(r?.permalink).toBe('https://www.instagram.com/p/xyz/');
+    expect(m.agendados).toHaveLength(1);
+  });
+
+  it('sweeper concilia sozinho a peça em erro cujo post saiu', async () => {
+    const m = await pronto();
+    const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho' });
+    const ag = await avancarAte(m, p.id, ['agendado']);
+    m.grupos.set(ag!.postGroupId!, { state: 'PARTIAL', pubState: 'FAILED', url: null });
+    await makeSweepContent(m.deps)();
+    m.grupos.set(ag!.postGroupId!, { state: 'DONE', pubState: 'PUBLISHED', url: 'https://www.instagram.com/p/abc/' });
+    expect((await makeSweepContent(m.deps)()).published).toBe(1);
+    expect((await m.deps.repo.getPiece(ORG, p.id))?.status).toBe('publicado');
   });
 
   it('reprovar peça em erro com post ainda agendado tira o post do ar', async () => {
@@ -828,8 +869,12 @@ describe('máquina de conteúdo: regressões da revisão adversarial', () => {
     m.grupos.set(ag!.postGroupId!, { state: 'SCHEDULED', pubState: 'NEEDS_REVIEW', url: null });
     await makeSweepContent(m.deps)();
     await expect(makeDecidePiece(m.deps)(actor, p.id, { action: 'redo', stage: 'roteiro', feedback: 'x' })).rejects.toThrow('resultado incerto');
+    await expect(
+      makeDecidePiece(m.deps)(actor, p.id, { action: 'resolvePublication', published: true, permalink: 'https://instagr.am/p/abc' }),
+    ).rejects.toMatchObject({ code: 'content.invalid_input' });
     const r = await makeDecidePiece(m.deps)(actor, p.id, { action: 'resolvePublication', published: true, permalink: 'https://www.instagram.com/p/abc/' });
     expect(r.status).toBe('publicado');
+    expect(m.grupos.get(ag!.postGroupId!)?.state).toBe('DONE');
     expect(r.permalink).toBe('https://www.instagram.com/p/abc/');
     expect(m.grupos.get(ag!.postGroupId!)?.pubState).toBe('PUBLISHED');
   });

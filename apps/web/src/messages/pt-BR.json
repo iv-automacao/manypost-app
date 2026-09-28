@@ -1122,7 +1122,8 @@
       "locked": {
         "ideia": "A etapa Roteiro ainda vai escrever a legenda. Os ajustes ficam liberados depois dela.",
         "aprovado": "A peça já foi aprovada e o agendamento usa este texto. Não dá mais para ajustar aqui.",
-        "running": "Uma etapa está rodando nesta peça. Os ajustes ficam liberados quando ela terminar."
+        "running": "Uma etapa está rodando nesta peça. Os ajustes ficam liberados quando ela terminar.",
+        "reprovado": "Peça reprovada: ao refazer o roteiro, a legenda é escrita de novo."
       },
       "total": "{count, number} de {max, number} caracteres",
       "totalHint": "Legenda e hashtags contam juntas no limite do Instagram.",
@@ -1188,7 +1189,8 @@
       "published": "Saiu no Instagram",
       "notPublished": "Não saiu",
       "resolvedPublished": "Peça marcada como publicada.",
-      "resolvedNotPublished": "Anotado. Use \"Tentar de novo\" para publicar em um post novo."
+      "resolvedNotPublished": "Anotado. Use \"Tentar de novo\" para publicar em um post novo.",
+      "permalinkInvalid": "Use o link completo do post, começando com https://www.instagram.com/."
     },
     "identity": {
       "brandSection": "Marca",

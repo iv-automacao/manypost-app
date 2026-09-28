@@ -567,6 +567,14 @@ export const makeSweepContent = (deps: ContentMachineDeps) =>
       await enqueuePiece(deps, p.orgId, piece);
       requeued++;
     }
+    // peça em erro cujo post saiu por outro caminho ("tentar novamente" no Quadro): concilia
+    for (const p of await deps.repo.erroredWithPost()) {
+      const pub = (await deps.publishing.getGroup(p.orgId, p.postGroupId))?.publications[0];
+      if (pub?.state === 'PUBLISHED') {
+        const ok = await deps.repo.transition(p.orgId, p.id, 'erro', 'publicado', { publishedAt: now, permalink: pub.releaseUrl, error: null }, { stage: 'publicacao', detail: { conciliado: true } });
+        if (ok) published++;
+      }
+    }
     for (const p of await deps.repo.scheduled()) {
       if (!p.postGroupId) continue;
       const group = await deps.publishing.getGroup(p.orgId, p.postGroupId);

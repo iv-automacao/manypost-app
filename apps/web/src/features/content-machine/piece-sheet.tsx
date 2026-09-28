@@ -36,6 +36,7 @@ import {
   actionsFor,
   captionLock,
   needsPublicationCheck,
+  isInstagramLink,
   captionPatch,
   captionValues,
   clearSaved,
@@ -606,6 +607,7 @@ function PieceActions({
   const actions = actionsFor(piece, publicationState);
 
   if (needsPublicationCheck(piece, publicationState)) {
+    const linkInvalido = link.trim() !== '' && !isInstagramLink(link);
     const resolver = (published: boolean) =>
       decide.mutate(
         {
@@ -614,19 +616,25 @@ function PieceActions({
         },
         {
           onSuccess: () => toast.success(published ? t('actions.resolvedPublished') : t('actions.resolvedNotPublished')),
-          onError: (err) => toast.error(errorMessage(err)),
+          // a mensagem da API diz exatamente o que está errado (ex.: o link); o código genérico não
+          onError: (err) => toast.error((err as ApiProblem | undefined)?.detail ?? errorMessage(err)),
         },
       );
     return (
       <SheetFooter className="flex-col items-stretch gap-3 sm:flex-col">
         <p className="text-compact leading-relaxed text-ink">{t('actions.resolveHint')}</p>
-        <Field id="cm-piece-permalink" label={t('actions.permalinkLabel')} hint={t('actions.permalinkHint')}>
+        <Field
+          id="cm-piece-permalink"
+          label={t('actions.permalinkLabel')}
+          hint={linkInvalido ? t('actions.permalinkInvalid') : t('actions.permalinkHint')}
+        >
           <Input
             id="cm-piece-permalink"
             type="url"
             inputMode="url"
             placeholder="https://www.instagram.com/p/…"
             value={link}
+            aria-invalid={linkInvalido || undefined}
             onChange={(e) => setLink(e.target.value)}
           />
         </Field>
@@ -634,7 +642,7 @@ function PieceActions({
           <Button variant="outline" onClick={() => resolver(false)} disabled={decide.isPending}>
             {t('actions.notPublished')}
           </Button>
-          <Button onClick={() => resolver(true)} disabled={decide.isPending} isLoading={decide.isPending}>
+          <Button onClick={() => resolver(true)} disabled={decide.isPending || linkInvalido} isLoading={decide.isPending}>
             {t('actions.published')}
           </Button>
         </div>

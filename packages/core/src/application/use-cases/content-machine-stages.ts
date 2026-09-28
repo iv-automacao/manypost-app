@@ -83,6 +83,14 @@ const linkWhatsapp = (brand: ContentBrandRecord, keyword: string) =>
     ? `https://wa.me/${brand.whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent(keyword)}`
     : '';
 
+/** hashtag do Instagram: sem espaço, sem acento, sem pontuação, minúscula */
+export const normalizeHashtag = (h: string): string =>
+  h
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '');
+
 const feedbackTexto = (piece: ContentPieceRecord) =>
   piece.feedback.length ? `AJUSTES PEDIDOS (do mais antigo ao mais novo):\n${piece.feedback.map((f) => `- [${f.stage}] ${f.text}`).join('\n')}` : '';
 
@@ -134,14 +142,14 @@ async function etapaRoteiro(deps: ContentMachineDeps, piece: ContentPieceRecord,
 
     let script = roteiro.data;
     let caption = legenda.data.legenda;
-    let hashtags = legenda.data.hashtags.map((h) => h.replace(/^#/, '').trim()).filter(Boolean).slice(0, 5);
+    let hashtags = [...new Set(legenda.data.hashtags.map(normalizeHashtag).filter(Boolean))].slice(0, 5);
     let findings: ContentLintFinding[] = [];
     if (deps.renderer) {
       const lint = await deps.renderer.lint({ script, caption, hashtags, keyword: piece.keyword, format: piece.format, ctaChannel: brand.ctaChannel });
       const limpo = Roteiro.safeParse(lint.script);
       if (limpo.success) script = limpo.data;
       caption = lint.caption;
-      hashtags = lint.hashtags;
+      hashtags = [...new Set(lint.hashtags.map(normalizeHashtag).filter(Boolean))].slice(0, 5);
       findings = lint.findings;
       if (lint.hasError && tentativa === 0) {
         correcoes = lint.findings.filter((f) => f.nivel === 'erro');
@@ -309,9 +317,14 @@ async function etapaRevisao(deps: ContentMachineDeps, piece: ContentPieceRecord,
       `CTA_KEYWORD: ${piece.keyword}`,
     ].join('\n\n'));
     const lido = Revisao.safeParse(bruto);
-    review = lido.success
-      ? { ...lido.data, aprovado: lido.data.aprovado && lido.data.flags.length === 0 }
-      : { aprovado: false, flags: [], motivo: 'O revisor respondeu fora do formato; precisa de olho humano.' };
+    if (lido.success) {
+      // CTA é checável sem modelo: com a palavra-chave exata na legenda, SEM_CTA do revisor é engano
+      const temCta = piece.caption.includes(piece.keyword);
+      const flags = lido.data.flags.filter((f) => !(f.codigo === 'SEM_CTA' && temCta));
+      review = { ...lido.data, flags, aprovado: flags.length === 0 && (lido.data.aprovado || flags.length < lido.data.flags.length) };
+    } else {
+      review = { aprovado: false, flags: [], motivo: 'O revisor respondeu fora do formato; precisa de olho humano.' };
+    }
   } catch (err) {
     if (err instanceof DomainError && err.code === ErrorCodes.ContentGenerationFailed) {
       review = { aprovado: false, flags: [], motivo: 'O revisor não respondeu em formato válido; precisa de olho humano.' };
@@ -347,18 +360,26 @@ async function etapaAgendar(deps: ContentMachineDeps, piece: ContentPieceRecord,
   const hashtags = piece.hashtags.map((h) => `#${h}`).join(' ');
   const text = [piece.caption.trim(), hashtags].filter(Boolean).join('\n\n');
   const instagram = canal.provider.startsWith('instagram');
-  const group = await deps.schedulePost({
-    orgId: piece.orgId,
-    authorId: null,
-    text,
-    channelIds: [channelId],
-    publishAt,
-    timezone: brand.timezone,
-    origin: 'AUTOMATION',
-    mediaIds: [...piece.media].sort((a, b) => a.order - b.order).map((m) => m.mediaId),
-    ...(instagram ? { settingsByChannel: { [channelId]: { postType: piece.format === 'story' ? 'story' : 'feed' } } } : {}),
-  });
+
+  // idempotência: se uma execução anterior já agendou e caiu antes de gravar o status, reaproveita
+  // o post em vez de criar outro (retentar aqui duplicaria a publicação)
+  const anterior = piece.postGroupId ? await deps.publishing.getGroup(piece.orgId, piece.postGroupId) : null;
+  const group =
+    anterior && anterior.state !== 'CANCELLED'
+      ? anterior
+      : await deps.schedulePost({
+          orgId: piece.orgId,
+          authorId: null,
+          text,
+          channelIds: [channelId],
+          publishAt,
+          timezone: brand.timezone,
+          origin: 'AUTOMATION',
+          mediaIds: [...piece.media].sort((a, b) => a.order - b.order).map((m) => m.mediaId),
+          ...(instagram ? { settingsByChannel: { [channelId]: { postType: piece.format === 'story' ? 'story' : 'feed' } } } : {}),
+        });
   if (!group) throw new DomainError(ErrorCodes.ContentGenerationFailed, 'o agendamento não devolveu o post');
+  if (!anterior) await deps.repo.update(piece.orgId, piece.id, { postGroupId: group.id });
   return {
     to: 'agendado' as const,
     patch: { postGroupId: group.id, scheduledFor: publishAt, channelId } satisfies ContentPiecePatch,

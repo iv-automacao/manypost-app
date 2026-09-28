@@ -22,7 +22,7 @@ import {
   zonedDate,
   type ContentMachineDeps,
 } from './content-machine';
-import { makeRunContentStage, makeSweepContent } from './content-machine-stages';
+import { makeRunContentStage, makeSweepContent, normalizeHashtag } from './content-machine-stages';
 
 const ORG = 'org-1';
 const OUTRA = 'org-2';
@@ -422,6 +422,15 @@ describe('máquina de conteúdo: pauta e etapas', () => {
     expect(m.agendados).toHaveLength(0);
   });
 
+  it('SEM_CTA do revisor é descartado quando a legenda tem a palavra-chave exata', async () => {
+    const m = await pronto({ revisor: { aprovado: false, flags: [{ codigo: 'SEM_CTA', trecho: 'x', motivo: 'não se aplica' }], motivo: '' } });
+    const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho' });
+    await m.run(ORG, p.id);
+    await m.deps.repo.update(ORG, p.id, { caption: `Manda ${p.keyword} no direct` });
+    const final = await avancarAte(m, p.id, ['revisao', 'agendado', 'erro']);
+    expect(final?.status).toBe('agendado');
+  });
+
   it('revisor que responde lixo não aprova sozinho', async () => {
     const m = await pronto({ revisor: 'não sei' });
     const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho' });
@@ -474,6 +483,20 @@ describe('máquina de conteúdo: pauta e etapas', () => {
     const final = await avancarAte(m, p.id, ['erro', 'producao']);
     expect(final?.status).toBe('erro');
     expect(final?.error).toContain('moderado');
+  });
+
+  it('agendamento retentado reaproveita o post já criado', async () => {
+    const m = await pronto();
+    const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho' });
+    await avancarAte(m, p.id, ['aprovado']);
+    // simula a queda: o post foi criado e o id gravado, mas o status não mudou
+    m.grupos.set('grupo-existente', { state: 'SCHEDULED', pubState: 'SCHEDULED', url: null });
+    await m.deps.repo.update(ORG, p.id, { postGroupId: 'grupo-existente' });
+    await m.run(ORG, p.id);
+    const final = await m.deps.repo.getPiece(ORG, p.id);
+    expect(final?.status).toBe('agendado');
+    expect(final?.postGroupId).toBe('grupo-existente');
+    expect(m.agendados).toHaveLength(0);
   });
 
   it('peça sem canal padrão cai em erro no agendamento, com mensagem clara', async () => {
@@ -548,6 +571,13 @@ describe('máquina de conteúdo: decisões humanas e gasto', () => {
     // 2 chamadas (roteiro + legenda) × (1000 × 0,25 + 500 × 2) / 1e6
     expect((await m.deps.repo.getPiece(ORG, p.id))?.costUsd).toBeCloseTo(0.0025, 6);
     expect((await makeSpendSummary(m.deps)(ORG, '2026-10')).month).toBe('2026-10');
+  });
+});
+
+describe('normalizeHashtag', () => {
+  it('tira espaço, acento e pontuação', () => {
+    expect(normalizeHashtag('#Rede de Urgência')).toBe('rededeurgencia');
+    expect(normalizeHashtag('plano-de-saúde!')).toBe('planodesaude');
   });
 });
 

@@ -1065,7 +1065,8 @@
         "reprovado": "Reprovadas"
       },
       "show": "Mostrar",
-      "hide": "Ocultar"
+      "hide": "Ocultar",
+      "noText": "Sem modelo de texto configurado, a máquina não gera peças."
     },
     "card": {
       "running": "Gerando…",
@@ -1158,7 +1159,8 @@
       "events": "Histórico",
       "cost": "Custo",
       "approx": "≈ {brl}",
-      "permalink": "Ver publicação"
+      "permalink": "Ver publicação",
+      "unsavedBeforeDecision": "Há ajustes da legenda sem salvar. Salve ou descarte antes de decidir."
     },
     "actions": {
       "approve": "Aprovar",

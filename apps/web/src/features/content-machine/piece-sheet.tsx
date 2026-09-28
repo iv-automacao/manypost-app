@@ -2,7 +2,7 @@
 
 import { CircleAlert, ExternalLink, Loader2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +68,7 @@ export function PieceSheet({ pieceId, onClose }: { pieceId: string | null; onClo
 }
 
 function PieceDetail({ id }: { id: string }) {
+  const [drafts, setDrafts] = useState<CaptionDrafts>({});
   const t = useTranslations('maquina');
   const tc = useTranslations('common');
   const locale = useLocale();
@@ -154,7 +155,7 @@ function PieceDetail({ id }: { id: string }) {
             </Alert>
           ) : null}
           <MediaSection piece={piece} />
-          <CaptionSection key={piece.id} piece={piece} />
+          <CaptionSection key={piece.id} piece={piece} drafts={drafts} setDrafts={setDrafts} />
           <ScriptSection piece={piece} />
           <ReviewSection piece={piece} />
           <FeedbackSection piece={piece} />
@@ -162,7 +163,7 @@ function PieceDetail({ id }: { id: string }) {
         </div>
       </div>
 
-      <PieceActions piece={piece} />
+      <PieceActions piece={piece} unsaved={Object.keys(drafts).length > 0} onDiscard={() => setDrafts({})} />
     </>
   );
 }
@@ -221,16 +222,29 @@ function MediaSection({ piece }: { piece: ContentPiece }) {
 
 // ------------------------------------------------------------------ legenda
 
-function CaptionSection({ piece }: { piece: ContentPiece }) {
+function CaptionSection({
+  piece,
+  drafts,
+  setDrafts,
+}: {
+  piece: ContentPiece;
+  /** rascunho POR CAMPO: só o que a pessoa mexeu; o resto mostra o servidor (e acompanha o polling) */
+  drafts: CaptionDrafts;
+  setDrafts: Dispatch<SetStateAction<CaptionDrafts>>;
+}) {
   const t = useTranslations('maquina');
   const locale = useLocale();
   const errorMessage = useApiErrorMessage();
   const edit = useEditPiece();
-  // rascunho POR CAMPO: só o que a pessoa mexeu; o resto mostra o servidor (e acompanha o polling)
-  const [drafts, setDrafts] = useState<CaptionDrafts>({});
   const lock = captionLock(piece);
+  const dirty = Object.keys(drafts).length > 0;
+  // etapa rodando é passageiro: com rascunho aberto o formulário fica montado (só leitura), para não
+  // perder foco nem o texto; as outras travas mostram o texto final
+  const transitorio = lock === 'running' && dirty;
+  // durante o salvamento os campos não mudam: voltar ao valor antigo no meio perderia a edição
+  const somenteLeitura = transitorio || edit.isPending;
 
-  if (lock !== null) {
+  if (lock !== null && !transitorio) {
     return (
       <section className="flex flex-col gap-3">
         <SectionTitle>{t('piece.caption')}</SectionTitle>
@@ -257,8 +271,10 @@ function CaptionSection({ piece }: { piece: ContentPiece }) {
 
   const server = captionValues(piece);
   const value = shownValues(drafts, server);
-  const change = (field: CaptionField, next: string) => setDrafts((d) => editDraft(d, field, next, server));
-  const dirty = Object.keys(drafts).length > 0;
+  const change = (field: CaptionField, next: string) => {
+    if (somenteLeitura) return;
+    setDrafts((d) => editDraft(d, field, next, server));
+  };
   const stale = staleFields(drafts, server);
   // o limite do Instagram vale para o texto publicado inteiro, não só para a legenda
   const total = publishedText(value.caption, parseHashtags(value.hashtags)).length;
@@ -293,6 +309,7 @@ function CaptionSection({ piece }: { piece: ContentPiece }) {
   return (
     <section className="flex flex-col gap-3">
       <SectionTitle>{t('piece.caption')}</SectionTitle>
+      {transitorio ? <p className="text-meta leading-relaxed text-graphite">{t('piece.locked.running')}</p> : null}
       {stale.length > 0 ? (
         <Alert>
           <CircleAlert aria-hidden />
@@ -320,6 +337,7 @@ function CaptionSection({ piece }: { piece: ContentPiece }) {
         aria-invalid={over > 0 || undefined}
         value={value.caption}
         onChange={(e) => change('caption', e.target.value)}
+        readOnly={somenteLeitura}
         placeholder={t('piece.noCaption')}
         maxLength={CAPTION_TOTAL_MAX}
         className="min-h-40"
@@ -341,6 +359,7 @@ function CaptionSection({ piece }: { piece: ContentPiece }) {
             id="cm-piece-hashtags"
             value={value.hashtags}
             onChange={(e) => change('hashtags', e.target.value)}
+            readOnly={somenteLeitura}
           />
         </Field>
         <Field id="cm-piece-date" label={t('piece.scheduledFor')} hint={value.date ? undefined : t('piece.noDate')}>
@@ -348,7 +367,7 @@ function CaptionSection({ piece }: { piece: ContentPiece }) {
         </Field>
       </div>
       <div className="flex justify-end">
-        <Button variant="outline" onClick={save} disabled={!dirty || over > 0} isLoading={edit.isPending}>
+        <Button variant="outline" onClick={save} disabled={!dirty || over > 0 || transitorio} isLoading={edit.isPending}>
           {t('piece.save')}
         </Button>
       </div>
@@ -562,7 +581,7 @@ function EventsSection({ events }: { events: ContentPieceEvent[] }) {
 
 type Pedido = { tipo: 'redo'; stage: 'roteiro' | 'producao' } | { tipo: 'reject' };
 
-function PieceActions({ piece }: { piece: ContentPiece }) {
+function PieceActions({ piece, unsaved, onDiscard }: { piece: ContentPiece; unsaved: boolean; onDiscard: () => void }) {
   const t = useTranslations('maquina');
   const errorMessage = useApiErrorMessage();
   const decide = useDecidePiece();
@@ -607,13 +626,21 @@ function PieceActions({ piece }: { piece: ContentPiece }) {
 
   return (
     <SheetFooter className="sm:flex-wrap">
+      {unsaved ? (
+        <div className="flex w-full flex-wrap items-center justify-between gap-2">
+          <p className="text-meta leading-relaxed text-graphite">{t('piece.unsavedBeforeDecision')}</p>
+          <Button variant="ghost" size="sm" onClick={onDiscard}>
+            {t('piece.discardDraft')}
+          </Button>
+        </div>
+      ) : null}
       {actions.map((a) => (
         <Button
           key={a}
           variant={a === 'approve' || a === 'retry' ? 'primary' : 'outline'}
           className={a === 'reject' ? 'text-state-failed' : undefined}
           onClick={() => run(a)}
-          disabled={decide.isPending}
+          disabled={decide.isPending || unsaved}
           isLoading={decide.isPending && (a === 'approve' || a === 'retry') && pedido === null}
         >
           {label[a]}

@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { NewIdeaDialog, PlanWeekDialog } from './create-dialogs';
 import { RefreshNotice } from './field';
-import { PIECES_LIMIT, usePieces } from './hooks';
+import { PIECES_LIMIT, useOverview, usePieces } from './hooks';
 import { BOARD_COLUMNS, SIDE_GROUPS, groupByStatus, isAutomatic, type SideGroup } from './logic';
 import { PieceCard } from './piece-card';
 import { PieceSheet } from './piece-sheet';
@@ -29,6 +29,9 @@ export function BoardView() {
   const t = useTranslations('maquina');
   const tc = useTranslations('common');
   const pieces = usePieces();
+  const overview = useOverview();
+  // sem modelo de texto nada sai da ideia: a pauta e a ideia nova ficam indisponíveis, com o motivo
+  const semTexto = overview.data?.capabilities.text === false;
   const [openId, setOpenId] = useState<string | null>(null);
   const [ideaOpen, setIdeaOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
@@ -45,11 +48,12 @@ export function BoardView() {
           {pieces.data ? t('board.summary', { total: list.length, active: ativas }) : null}
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={() => setPlanOpen(true)}>
+          {semTexto ? <span className="text-meta text-graphite">{t('board.noText')}</span> : null}
+          <Button variant="outline" onClick={() => setPlanOpen(true)} disabled={semTexto}>
             <CalendarRange aria-hidden />
             {t('board.planWeek')}
           </Button>
-          <Button onClick={() => setIdeaOpen(true)}>
+          <Button onClick={() => setIdeaOpen(true)} disabled={semTexto}>
             <Plus aria-hidden />
             {t('board.newIdea')}
           </Button>

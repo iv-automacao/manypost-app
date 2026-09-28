@@ -57,6 +57,7 @@ import {
   topPieces,
   usdToBrl,
   type CaptionDrafts,
+  needsPublicationCheck,
 } from './logic';
 import type { ContentBrand, ContentPiece, ContentPrompt, PieceStatus } from './types';
 
@@ -484,5 +485,15 @@ describe('prompts', () => {
   test('sem versão marcada como ativa, a mais nova assume', () => {
     const g = groupPrompts([v('legenda', 1, false), v('legenda', 2, false)]);
     expect(g.legenda.active?.version).toBe(2);
+  });
+});
+
+describe('publicação incerta', () => {
+  test('peça em erro com publicação NEEDS_REVIEW só oferece a confirmação', () => {
+    const piece = { status: 'erro' as const, script: { hook: 'h' } };
+    expect(needsPublicationCheck(piece, 'NEEDS_REVIEW')).toBe(true);
+    expect(actionsFor(piece, 'NEEDS_REVIEW')).toEqual([]);
+    expect(actionsFor(piece, 'FAILED').length).toBeGreaterThan(0);
+    expect(needsPublicationCheck({ status: 'agendado' }, 'NEEDS_REVIEW')).toBe(false);
   });
 });

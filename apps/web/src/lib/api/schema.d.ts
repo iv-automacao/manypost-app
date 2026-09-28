@@ -3697,6 +3697,13 @@ export type paths = {
                     } | {
                         /** @enum {string} */
                         action: "retry";
+                    } | {
+                        /** @enum {string} */
+                        action: "resolvePublication";
+                        /** @description true = a pessoa conferiu que o post saiu na rede */
+                        published: boolean;
+                        /** Format: uri */
+                        permalink?: string;
                     };
                 };
             };
@@ -6805,6 +6812,12 @@ export type components = {
         ContentPieceDetail: {
             piece: components["schemas"]["ContentPiece"];
             events: components["schemas"]["ContentPieceEvent"][];
+            /** @description estado do post da peça no agendador (null = ainda não agendada) */
+            publication: {
+                state: string;
+                releaseUrl: string | null;
+                errorMessage: string | null;
+            } | null;
         };
         ContentSpend: {
             month: string;

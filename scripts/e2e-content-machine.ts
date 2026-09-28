@@ -67,7 +67,7 @@ const deps: ContentMachineDeps = {
   storage: makeMediaStorage(mediaStorageConfigFromEnv(env)),
   // canal fictício: o agendamento é só registrado
   channels: { findMany: async (_o: string, ids: string[]) => ids.map((id) => ({ id, provider: 'instagram-standalone', name: '@e2e' })) } as never,
-  publishing: { getGroup: async () => null },
+  publishing: { getGroup: async () => null, transition: async () => true },
   // agendamento registrado: cria só o grupo (sem publicação) para a FK da peça
   schedulePost: (async (input: unknown) => {
     agendados.push(input);

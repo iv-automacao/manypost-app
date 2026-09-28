@@ -10,7 +10,8 @@ export const AllowedContentTransitions: Record<ContentPieceStatus, readonly Cont
   agendado: ['publicado', 'erro'],
   publicado: [],
   reprovado: ['ideia'],
-  erro: ['ideia', 'roteiro', 'producao', 'aprovado', 'reprovado'],
+  // `publicado` a partir de erro só por confirmação humana de publicação incerta
+  erro: ['ideia', 'roteiro', 'producao', 'aprovado', 'reprovado', 'publicado'],
 };
 
 export function canContentTransition(from: ContentPieceStatus, to: ContentPieceStatus): boolean {

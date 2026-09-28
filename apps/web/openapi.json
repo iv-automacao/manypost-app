@@ -2310,11 +2310,41 @@
             "items": {
               "$ref": "#/components/schemas/ContentPieceEvent"
             }
+          },
+          "publication": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "state": {
+                "type": "string"
+              },
+              "releaseUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "errorMessage": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "state",
+              "releaseUrl",
+              "errorMessage"
+            ],
+            "description": "estado do post da peça no agendador (null = ainda não agendada)"
           }
         },
         "required": [
           "piece",
-          "events"
+          "events",
+          "publication"
         ]
       },
       "ContentSpend": {
@@ -7729,6 +7759,30 @@
                     },
                     "required": [
                       "action"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "resolvePublication"
+                        ]
+                      },
+                      "published": {
+                        "type": "boolean",
+                        "description": "true = a pessoa conferiu que o post saiu na rede"
+                      },
+                      "permalink": {
+                        "type": "string",
+                        "maxLength": 500,
+                        "format": "uri"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "published"
                     ]
                   }
                 ]

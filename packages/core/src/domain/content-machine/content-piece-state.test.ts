@@ -23,9 +23,17 @@ describe('ciclo de vida da peça', () => {
     expect(canContentTransition('revisao', 'agendado')).toBe(false);
   });
 
-  test('erro pode ser retomado de uma etapa, nunca pulando para publicado', () => {
+  test('erro pode ser retomado de uma etapa', () => {
     expect(canContentTransition('erro', 'ideia')).toBe(true);
-    expect(canContentTransition('erro', 'publicado')).toBe(false);
+  });
+
+  test('erro → publicado existe só para a confirmação humana de publicação incerta', () => {
+    // a tabela permite; quem garante que há um NEEDS_REVIEW por trás é o caso de uso
+    expect(canContentTransition('erro', 'publicado')).toBe(true);
+    // nenhuma etapa automática leva a publicado sem passar por agendado
+    for (const s of ['ideia', 'roteiro', 'producao', 'aprovado'] as const) {
+      expect(canContentTransition(s, 'publicado')).toBe(false);
+    }
   });
 
   test('só os status com etapa automática entram na fila', () => {

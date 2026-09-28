@@ -232,6 +232,11 @@ const DecisionBody = z.discriminatedUnion('action', [
   z.object({ action: z.literal('reject'), reason: z.string().max(500).optional() }),
   z.object({ action: z.literal('redo'), stage: z.enum(['roteiro', 'producao']), feedback: z.string().min(1).max(2000) }),
   z.object({ action: z.literal('retry') }),
+  z.object({
+    action: z.literal('resolvePublication'),
+    published: z.boolean().openapi({ description: 'true = a pessoa conferiu que o post saiu na rede' }),
+    permalink: z.string().url().max(500).optional(),
+  }),
 ]);
 
 const SpendOut = z
@@ -511,7 +516,19 @@ export function contentMachineRoutes(ctn: Container) {
     summary: 'Uma peça com o histórico de etapas',
     request: { params: z.object({ id: z.string().uuid() }) },
     responses: {
-      200: jsonResponse('peça', z.object({ piece: PieceOut, events: z.array(EventOut) }).openapi('ContentPieceDetail')),
+      200: jsonResponse(
+        'peça',
+        z
+          .object({
+            piece: PieceOut,
+            events: z.array(EventOut),
+            publication: z
+              .object({ state: z.string(), releaseUrl: z.string().nullable(), errorMessage: z.string().nullable() })
+              .nullable()
+              .openapi({ description: 'estado do post da peça no agendador (null = ainda não agendada)' }),
+          })
+          .openapi('ContentPieceDetail'),
+      ),
       ...errorResponses(401, 404),
     },
   });
@@ -520,7 +537,14 @@ export function contentMachineRoutes(ctn: Container) {
     const id = z.string().uuid().parse(c.req.param('id'));
     const piece = await onePiece(orgId, id);
     const events = await cm.repo.events(orgId, id);
-    return c.json({ piece, events: events.map((e) => ({ ...e, createdAt: e.createdAt.toISOString() })) });
+    const gid = (piece.plan as { agendamentoId?: string }).agendamentoId ?? piece.postGroupId;
+    const grupo = gid ? await ctn.repos.publishing.getGroup(orgId, gid) : null;
+    const pub = grupo?.publications[0];
+    return c.json({
+      piece,
+      events: events.map((e) => ({ ...e, createdAt: e.createdAt.toISOString() })),
+      publication: pub ? { state: pub.state, releaseUrl: pub.releaseUrl, errorMessage: pub.errorMessage } : null,
+    });
   });
 
   app.openAPIRegistry.registerPath({

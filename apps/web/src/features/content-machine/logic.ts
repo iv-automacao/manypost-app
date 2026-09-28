@@ -154,9 +154,16 @@ function actionsByStatus(status: PieceStatus): PieceAction[] {
  * roteiro. Agendado e publicado não têm ação aqui. Refazer arte/vídeo produz de novo a partir do
  * roteiro gravado: peça que falhou antes de ter roteiro não oferece (o backend também recusa).
  */
-export function actionsFor(piece: Pick<ContentPiece, 'status' | 'script'>): PieceAction[] {
+export function actionsFor(piece: Pick<ContentPiece, 'status' | 'script'>, publicationState?: string | null): PieceAction[] {
+  // publicação incerta: antes de qualquer decisão a pessoa diz se o post saiu (o backend recusa o resto)
+  if (needsPublicationCheck(piece, publicationState)) return [];
   const actions = actionsByStatus(piece.status);
   return piece.script ? actions : actions.filter((a) => a !== 'redoProduction');
+}
+
+/** a rede não confirmou a publicação: só uma pessoa, olhando o perfil, sabe se saiu */
+export function needsPublicationCheck(piece: Pick<ContentPiece, 'status'>, publicationState?: string | null): boolean {
+  return piece.status === 'erro' && publicationState === 'NEEDS_REVIEW';
 }
 
 /**

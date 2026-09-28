@@ -35,6 +35,7 @@ import {
   CAPTION_TOTAL_MAX,
   actionsFor,
   captionLock,
+  needsPublicationCheck,
   captionPatch,
   captionValues,
   clearSaved,
@@ -163,7 +164,12 @@ function PieceDetail({ id }: { id: string }) {
         </div>
       </div>
 
-      <PieceActions piece={piece} unsaved={Object.keys(drafts).length > 0} onDiscard={() => setDrafts({})} />
+      <PieceActions
+        piece={piece}
+        publicationState={detail.data.publication?.state ?? null}
+        unsaved={Object.keys(drafts).length > 0}
+        onDiscard={() => setDrafts({})}
+      />
     </>
   );
 }
@@ -581,12 +587,60 @@ function EventsSection({ events }: { events: ContentPieceEvent[] }) {
 
 type Pedido = { tipo: 'redo'; stage: 'roteiro' | 'producao' } | { tipo: 'reject' };
 
-function PieceActions({ piece, unsaved, onDiscard }: { piece: ContentPiece; unsaved: boolean; onDiscard: () => void }) {
+function PieceActions({
+  piece,
+  publicationState,
+  unsaved,
+  onDiscard,
+}: {
+  piece: ContentPiece;
+  publicationState: string | null;
+  unsaved: boolean;
+  onDiscard: () => void;
+}) {
   const t = useTranslations('maquina');
   const errorMessage = useApiErrorMessage();
   const decide = useDecidePiece();
   const [pedido, setPedido] = useState<Pedido | null>(null);
-  const actions = actionsFor(piece);
+  const [link, setLink] = useState('');
+  const actions = actionsFor(piece, publicationState);
+
+  if (needsPublicationCheck(piece, publicationState)) {
+    const resolver = (published: boolean) =>
+      decide.mutate(
+        {
+          id: piece.id,
+          decision: { action: 'resolvePublication', published, ...(published && link.trim() ? { permalink: link.trim() } : {}) },
+        },
+        {
+          onSuccess: () => toast.success(published ? t('actions.resolvedPublished') : t('actions.resolvedNotPublished')),
+          onError: (err) => toast.error(errorMessage(err)),
+        },
+      );
+    return (
+      <SheetFooter className="flex-col items-stretch gap-3 sm:flex-col">
+        <p className="text-compact leading-relaxed text-ink">{t('actions.resolveHint')}</p>
+        <Field id="cm-piece-permalink" label={t('actions.permalinkLabel')} hint={t('actions.permalinkHint')}>
+          <Input
+            id="cm-piece-permalink"
+            type="url"
+            inputMode="url"
+            placeholder="https://www.instagram.com/p/…"
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+          />
+        </Field>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="outline" onClick={() => resolver(false)} disabled={decide.isPending}>
+            {t('actions.notPublished')}
+          </Button>
+          <Button onClick={() => resolver(true)} disabled={decide.isPending} isLoading={decide.isPending}>
+            {t('actions.published')}
+          </Button>
+        </div>
+      </SheetFooter>
+    );
+  }
   if (actions.length === 0) return null;
 
   const redoProductionLabel = piece.format === 'reels' ? t('actions.redoVideo') : t('actions.redoArt');
@@ -602,6 +656,7 @@ function PieceActions({ piece, unsaved, onDiscard }: { piece: ContentPiece; unsa
     retry: t('actions.retried'),
     redo: t('actions.redone'),
     reject: t('actions.rejected'),
+    resolvePublication: t('actions.resolvedPublished'),
   };
 
   const send = (decision: PieceDecision) =>

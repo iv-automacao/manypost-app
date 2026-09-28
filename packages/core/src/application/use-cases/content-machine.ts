@@ -51,7 +51,7 @@ export interface ContentMachineDeps {
   media: MediaRepository;
   storage: MediaStorage;
   channels: ChannelRepository;
-  publishing: Pick<PublishingRepository, 'getGroup'>;
+  publishing: Pick<PublishingRepository, 'getGroup' | 'transition'>;
   schedulePost: ReturnType<typeof makeSchedulePost>;
   scheduler: JobScheduler;
   audit: AuditLogRepository;
@@ -121,6 +121,36 @@ export const loadBrand = async (deps: Pick<ContentMachineDeps, 'repo'>, orgId: s
   }
   return brand;
 };
+
+/** estados de publicação que ainda podem ser tirados do ar (nada saiu na rede) */
+const DESCARTAVEIS = ['DRAFT', 'SCHEDULED', 'RETRYING', 'TOKEN_REFRESH', 'FAILED'] as const;
+
+/**
+ * Tira do ar o post anterior da peça (conteúdo refeito ou reprovado). Publicação em voo ou com
+ * resultado incerto não pode ser desfeita: devolve quais sobraram para quem chamou decidir.
+ */
+export async function descartarPost(
+  deps: Pick<ContentMachineDeps, 'publishing' | 'scheduler'>,
+  orgId: string,
+  groupId: string,
+): Promise<{ pendentes: string[] }> {
+  const grupo = await deps.publishing.getGroup(orgId, groupId);
+  if (!grupo) return { pendentes: [] };
+  const pendentes: string[] = [];
+  for (const pub of grupo.publications) {
+    if ((DESCARTAVEIS as readonly string[]).includes(pub.state)) {
+      await deps.publishing.transition(pub.id, [...DESCARTAVEIS], 'CANCELLED', { bumpJobVersion: true });
+      await deps.scheduler.cancelBySingletonKey('publish', pub.id).catch(() => {});
+    } else if (pub.state === 'PUBLISHING' || pub.state === 'NEEDS_REVIEW') {
+      pendentes.push(pub.state);
+    }
+  }
+  return { pendentes };
+}
+
+/** id do post que a peça criou ou vai criar */
+export const postDaPeca = (piece: Pick<ContentPieceRecord, 'plan' | 'postGroupId'>): string | null =>
+  ((piece.plan as { agendamentoId?: string }).agendamentoId ?? piece.postGroupId) || null;
 
 /** URLs públicas das logos: o renderizador baixa de lá */
 export const renderBrandFor = async (
@@ -590,13 +620,32 @@ export type ContentDecision =
   | { action: 'approve' }
   | { action: 'reject'; reason?: string | undefined }
   | { action: 'redo'; stage: 'roteiro' | 'producao'; feedback: string }
-  | { action: 'retry' };
+  | { action: 'retry' }
+  /** publicação com resultado incerto: a pessoa conferiu na rede se saiu ou não */
+  | { action: 'resolvePublication'; published: boolean; permalink?: string | undefined };
 
 export const makeDecidePiece =
   (deps: ContentMachineDeps) =>
   async (actor: ContentActor, pieceId: string, decision: ContentDecision): Promise<ContentPieceRecord> => {
     const piece = await deps.repo.getPiece(actor.orgId, pieceId);
     if (!piece) throw new DomainError(ErrorCodes.NotFound, 'peça não encontrada');
+
+    if (decision.action === 'resolvePublication') return resolverPublicacao(deps, actor, piece, decision);
+
+    // reprovar ou refazer tira do ar o post anterior; em voo ou incerto, resolve-se isso antes
+    const postAnterior = decision.action === 'reject' || decision.action === 'redo' ? postDaPeca(piece) : null;
+    if (postAnterior) {
+      const grupo = await deps.publishing.getGroup(actor.orgId, postAnterior);
+      const pub = grupo?.publications[0];
+      if (pub && (pub.state === 'PUBLISHING' || pub.state === 'NEEDS_REVIEW')) {
+        throw new DomainError(
+          ErrorCodes.ContentInvalidTransition,
+          pub.state === 'NEEDS_REVIEW'
+            ? 'A publicação anterior ficou com resultado incerto. Diga se ela saiu no Instagram antes de refazer ou reprovar.'
+            : 'A publicação anterior está saindo agora. Espere terminar para decidir.',
+        );
+      }
+    }
 
     let destino: ContentPieceStatus;
     const patch: Parameters<ContentMachineRepository['transition']>[4] = {};
@@ -655,12 +704,50 @@ export const makeDecidePiece =
     if (!atualizada) {
       throw new DomainError(ErrorCodes.ContentInvalidTransition, 'a peça mudou de etapa enquanto você decidia; recarregue');
     }
+    if (postAnterior) await descartarPost(deps, actor.orgId, postAnterior);
     await deps.audit
       .append({ orgId: actor.orgId, actorType: 'USER', actorId: actor.userId, action: `content.piece.${decision.action}`, targetType: 'content_piece', targetId: pieceId })
       .catch(() => {});
     await enqueuePiece(deps, actor.orgId, atualizada);
     return atualizada;
   };
+
+/**
+ * Publicação incerta (a rede não confirmou): a pessoa diz se saiu. Saiu → publicação e peça viram
+ * publicadas (com o link, se houver). Não saiu → a publicação vira falha e "tentar de novo" cria
+ * um post novo, descartando este.
+ */
+async function resolverPublicacao(
+  deps: ContentMachineDeps,
+  actor: ContentActor,
+  piece: ContentPieceRecord,
+  d: { published: boolean; permalink?: string | undefined },
+): Promise<ContentPieceRecord> {
+  const gid = postDaPeca(piece);
+  const grupo = gid ? await deps.publishing.getGroup(actor.orgId, gid) : null;
+  const pub = grupo?.publications[0];
+  if (piece.status !== 'erro' || !pub || pub.state !== 'NEEDS_REVIEW') {
+    throw new DomainError(ErrorCodes.ContentInvalidTransition, 'Esta peça não tem publicação com resultado incerto.');
+  }
+  const link = d.permalink?.trim() || null;
+  if (link && !/^https:\/\/(www\.)?instagram\.com\//.test(link)) {
+    throw new DomainError(ErrorCodes.PostInvalidSettings, 'o link precisa ser de um post do Instagram');
+  }
+  const agora_ = agora(deps);
+  if (d.published) {
+    await deps.publishing.transition(pub.id, ['NEEDS_REVIEW'], 'PUBLISHED', { publishedAt: agora_, ...(link ? { releaseUrl: link } : {}) });
+    const r = await deps.repo.transition(actor.orgId, piece.id, 'erro', 'publicado', { publishedAt: agora_, permalink: link, error: null }, {
+      stage: 'humano.publicacao_confirmada',
+      detail: { por: actor.userId },
+    });
+    if (!r) throw new DomainError(ErrorCodes.ContentInvalidTransition, 'a peça mudou de etapa enquanto você decidia; recarregue');
+    return r;
+  }
+  await deps.publishing.transition(pub.id, ['NEEDS_REVIEW'], 'FAILED', { errorMessage: 'confirmado que não saiu na rede' });
+  const r = await deps.repo.update(actor.orgId, piece.id, { error: 'Confirmado que não saiu. Use "Tentar de novo" para publicar em um post novo.' });
+  if (!r) throw new DomainError(ErrorCodes.NotFound, 'peça não encontrada');
+  return r;
+}
 
 /** ajuste manual de legenda, hashtags, data ou canal — só antes de agendar */
 export const makeEditPiece =

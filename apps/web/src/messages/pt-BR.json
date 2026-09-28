@@ -1181,7 +1181,14 @@
       "rejectDescription": "A peça sai da esteira. Dá para reabrir depois com Refazer roteiro.",
       "reason": "Motivo",
       "reasonPlaceholder": "Opcional",
-      "rejectSubmit": "Reprovar peça"
+      "rejectSubmit": "Reprovar peça",
+      "resolveHint": "O Instagram não confirmou se este post saiu. Confira no perfil e diga o que aconteceu antes de qualquer outra decisão.",
+      "permalinkLabel": "Link do post",
+      "permalinkHint": "Opcional. Cole o link se o post saiu.",
+      "published": "Saiu no Instagram",
+      "notPublished": "Não saiu",
+      "resolvedPublished": "Peça marcada como publicada.",
+      "resolvedNotPublished": "Anotado. Use \"Tentar de novo\" para publicar em um post novo."
     },
     "identity": {
       "brandSection": "Marca",

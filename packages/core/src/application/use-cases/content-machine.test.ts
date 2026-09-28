@@ -324,7 +324,16 @@ function montar(
     publishing: {
       getGroup: async (_o, id) => {
         const g = grupos.get(id);
-        return g ? ({ id, state: g.state, publishAt: null, timezone: 'UTC', baseContent: {}, publications: [{ state: g.pubState, releaseUrl: g.url, errorMessage: null }] } as never) : null;
+        // id da publicação = id do grupo (um canal por post na máquina)
+        return g ? ({ id, state: g.state, publishAt: null, timezone: 'UTC', baseContent: {}, publications: [{ id, state: g.pubState, releaseUrl: g.url, errorMessage: null }] } as never) : null;
+      },
+      transition: async (pubId, from, to, patch) => {
+        const g = grupos.get(pubId);
+        if (!g || !(from as string[]).includes(g.pubState)) return false;
+        g.pubState = to;
+        if (to === 'CANCELLED') g.state = 'CANCELLED';
+        if (patch?.releaseUrl) g.url = patch.releaseUrl;
+        return true;
       },
     },
     schedulePost: (async (input: Record<string, unknown>) => {
@@ -789,6 +798,55 @@ describe('máquina de conteúdo: regressões da revisão adversarial', () => {
   it('data fora de 2000–2100 é recusada', async () => {
     const m = await pronto();
     await expect(makeRequestPlan(m.deps)(actor, { weekStart: '0000-01-03' })).rejects.toThrow('AAAA-MM-DD');
+  });
+
+  it('post que falhou é descartado quando a máquina cria o novo (nada para "tentar de novo" no Quadro)', async () => {
+    const m = await pronto();
+    const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho' });
+    const ag = await avancarAte(m, p.id, ['agendado']);
+    m.grupos.set(ag!.postGroupId!, { state: 'PARTIAL', pubState: 'FAILED', url: null });
+    await makeSweepContent(m.deps)();
+    await makeDecidePiece(m.deps)(actor, p.id, { action: 'retry' });
+    await avancarAte(m, p.id, ['agendado', 'erro']);
+    expect(m.grupos.get(ag!.postGroupId!)?.pubState).toBe('CANCELLED');
+  });
+
+  it('reprovar peça em erro com post ainda agendado tira o post do ar', async () => {
+    const m = await pronto();
+    const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho' });
+    const ag = await avancarAte(m, p.id, ['agendado']);
+    // a transição para agendado se perdeu: peça em erro, post vivo
+    await m.deps.repo.transition(ORG, p.id, 'agendado', 'erro', { error: 'x' }, { stage: 'teste' });
+    await makeDecidePiece(m.deps)(actor, p.id, { action: 'reject' });
+    expect(m.grupos.get(ag!.postGroupId!)?.pubState).toBe('CANCELLED');
+  });
+
+  it('publicação incerta: confirmar que saiu fecha a peça como publicada, com o link', async () => {
+    const m = await pronto();
+    const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho' });
+    const ag = await avancarAte(m, p.id, ['agendado']);
+    m.grupos.set(ag!.postGroupId!, { state: 'SCHEDULED', pubState: 'NEEDS_REVIEW', url: null });
+    await makeSweepContent(m.deps)();
+    await expect(makeDecidePiece(m.deps)(actor, p.id, { action: 'redo', stage: 'roteiro', feedback: 'x' })).rejects.toThrow('resultado incerto');
+    const r = await makeDecidePiece(m.deps)(actor, p.id, { action: 'resolvePublication', published: true, permalink: 'https://www.instagram.com/p/abc/' });
+    expect(r.status).toBe('publicado');
+    expect(r.permalink).toBe('https://www.instagram.com/p/abc/');
+    expect(m.grupos.get(ag!.postGroupId!)?.pubState).toBe('PUBLISHED');
+  });
+
+  it('publicação incerta: "não saiu" permite tentar de novo em um post novo', async () => {
+    const m = await pronto();
+    const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho' });
+    const ag = await avancarAte(m, p.id, ['agendado']);
+    m.grupos.set(ag!.postGroupId!, { state: 'SCHEDULED', pubState: 'NEEDS_REVIEW', url: null });
+    await makeSweepContent(m.deps)();
+    await makeDecidePiece(m.deps)(actor, p.id, { action: 'resolvePublication', published: false });
+    expect(m.grupos.get(ag!.postGroupId!)?.pubState).toBe('FAILED');
+    await makeDecidePiece(m.deps)(actor, p.id, { action: 'retry' });
+    const final = await avancarAte(m, p.id, ['agendado', 'erro']);
+    expect(final?.status).toBe('agendado');
+    expect(final?.postGroupId).not.toBe(ag!.postGroupId);
+    expect(m.grupos.get(ag!.postGroupId!)?.pubState).toBe('CANCELLED');
   });
 
   it('extração de paleta vazia não apaga a paleta salva', async () => {

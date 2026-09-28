@@ -15,6 +15,7 @@ import type {
 import {
   agora,
   CAPTION_TOTAL_MAX,
+  descartarPost,
   enqueuePiece,
   publishedText,
   foundationText,
@@ -434,9 +435,11 @@ async function etapaAgendar(deps: ContentMachineDeps, piece: ContentPieceRecord,
         { retryable: false },
       );
     }
-    // post que falhou ou foi cancelado não volta sozinho: cria um novo
+    // post que falhou ou foi cancelado não volta sozinho: cria um novo — e o que falhou é
+    // descartado, para um "tentar de novo" no Quadro não publicar o mesmo conteúdo duas vezes
     const vivo = grupo.state !== 'CANCELLED' && !!pub && pub.state !== 'FAILED' && pub.state !== 'CANCELLED';
     if (!vivo) {
+      await descartarPost(deps, piece.orgId, grupo.id);
       grupo = null;
       groupId = null;
     }

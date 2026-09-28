@@ -19,6 +19,21 @@ import { AUTH_SECURITY, createApp, errorResponses, jsonBody, jsonResponse } from
  * Tudo é da organização do principal; id de outra organização responde 404.
  */
 
+/** data que existe no calendário — a regex sozinha deixava 2026-13-40 chegar ao banco (500) */
+const CalendarDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((s) => {
+    const d = new Date(`${s}T00:00:00Z`);
+    return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+  }, 'data inexistente');
+
+const PiecesQuery = z.object({
+  status: z.string().max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+});
+const SpendQuery = z.object({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional() });
+
 const Hex = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const Palette = z
   .object({
@@ -169,13 +184,13 @@ const CreatePieceBody = z.object({
 });
 
 const PlanBody = z.object({
-  weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  weekStart: CalendarDate,
   market: z.string().max(40).optional(),
   channelId: z.string().uuid().optional(),
   slots: z
     .array(
       z.object({
-        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        date: CalendarDate,
         format: z.enum(ContentFormats),
         pillar: z.string().max(40),
         icp: z.string().max(40).optional(),
@@ -210,6 +225,7 @@ const SpendOut = z
   .openapi('ContentSpend');
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
+
 
 export function contentMachineRoutes(ctn: Container) {
   const app = createApp();
@@ -331,7 +347,7 @@ export function contentMachineRoutes(ctn: Container) {
     return c.json(docs.map((d) => ({ ...d, updatedAt: d.updatedAt.toISOString() })));
   });
 
-  const FoundationBody = z.object({ body: z.string().max(30_000), validUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional() });
+  const FoundationBody = z.object({ body: z.string().max(30_000), validUntil: CalendarDate.nullable().optional() });
   app.openAPIRegistry.registerPath({
     method: 'put',
     path: '/foundation/{key}',
@@ -405,12 +421,12 @@ export function contentMachineRoutes(ctn: Container) {
   });
   app.get('/pieces', async (c) => {
     const { orgId } = actor(c);
-    const statuses = (c.req.query('status') ?? '')
+    const q = PiecesQuery.parse(c.req.query());
+    const statuses = (q.status ?? '')
       .split(',')
       .map((s) => s.trim())
       .filter((s): s is (typeof ContentPieceStatuses)[number] => (ContentPieceStatuses as readonly string[]).includes(s));
-    const limit = Number(c.req.query('limit') ?? 200);
-    const pieces = await cm.repo.listPieces(orgId, { ...(statuses.length ? { statuses } : {}), limit: Number.isFinite(limit) ? limit : 200 });
+    const pieces = await cm.repo.listPieces(orgId, { ...(statuses.length ? { statuses } : {}), limit: q.limit ?? 200 });
     const info = await mediaInfo(orgId, pieces);
     return c.json(pieces.map((p) => pieceOut(p, info)));
   });
@@ -445,22 +461,27 @@ export function contentMachineRoutes(ctn: Container) {
     path: '/plan',
     tags,
     security: AUTH_SECURITY,
-    summary: 'Gera a pauta da semana e cria as peças',
-    description: 'Sem `slots`, usa o mix padrão (2 carrosséis, 1 reels, 1 post).',
+    summary: 'Pede a pauta da semana; as peças aparecem no quadro quando a geração termina',
+    description:
+      'Sem `slots`, usa o mix padrão (2 carrosséis, 1 reels, 1 post). A geração roda na fila (o modelo ' +
+      'passa do tempo de uma requisição); semana já planejada responde 409.',
     request: jsonBody(PlanBody),
-    responses: { 201: jsonResponse('peças criadas', z.array(PieceOut)), ...errorResponses(400, 401, 402, 404, 501, 502) },
+    responses: {
+      202: jsonResponse('pauta na fila', z.object({ queued: z.literal(true), weekStart: z.string() }).openapi('ContentPlanQueued')),
+      ...errorResponses(400, 401, 404, 409, 501),
+    },
   });
   app.post('/plan', async (c) => {
     const a = actor(c);
     const body = PlanBody.parse(await c.req.json());
-    const pieces = await cm.planWeek(a, {
+    await cm.setup(a.orgId);
+    const out = await cm.requestPlan(a, {
       weekStart: body.weekStart,
       ...(body.slots ? { slots: body.slots } : {}),
       ...(body.market ? { market: body.market } : {}),
       ...(body.channelId ? { channelId: body.channelId } : {}),
     });
-    const info = await mediaInfo(a.orgId, pieces);
-    return c.json(pieces.map((p) => pieceOut(p, info)), 201);
+    return c.json(out, 202);
   });
 
   app.openAPIRegistry.registerPath({
@@ -530,10 +551,10 @@ export function contentMachineRoutes(ctn: Container) {
     tags,
     security: AUTH_SECURITY,
     summary: 'Gasto do mês por serviço e por peça (USD)',
-    request: { query: z.object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional() }) },
+    request: { query: SpendQuery },
     responses: { 200: jsonResponse('gasto', SpendOut), ...errorResponses(401) },
   });
-  app.get('/spend', async (c) => c.json(await cm.spend(actor(c).orgId, c.req.query('month'))));
+  app.get('/spend', async (c) => c.json(await cm.spend(actor(c).orgId, SpendQuery.parse(c.req.query()).month)));
 
   return app;
 }

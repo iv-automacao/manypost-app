@@ -42,6 +42,9 @@ function makeApp() {
         return peca;
       }),
       createPiece: registra('createPiece', peca),
+      requestPlan: registra('requestPlan', { queued: true, weekStart: '2026-10-05' }),
+      spend: registra('spend', { month: '2026-10', totalUsd: 0, byService: [], pieces: [] }),
+      updateFoundation: registra('updateFoundation', { key: 'produtos', body: '', validUntil: null, updatedAt: new Date() }),
     },
   } as unknown as Container;
   const app = contentMachineRoutes(ctn);
@@ -99,5 +102,24 @@ describe('/v1/content-machine', () => {
     const res = await app.request('/pieces', { method: 'POST', headers: AUTH, body: JSON.stringify({ format: 'reels', hook: 'Servidor, este é pra você.' }) });
     expect(res.status).toBe(201);
     expect(chamadas.find((c) => c.fn === 'createPiece')!.args[0]).toEqual({ orgId: 'org-1', userId: 'user-1' });
+  });
+
+  it('pauta responde 202 e vai para a fila', async () => {
+    const { app, chamadas } = makeApp();
+    const res = await app.request('/plan', { method: 'POST', headers: AUTH, body: JSON.stringify({ weekStart: '2026-10-05' }) });
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ queued: true, weekStart: '2026-10-05' });
+    expect(chamadas.some((c) => c.fn === 'requestPlan')).toBe(true);
+  });
+
+  it('consultas e datas fora do contrato são 400, não 500', async () => {
+    const { app, chamadas } = makeApp();
+    expect((await app.request('/pieces?limit=-1', { headers: AUTH })).status).toBe(400);
+    expect((await app.request('/pieces?limit=2.5', { headers: AUTH })).status).toBe(400);
+    expect((await app.request('/spend?month=2026-13', { headers: AUTH })).status).toBe(400);
+    expect((await app.request('/plan', { method: 'POST', headers: AUTH, body: JSON.stringify({ weekStart: '2026-02-30' }) })).status).toBe(400);
+    const f = await app.request('/foundation/produtos', { method: 'PUT', headers: AUTH, body: JSON.stringify({ body: 'x', validUntil: '2026-13-01' }) });
+    expect(f.status).toBe(400);
+    expect(chamadas.some((c) => c.fn === 'requestPlan' || c.fn === 'updateFoundation' || c.fn === 'spend')).toBe(false);
   });
 });

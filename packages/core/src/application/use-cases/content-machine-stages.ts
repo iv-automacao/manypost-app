@@ -15,6 +15,7 @@ import type {
 import {
   agora,
   enqueuePiece,
+  publishedText,
   foundationText,
   generateJson,
   loadBrand,
@@ -40,6 +41,19 @@ const LEASE_SEC = 20 * 60;
 /** falha retentável tenta de novo sozinha até aqui; depois vira `erro` para uma pessoa olhar */
 const MAX_AUTO_RETRIES = 2;
 const VIDEO_POLL_MS = 10_000;
+/** o Instagram aceita no máximo 10 itens por carrossel */
+const MAX_SLIDES = 10;
+
+/**
+ * A execução perdeu a posse (decisão humana ou outro claim no meio da etapa). Não é falha da peça:
+ * a etapa só desiste, sem escrever nada.
+ */
+class PossePerdida extends Error {
+  constructor() {
+    super('posse da etapa perdida');
+    this.name = 'PossePerdida';
+  }
+}
 
 const Slide = z.object({
   ordem: z.number().int(),
@@ -200,10 +214,13 @@ async function persistirImagens(deps: ContentMachineDeps, piece: ContentPieceRec
 async function etapaArte(deps: ContentMachineDeps, piece: ContentPieceRecord, brand: ContentBrandRecord) {
   const script = Roteiro.parse(piece.script ?? {});
   const format = piece.format === 'reels' ? 'post' : piece.format;
+  const ordenados = [...script.slides].sort((a, b) => a.ordem - b.ordem);
+  // acima de 10 o agendamento recusaria: mantém os 9 primeiros e o slide final (CTA)
+  const slides = ordenados.length > MAX_SLIDES ? [...ordenados.slice(0, MAX_SLIDES - 1), ordenados[ordenados.length - 1]!] : ordenados;
   const imagens = await requireRenderer(deps).render({
     format,
     kicker: brand.name,
-    slides: format === 'carrossel' ? script.slides : script.slides.slice(0, 1),
+    slides: format === 'carrossel' ? slides : slides.slice(0, 1),
     cta: format === 'carrossel' ? '' : script.offer || ctaTexto(brand, piece.keyword),
     brand: await renderBrandFor(deps, brand),
   });
@@ -214,16 +231,20 @@ async function etapaArte(deps: ContentMachineDeps, piece: ContentPieceRecord, br
 
 interface ClipeEstado {
   ordem: number;
-  requestId: string;
-  estado: 'pending' | 'done' | 'failed';
+  /** ausente enquanto `enviando`: o pedido saiu mas o provedor ainda não confirmou o id */
+  requestId?: string;
+  estado: 'enviando' | 'pending' | 'done' | 'failed';
   url?: string;
   motivo?: string;
   custoUsd: number;
 }
 
 /**
- * Reels: um clipe por cena, com narração gerada junto da imagem. O id de cada pedido é gravado
- * ANTES de esperar — se o processo cair, a próxima execução retoma a consulta em vez de pagar de novo.
+ * Reels: um clipe por cena, com narração gerada junto da imagem.
+ *
+ * Cada pedido é marcado como `enviando` ANTES de sair e ganha o id logo depois: se a resposta do
+ * envio se perder (tempo esgotado, conexão caída), o provedor pode ter aceitado e cobrado — nesse
+ * caso a peça para para uma pessoa conferir em vez de pagar a mesma cena de novo.
  */
 async function etapaVideo(deps: ContentMachineDeps, piece: ContentPieceRecord, brand: ContentBrandRecord) {
   if (!deps.video) throw new DomainError(ErrorCodes.ContentNotConfigured, 'Gerador de vídeo não configurado (VIDEO_PROVIDER_KEY).');
@@ -233,7 +254,23 @@ async function etapaVideo(deps: ContentMachineDeps, piece: ContentPieceRecord, b
   const cenas = [...script.cenas].sort((a, b) => a.ordem - b.ordem).slice(0, 5);
   const salvo = ((piece.plan.video as { clipes?: ClipeEstado[] } | undefined)?.clipes ?? []).filter((c) => c.estado !== 'failed');
   const clipes: ClipeEstado[] = [...salvo];
-  const salvar = () => deps.repo.update(piece.orgId, piece.id, { plan: { ...piece.plan, video: { clipes } } });
+  const salvar = async () => {
+    const ok = await deps.repo.update(piece.orgId, piece.id, { plan: { ...piece.plan, video: { clipes } } }, { fence: piece.lockedUntil });
+    if (!ok) throw new PossePerdida();
+  };
+  const gasto = (c: ClipeEstado) =>
+    deps.repo.addSpend({ orgId: piece.orgId, pieceId: piece.id, service: 'video', model: video.model, externalId: c.requestId!, costUsd: c.custoUsd, detail: { cena: c.ordem } });
+
+  const incerto = clipes.find((c) => c.estado === 'enviando');
+  if (incerto) {
+    throw new DomainError(
+      ErrorCodes.ContentGenerationFailed,
+      `O pedido de vídeo da cena ${incerto.ordem} ficou sem confirmação. Confira no painel do gerador de vídeo; "Tentar de novo" reenvia essa cena.`,
+      { retryable: false },
+    );
+  }
+  // idempotente por id do pedido: clipe salvo por uma execução que caiu antes de registrar o gasto
+  for (const c of clipes) if (c.requestId) await gasto(c);
 
   for (const cena of cenas) {
     if (clipes.some((c) => c.ordem === cena.ordem)) continue;
@@ -244,18 +281,35 @@ async function etapaVideo(deps: ContentMachineDeps, piece: ContentPieceRecord, b
       resolution: deps.videoResolution ?? '720p',
       audio: true,
     };
-    const custo = await video.estimate(pedido);
-    const { requestId } = await video.submit(pedido);
-    clipes.push({ ordem: cena.ordem, requestId, estado: 'pending', custoUsd: custo });
+    const clipe: ClipeEstado = { ordem: cena.ordem, estado: 'enviando', custoUsd: await video.estimate(pedido) };
+    clipes.push(clipe);
     await salvar();
-    await deps.repo.addSpend({ orgId: piece.orgId, pieceId: piece.id, service: 'video', model: video.model, externalId: requestId, costUsd: custo, detail: { cena: cena.ordem, duracaoS: pedido.durationSec } });
+    try {
+      clipe.requestId = (await video.submit(pedido)).requestId;
+    } catch (err) {
+      const ambiguo = !(err instanceof DomainError) || err.detail?.retryable === true;
+      if (ambiguo) {
+        throw new DomainError(
+          ErrorCodes.ContentGenerationFailed,
+          `O envio do vídeo da cena ${cena.ordem} não teve confirmação. Confira no painel do gerador de vídeo antes de tentar de novo.`,
+          { retryable: false },
+        );
+      }
+      // recusa definitiva (saldo, pedido inválido): nada foi criado no provedor
+      clipes.splice(clipes.indexOf(clipe), 1);
+      await salvar();
+      throw err;
+    }
+    clipe.estado = 'pending';
+    await salvar();
+    await gasto(clipe);
   }
 
   const dormir = deps.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
   const prazo = agora(deps).getTime() + (deps.videoWaitMs ?? 8 * 60_000);
   while (clipes.some((c) => c.estado === 'pending')) {
     for (const c of clipes.filter((x) => x.estado === 'pending')) {
-      const s = await video.status(c.requestId);
+      const s = await video.status(c.requestId!);
       if (s.state === 'done') Object.assign(c, { estado: 'done', url: s.videoUrl });
       if (s.state === 'failed') {
         Object.assign(c, { estado: 'failed', motivo: s.reason });
@@ -357,32 +411,50 @@ async function etapaAgendar(deps: ContentMachineDeps, piece: ContentPieceRecord,
   // data do slot se ainda está no futuro; senão, daqui a 2 minutos
   const minimo = new Date(agora(deps).getTime() + 2 * 60_000);
   const publishAt = piece.scheduledFor && piece.scheduledFor > minimo ? piece.scheduledFor : minimo;
-  const hashtags = piece.hashtags.map((h) => `#${h}`).join(' ');
-  const text = [piece.caption.trim(), hashtags].filter(Boolean).join('\n\n');
+  const text = publishedText(piece.caption, piece.hashtags);
   const instagram = canal.provider.startsWith('instagram');
 
-  // idempotência: se uma execução anterior já agendou e caiu antes de gravar o status, reaproveita
-  // o post em vez de criar outro (retentar aqui duplicaria a publicação)
-  const anterior = piece.postGroupId ? await deps.publishing.getGroup(piece.orgId, piece.postGroupId) : null;
-  const group =
-    anterior && anterior.state !== 'CANCELLED'
-      ? anterior
-      : await deps.schedulePost({
-          orgId: piece.orgId,
-          authorId: null,
-          text,
-          channelIds: [channelId],
-          publishAt,
-          timezone: brand.timezone,
-          origin: 'AUTOMATION',
-          mediaIds: [...piece.media].sort((a, b) => a.order - b.order).map((m) => m.mediaId),
-          ...(instagram ? { settingsByChannel: { [channelId]: { postType: piece.format === 'story' ? 'story' : 'feed' } } } : {}),
-        });
-  if (!group) throw new DomainError(ErrorCodes.ContentGenerationFailed, 'o agendamento não devolveu o post');
-  if (!anterior) await deps.repo.update(piece.orgId, piece.id, { postGroupId: group.id });
+  // idempotência: o id do post é escolhido e gravado ANTES de criá-lo. Uma execução que cair no
+  // meio encontra o mesmo post na próxima tentativa, em vez de criar outro (publicação dupla).
+  let groupId = ((piece.plan as { agendamentoId?: string }).agendamentoId ?? piece.postGroupId) || null;
+  let grupo = groupId ? await deps.publishing.getGroup(piece.orgId, groupId) : null;
+  if (grupo) {
+    const pub = grupo.publications[0];
+    if (pub?.state === 'NEEDS_REVIEW') {
+      throw new DomainError(
+        ErrorCodes.ContentInvalidTransition,
+        'A publicação anterior ficou com resultado incerto. Confira no Instagram e resolva no Quadro antes de reagendar.',
+        { retryable: false },
+      );
+    }
+    // post que falhou ou foi cancelado não volta sozinho: cria um novo
+    const vivo = grupo.state !== 'CANCELLED' && !!pub && pub.state !== 'FAILED' && pub.state !== 'CANCELLED';
+    if (!vivo) {
+      grupo = null;
+      groupId = null;
+    }
+  }
+  if (!grupo) {
+    groupId = groupId ?? crypto.randomUUID();
+    const ok = await deps.repo.update(piece.orgId, piece.id, { plan: { ...piece.plan, agendamentoId: groupId } }, { fence: piece.lockedUntil });
+    if (!ok) throw new PossePerdida();
+    grupo = await deps.schedulePost({
+      orgId: piece.orgId,
+      authorId: null,
+      text,
+      channelIds: [channelId],
+      publishAt,
+      timezone: brand.timezone,
+      origin: 'AUTOMATION',
+      mediaIds: [...piece.media].sort((a, b) => a.order - b.order).map((m) => m.mediaId),
+      groupId,
+      ...(instagram ? { settingsByChannel: { [channelId]: { postType: piece.format === 'story' ? 'story' : 'feed' } } } : {}),
+    });
+  }
+  if (!grupo) throw new DomainError(ErrorCodes.ContentGenerationFailed, 'o agendamento não devolveu o post');
   return {
     to: 'agendado' as const,
-    patch: { postGroupId: group.id, scheduledFor: publishAt, channelId } satisfies ContentPiecePatch,
+    patch: { postGroupId: grupo.id, scheduledFor: publishAt, channelId } satisfies ContentPiecePatch,
     detail: { publicaEm: publishAt.toISOString(), canal: canal.name },
   };
 }
@@ -420,27 +492,52 @@ export const makeRunContentStage = (deps: ContentMachineDeps) =>
           out = await etapaAgendar(deps, piece, brand);
       }
       if ('pending' in out) {
-        // vídeo ainda gerando: solta a trava e volta em 1 minuto
-        await deps.repo.release(orgId, pieceId);
-        await enqueuePiece(deps, orgId, piece, new Date(agora(deps).getTime() + 60_000));
+        // vídeo ainda gerando: segura a peça por 1 minuto (nenhum job duplicado a pega antes) e volta
+        const volta = new Date(agora(deps).getTime() + 60_000);
+        if (await deps.repo.release(orgId, pieceId, { fence: piece.lockedUntil, holdUntil: volta })) {
+          await enqueuePiece(deps, orgId, piece, volta);
+        }
         return;
       }
-      const nova = await deps.repo.transition(orgId, pieceId, piece.status, out.to, { ...out.patch, error: null, resetAttempts: true }, { stage, detail: out.detail });
+      const nova = await deps.repo.transition(
+        orgId,
+        pieceId,
+        piece.status,
+        out.to,
+        { ...out.patch, error: null, resetAttempts: true },
+        { stage, detail: out.detail },
+        piece.lockedUntil,
+      );
       if (nova) await enqueuePiece(deps, orgId, nova);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const retentavel =
-        !(err instanceof DomainError) ||
-        err.detail?.retryable === true ||
-        err.code === ErrorCodes.AiProviderFailed ||
-        err.code === ErrorCodes.AiInvalidResponse;
-      deps.log?.('warn', 'content-machine: etapa falhou', { pieceId, stage, code: err instanceof DomainError ? err.code : 'unexpected', retentavel });
-      if (retentavel && piece.attempts < MAX_AUTO_RETRIES) {
-        await deps.repo.release(orgId, pieceId, { incrementAttempts: true, error: msg.slice(0, 1000) });
-        await enqueuePiece(deps, orgId, piece, new Date(agora(deps).getTime() + 60_000 * (piece.attempts + 1)));
+      if (err instanceof PossePerdida) {
+        deps.log?.('info', 'content-machine: etapa perdeu a posse e desistiu', { pieceId, stage });
         return;
       }
-      await deps.repo.transition(orgId, pieceId, piece.status, 'erro', { error: msg.slice(0, 1000), incrementAttempts: true }, { stage, detail: { erro: msg.slice(0, 300) } });
+      const msg = err instanceof Error ? err.message : String(err);
+      // o adapter diz se vale repetir (408/429/5xx sim; 4xx como saldo ou pedido inválido, não)
+      const retentavel = !(err instanceof DomainError) || err.detail?.retryable === true;
+      deps.log?.('warn', 'content-machine: etapa falhou', { pieceId, stage, code: err instanceof DomainError ? err.code : 'unexpected', retentavel });
+      if (retentavel && piece.attempts < MAX_AUTO_RETRIES) {
+        // a espera fica no banco (trava até `volta`): job duplicado não fura o intervalo
+        const volta = new Date(agora(deps).getTime() + 60_000 * (piece.attempts + 1));
+        const ok = await deps.repo.release(orgId, pieceId, {
+          fence: piece.lockedUntil,
+          patch: { incrementAttempts: true, error: msg.slice(0, 1000) },
+          holdUntil: volta,
+        });
+        if (ok) await enqueuePiece(deps, orgId, piece, volta);
+        return;
+      }
+      await deps.repo.transition(
+        orgId,
+        pieceId,
+        piece.status,
+        'erro',
+        { error: msg.slice(0, 1000), incrementAttempts: true },
+        { stage, detail: { erro: msg.slice(0, 300) } },
+        piece.lockedUntil,
+      );
     }
   };
 
@@ -470,6 +567,17 @@ export const makeSweepContent = (deps: ContentMachineDeps) =>
         if (ok) published++;
       } else if (pub.state === 'FAILED' || pub.state === 'CANCELLED' || group.state === 'CANCELLED') {
         const ok = await deps.repo.transition(p.orgId, p.id, 'agendado', 'erro', { error: pub.errorMessage ?? `publicação ${pub.state.toLowerCase()}` }, { stage: 'publicacao', detail: { estado: pub.state } });
+        if (ok) failed++;
+      } else if (pub.state === 'NEEDS_REVIEW') {
+        // resultado incerto na rede: pode ter saído. Uma pessoa confere antes de qualquer reenvio
+        const ok = await deps.repo.transition(
+          p.orgId,
+          p.id,
+          'agendado',
+          'erro',
+          { error: 'A publicação ficou com resultado incerto. Confira no Instagram e resolva no Quadro.' },
+          { stage: 'publicacao', detail: { estado: pub.state } },
+        );
         if (ok) failed++;
       }
     }

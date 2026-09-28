@@ -95,7 +95,13 @@ export interface PublishingRuntime {
   registerQueue(
     queue: string,
     run: (data: never) => Promise<void>,
-    opts?: { cron?: string; expireInSeconds?: number; workers?: number },
+    opts?: {
+      cron?: string;
+      expireInSeconds?: number;
+      workers?: number;
+      /** `stately`: no máximo um job na fila e um rodando por singletonKey (só vale na criação) */
+      policy?: 'standard' | 'short' | 'singleton' | 'stately';
+    },
   ): Promise<void>;
   startWorker(): Promise<void>;
   stop(): Promise<void>;
@@ -211,7 +217,11 @@ export async function createPublishingRuntime(
     },
     async registerQueue(queue, run, o) {
       await boss
-        .createQueue(queue, o?.expireInSeconds ? { name: queue, expireInSeconds: o.expireInSeconds } : { name: queue })
+        .createQueue(queue, {
+          name: queue,
+          ...(o?.expireInSeconds ? { expireInSeconds: o.expireInSeconds } : {}),
+          ...(o?.policy ? { policy: o.policy } : {}),
+        })
         .catch(() => {}); // idempotente entre versões
       extras.push({ queue, run, ...(o?.cron ? { cron: o.cron } : {}), workers: Math.max(1, o?.workers ?? 1) });
     },

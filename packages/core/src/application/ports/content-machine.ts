@@ -233,13 +233,24 @@ export interface ContentMachineRepository {
   /**
    * Posse da etapa: só pega a peça se ela está em `status` e sem trava viva. Devolve null quando
    * outra execução já a tem (ou ela mudou de status) — o chamador simplesmente desiste.
+   *
+   * O `lockedUntil` devolvido é o **token de posse** (precisão de milissegundo): as escritas da
+   * etapa passam esse valor como `fence`, e qualquer decisão humana ou novo claim o invalida — uma
+   * execução que perdeu a posse passa a afetar zero linhas.
    */
   claim(orgId: string, id: string, status: ContentPieceStatus, leaseSec: number): Promise<ContentPieceRecord | null>;
-  /** solta a trava sem mudar status (etapa longa que vai continuar depois) */
-  release(orgId: string, id: string, patch?: ContentPiecePatch): Promise<void>;
+  /**
+   * Devolve a peça sem mudar status. `holdUntil` mantém a trava até esse instante (espera de
+   * retentativa ou de vídeo): nenhum job duplicado consegue pegar a peça antes da hora.
+   */
+  release(
+    orgId: string,
+    id: string,
+    opts: { fence: Date | null; patch?: ContentPiecePatch; holdUntil?: Date },
+  ): Promise<boolean>;
   /**
    * UPDATE condicional `status = from` → `to`, grava o patch, solta a trava e registra o evento.
-   * null = a peça não estava mais em `from`.
+   * Com `fence`, exige ainda que a posse seja a mesma. null = nada mudou.
    */
   transition(
     orgId: string,
@@ -248,14 +259,20 @@ export interface ContentMachineRepository {
     to: ContentPieceStatus,
     patch: ContentPiecePatch,
     event: { stage: string; detail?: Record<string, unknown> },
+    fence?: Date | null,
   ): Promise<ContentPieceRecord | null>;
-  /** edição sem troca de status; `onlyIn` restringe a edição a certos status */
+  /**
+   * Edição sem troca de status. `onlyIn` restringe a certos status; `fence` exige a posse da etapa;
+   * `unlocked` recusa enquanto uma etapa estiver rodando. Patch vazio devolve a peça como está.
+   */
   update(
     orgId: string,
     id: string,
     patch: ContentPiecePatch,
-    onlyIn?: ContentPieceStatus[],
+    opts?: { onlyIn?: ContentPieceStatus[]; fence?: Date | null; unlocked?: boolean },
   ): Promise<ContentPieceRecord | null>;
+  /** peças da pauta com slot entre `from` e `to` (inclusive, `YYYY-MM-DD`) — impede pauta duplicada */
+  plannedInRange(orgId: string, from: string, to: string): Promise<number>;
   events(orgId: string, pieceId: string): Promise<ContentPieceEventRecord[]>;
 
   /** peças automáticas paradas: trava vencida, ou sem trava e sem mudança há `idleSec` */

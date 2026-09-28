@@ -37,6 +37,10 @@ import type { makeSchedulePost } from './publishing';
 
 export const CONTENT_MACHINE_QUEUE = 'content-machine';
 export const CONTENT_SWEEP_QUEUE = 'content-machine-sweep';
+export const CONTENT_PLAN_QUEUE = 'content-machine-plan';
+
+/** limite de texto do Instagram — legenda + hashtags precisam caber juntas */
+export const CAPTION_TOTAL_MAX = 2200;
 
 export interface ContentMachineDeps {
   repo: ContentMachineRepository;
@@ -214,6 +218,36 @@ export function zonedDate(day: string, hour: number, timeZone: string): Date {
   return new Date(palpite.getTime() - (comoLocal - palpite.getTime()));
 }
 
+/** `AAAA-MM-DD` que existe no calendário (a regex sozinha aceita 2026-13-40) */
+export const isCalendarDate = (s: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(`${s}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+};
+
+/** texto que vai ao ar: legenda + hashtags, como o agendamento monta */
+export const publishedText = (caption: string, hashtags: readonly string[]): string =>
+  [caption.trim(), hashtags.map((h) => `#${h}`).join(' ')].filter(Boolean).join('\n\n');
+
+/**
+ * Provedores em que a conta/página é escolhida por post (Instagram via Facebook Business,
+ * Facebook): a máquina ainda não guarda essa escolha, então recusa antes de qualquer etapa paga.
+ */
+const CANAIS_SEM_SUPORTE = new Set(['instagram', 'facebook']);
+
+export async function assertMachineChannel(deps: Pick<ContentMachineDeps, 'channels'>, orgId: string, channelId: string) {
+  const [canal] = await deps.channels.findMany(orgId, [channelId]);
+  if (!canal) throw new DomainError(ErrorCodes.NotFound, 'canal não encontrado');
+  if (CANAIS_SEM_SUPORTE.has(canal.provider)) {
+    throw new DomainError(
+      ErrorCodes.PostInvalidSettings,
+      'A máquina ainda não publica em canais ligados pelo Facebook (a página é escolhida por post). Conecte o Instagram direto.',
+      { provider: canal.provider },
+    );
+  }
+  return canal;
+}
+
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const limparPaleta = (p: BrandPalette): BrandPalette => {
   const out: BrandPalette = {};
@@ -243,10 +277,7 @@ export const makeUpdateBrand =
   (deps: Pick<ContentMachineDeps, 'repo' | 'channels' | 'media'>) =>
   async (orgId: string, patch: ContentBrandPatch): Promise<ContentBrandRecord> => {
     await loadBrand(deps, orgId);
-    if (patch.defaultChannelId) {
-      const [canal] = await deps.channels.findMany(orgId, [patch.defaultChannelId]);
-      if (!canal) throw new DomainError(ErrorCodes.NotFound, 'canal não encontrado');
-    }
+    if (patch.defaultChannelId) await assertMachineChannel(deps, orgId, patch.defaultChannelId);
     for (const id of [patch.logoMediaId, patch.logoDarkMediaId]) {
       if (!id) continue;
       const [m] = await deps.media.findMany(orgId, [id]);
@@ -278,6 +309,13 @@ export const makeExtractPalette =
     const [m] = await deps.media.findMany(orgId, [alvo]);
     if (!m || !m.mime.startsWith('image/')) throw new DomainError(ErrorCodes.NotFound, 'imagem não encontrada');
     const lida = await requireRenderer(deps).palette({ imageUrl: deps.storage.publicUrl(m.path) });
+    // leitura vazia (logo quase transparente) não pode apagar a paleta que a org já tem
+    const papeis = Object.keys(limparPaleta(lida.suggestion)).filter((k) => k !== 'extraidas');
+    if (papeis.length === 0) {
+      throw new DomainError(ErrorCodes.ContentGenerationFailed, 'Não consegui ler as cores dessa imagem. Use uma logo com cores sólidas.', {
+        retryable: false,
+      });
+    }
     return deps.repo.upsertBrand(orgId, {
       palette: limparPaleta({ ...lida.suggestion, extraidas: lida.colors }),
       ...(brand.logoMediaId ? {} : { logoMediaId: alvo }),
@@ -287,7 +325,7 @@ export const makeExtractPalette =
 export const makeUpdateFoundation =
   (deps: Pick<ContentMachineDeps, 'repo' | 'audit'>) =>
   async (actor: ContentActor, key: ContentFoundationKey, body: string, validUntil: string | null) => {
-    if (validUntil !== null && !/^\d{4}-\d{2}-\d{2}$/.test(validUntil)) {
+    if (validUntil !== null && !isCalendarDate(validUntil)) {
       throw new DomainError(ErrorCodes.PostInvalidSettings, 'validade no formato AAAA-MM-DD');
     }
     const doc = await deps.repo.upsertFoundation(actor.orgId, key, body, validUntil);
@@ -351,26 +389,70 @@ async function novaKeyword(deps: Pick<ContentMachineDeps, 'repo'>, orgId: string
   return k;
 }
 
+export interface PlanWeekInput {
+  weekStart: string;
+  slots?: PlanSlot[] | undefined;
+  market?: string | undefined;
+  channelId?: string | undefined;
+}
+
+/** valida o pedido e resolve os slots (padrão da semana quando não vêm) */
+async function planSlots(deps: Pick<ContentMachineDeps, 'channels'>, orgId: string, input: PlanWeekInput): Promise<PlanSlot[]> {
+  if (!isCalendarDate(input.weekStart)) {
+    throw new DomainError(ErrorCodes.PostInvalidSettings, 'início da semana no formato AAAA-MM-DD');
+  }
+  const slots: PlanSlot[] =
+    input.slots && input.slots.length > 0
+      ? input.slots
+      : DEFAULT_WEEK.map((s) => ({
+          date: addDays(input.weekStart, s.dayOffset),
+          format: s.format,
+          pillar: s.pillar,
+          ...(input.market ? { market: input.market } : {}),
+        }));
+  if (slots.length > 14) throw new DomainError(ErrorCodes.PostInvalidSettings, 'no máximo 14 peças por pauta');
+  if (slots.some((s) => !isCalendarDate(s.date))) throw new DomainError(ErrorCodes.PostInvalidSettings, 'data de slot inválida');
+  if (input.channelId) await assertMachineChannel(deps, orgId, input.channelId);
+  return slots;
+}
+
+const janelaDosSlots = (slots: PlanSlot[]) => {
+  const datas = slots.map((s) => s.date).sort();
+  return { from: datas[0]!, to: datas[datas.length - 1]! };
+};
+
+/**
+ * Pede a pauta da semana: valida, recusa semana já planejada e enfileira. A geração roda na fila
+ * (o modelo de raciocínio passa do tempo de uma requisição HTTP, e reenviar duplicaria a semana).
+ */
+export const makeRequestPlan =
+  (deps: ContentMachineDeps) =>
+  async (actor: ContentActor, input: PlanWeekInput): Promise<{ queued: true; weekStart: string }> => {
+    await loadBrand(deps, actor.orgId);
+    const slots = await planSlots(deps, actor.orgId, input);
+    const { from, to } = janelaDosSlots(slots);
+    if ((await deps.repo.plannedInRange(actor.orgId, from, to)) > 0) {
+      throw new DomainError(ErrorCodes.ContentInvalidTransition, 'Essa semana já tem pauta. Reprove as peças dela antes de gerar outra.');
+    }
+    await deps.scheduler.enqueue(
+      CONTENT_PLAN_QUEUE,
+      { orgId: actor.orgId, userId: actor.userId, input },
+      { singletonKey: `${actor.orgId}:${from}:${to}`, retryLimit: 1 },
+    );
+    return { queued: true, weekStart: input.weekStart };
+  };
+
 export const makePlanContentWeek =
   (deps: ContentMachineDeps) =>
-  async (
-    actor: ContentActor,
-    input: { weekStart: string; slots?: PlanSlot[]; market?: string; channelId?: string },
-  ): Promise<ContentPieceRecord[]> => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.weekStart)) {
-      throw new DomainError(ErrorCodes.PostInvalidSettings, 'início da semana no formato AAAA-MM-DD');
-    }
+  async (actor: ContentActor, input: PlanWeekInput): Promise<ContentPieceRecord[]> => {
     const brand = await loadBrand(deps, actor.orgId);
-    const slots: PlanSlot[] =
-      input.slots && input.slots.length > 0
-        ? input.slots
-        : DEFAULT_WEEK.map((s) => ({
-            date: addDays(input.weekStart, s.dayOffset),
-            format: s.format,
-            pillar: s.pillar,
-            ...(input.market ? { market: input.market } : {}),
-          }));
-    if (slots.length > 14) throw new DomainError(ErrorCodes.PostInvalidSettings, 'no máximo 14 peças por pauta');
+    const slots = await planSlots(deps, actor.orgId, input);
+    // idempotente: um segundo job da mesma semana (reenvio, retry da fila) não duplica as peças
+    const { from, to } = janelaDosSlots(slots);
+    if ((await deps.repo.plannedInRange(actor.orgId, from, to)) > 0) {
+      deps.log?.('info', 'content-machine: semana já planejada, pedido ignorado', { orgId: actor.orgId, from, to });
+      return [];
+    }
 
     const hooks = await deps.repo.listHooks(actor.orgId);
     const quatroSemanas = new Date(agora(deps).getTime() - 28 * 86_400_000);
@@ -432,6 +514,7 @@ export const makeCreatePiece =
     const brand = await loadBrand(deps, actor.orgId);
     const hook = input.hook.trim();
     if (!hook) throw new DomainError(ErrorCodes.PostEmptyContent, 'escreva a ideia ou o gancho da peça');
+    if (input.channelId) await assertMachineChannel(deps, actor.orgId, input.channelId);
     const icp = (input.icp ?? '').toLowerCase();
     const dia = input.scheduledFor ?? agora(deps);
     const piece = await deps.repo.createPiece(actor.orgId, {
@@ -478,8 +561,13 @@ export const makeDecidePiece =
         destino = decision.stage === 'roteiro' ? 'ideia' : 'roteiro';
         const texto = decision.feedback.trim();
         if (!texto) throw new DomainError(ErrorCodes.PostEmptyContent, 'diga o que precisa mudar');
+        if (decision.stage === 'producao' && !piece.script) {
+          throw new DomainError(ErrorCodes.ContentInvalidTransition, 'A peça ainda não tem roteiro. Refaça o roteiro.');
+        }
         patch.feedback = [...piece.feedback, { at: agora(deps).toISOString(), stage: decision.stage, text: texto, by: actor.userId }];
-        if (decision.stage === 'producao') patch.plan = { ...piece.plan, video: undefined };
+        // conteúdo novo: clipes e agendamento anteriores não valem mais (o vídeo segue o roteiro)
+        patch.plan = { ...piece.plan, video: undefined, agendamentoId: undefined };
+        patch.postGroupId = null;
         patch.resetAttempts = true;
         break;
       }
@@ -492,6 +580,11 @@ export const makeDecidePiece =
         // publicação que falhou volta para `aprovado`: reagendar não exige refazer arte nem texto
         const origem = falha?.fromStatus;
         destino = !origem || origem === 'erro' ? 'ideia' : origem === 'agendado' ? 'aprovado' : origem;
+        // pedido de vídeo sem confirmação: a pessoa conferiu no painel e decidiu reenviar
+        const video = piece.plan.video as { clipes?: Array<{ estado: string }> } | undefined;
+        if (video?.clipes?.some((c) => c.estado === 'enviando')) {
+          patch.plan = { ...piece.plan, video: { ...video, clipes: video.clipes.filter((c) => c.estado !== 'enviando') } };
+        }
         patch.resetAttempts = true;
         break;
       }
@@ -523,26 +616,37 @@ export const makeEditPiece =
     pieceId: string,
     input: { caption?: string; hashtags?: string[]; scheduledFor?: Date | null; channelId?: string | null },
   ): Promise<ContentPieceRecord> => {
-    if (input.channelId) {
-      const [canal] = await deps.channels.findMany(actor.orgId, [input.channelId]);
-      if (!canal) throw new DomainError(ErrorCodes.NotFound, 'canal não encontrado');
+    const atual = await deps.repo.getPiece(actor.orgId, pieceId);
+    if (!atual) throw new DomainError(ErrorCodes.NotFound, 'peça não encontrada');
+    if (input.channelId) await assertMachineChannel(deps, actor.orgId, input.channelId);
+    const hashtags =
+      input.hashtags !== undefined
+        ? [...new Set(input.hashtags.map((h) => h.replace(/^#/, '').trim()).filter(Boolean))].slice(0, 5)
+        : undefined;
+    const total = publishedText(input.caption ?? atual.caption, hashtags ?? atual.hashtags).length;
+    if (total > CAPTION_TOTAL_MAX) {
+      throw new DomainError(ErrorCodes.PostInvalidSettings, `Legenda e hashtags somam ${total} caracteres; o limite do Instagram é ${CAPTION_TOTAL_MAX}.`);
     }
-    const editaveis: ContentPieceStatus[] = ['ideia', 'roteiro', 'producao', 'revisao', 'aprovado', 'erro', 'reprovado'];
+    // `ideia`: o roteiro ainda vai escrever a legenda; `aprovado`: o agendamento já leu o texto
+    const editaveis: ContentPieceStatus[] = ['roteiro', 'producao', 'revisao', 'erro', 'reprovado'];
     const r = await deps.repo.update(
       actor.orgId,
       pieceId,
       {
         ...(input.caption !== undefined ? { caption: input.caption } : {}),
-        ...(input.hashtags !== undefined ? { hashtags: input.hashtags.map((h) => h.replace(/^#/, '').trim()).filter(Boolean).slice(0, 5) } : {}),
+        ...(hashtags !== undefined ? { hashtags } : {}),
         ...(input.scheduledFor !== undefined ? { scheduledFor: input.scheduledFor } : {}),
         ...(input.channelId !== undefined ? { channelId: input.channelId } : {}),
       },
-      editaveis,
+      { onlyIn: editaveis, unlocked: true },
     );
     if (!r) {
-      const existe = await deps.repo.getPiece(actor.orgId, pieceId);
-      if (!existe) throw new DomainError(ErrorCodes.NotFound, 'peça não encontrada');
-      throw new DomainError(ErrorCodes.ContentInvalidTransition, 'peça já agendada ou publicada não pode ser editada aqui');
+      throw new DomainError(
+        ErrorCodes.ContentInvalidTransition,
+        editaveis.includes(atual.status)
+          ? 'Uma etapa está rodando nesta peça. Espere terminar para ajustar.'
+          : 'Nesta etapa a peça não pode ser editada (a legenda está sendo escrita ou já foi para o agendamento).',
+      );
     }
     return r;
   };
@@ -551,7 +655,7 @@ export const makeEditPiece =
 export const makeSpendSummary =
   (deps: Pick<ContentMachineDeps, 'repo' | 'now'>) =>
   async (orgId: string, month?: string) => {
-    const base = month && /^\d{4}-\d{2}$/.test(month) ? new Date(`${month}-01T00:00:00Z`) : agora(deps);
+    const base = month && /^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? new Date(`${month}-01T00:00:00Z`) : agora(deps);
     const from = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), 1));
     const to = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + 1, 1));
     return { month: from.toISOString().slice(0, 7), ...(await deps.repo.spendSummary(orgId, from, to)) };

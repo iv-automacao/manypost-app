@@ -172,12 +172,13 @@ export function makeContentMachineRepository(db: Db): ContentMachineRepository {
 
     async savePromptVersion(orgId, name, system) {
       const r = await db.transaction(async (tx) => {
-        // trava as versões deste nome: duas edições simultâneas não disputam o mesmo número
+        // serializa por (org, nome): FOR UPDATE não enxerga a versão que outra transação acabou de
+        // inserir, e sem linhas não trava nada — o advisory lock cobre os dois casos
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`content_prompts:${orgId}:${name}`}))`);
         const atuais = await tx
           .select({ version: contentPrompts.version })
           .from(contentPrompts)
-          .where(and(eq(contentPrompts.orgId, orgId), eq(contentPrompts.name, name)))
-          .for('update');
+          .where(and(eq(contentPrompts.orgId, orgId), eq(contentPrompts.name, name)));
         const proxima = atuais.reduce((m, x) => Math.max(m, x.version), 0) + 1;
         await tx
           .update(contentPrompts)
@@ -293,7 +294,8 @@ export function makeContentMachineRepository(db: Db): ContentMachineRepository {
     async claim(orgId, id, status, leaseSec) {
       const [row] = await db
         .update(contentPieces)
-        .set({ lockedUntil: sql`now() + make_interval(secs => ${leaseSec})` })
+        // truncado em ms: o valor volta ao JS sem perda e serve de token de posse (fence)
+        .set({ lockedUntil: sql`date_trunc('milliseconds', now() + make_interval(secs => ${leaseSec}))` })
         .where(
           and(
             eq(contentPieces.orgId, orgId),
@@ -306,19 +308,34 @@ export function makeContentMachineRepository(db: Db): ContentMachineRepository {
       return row ? toPiece(row) : null;
     },
 
-    async release(orgId, id, patch) {
-      await db
+    async release(orgId, id, opts) {
+      const rows = await db
         .update(contentPieces)
-        .set({ ...patchColumns(patch ?? {}), lockedUntil: null })
-        .where(and(eq(contentPieces.orgId, orgId), eq(contentPieces.id, id)));
+        .set({ ...patchColumns(opts.patch ?? {}), lockedUntil: opts.holdUntil ?? null })
+        .where(
+          and(
+            eq(contentPieces.orgId, orgId),
+            eq(contentPieces.id, id),
+            opts.fence ? eq(contentPieces.lockedUntil, opts.fence) : sql`true`,
+          ),
+        )
+        .returning({ id: contentPieces.id });
+      return rows.length > 0;
     },
 
-    async transition(orgId, id, from, to, patch, event) {
+    async transition(orgId, id, from, to, patch, event, fence) {
       return db.transaction(async (tx) => {
         const [row] = await tx
           .update(contentPieces)
           .set({ ...patchColumns(patch), status: to, lockedUntil: null })
-          .where(and(eq(contentPieces.orgId, orgId), eq(contentPieces.id, id), eq(contentPieces.status, from)))
+          .where(
+            and(
+              eq(contentPieces.orgId, orgId),
+              eq(contentPieces.id, id),
+              eq(contentPieces.status, from),
+              fence ? eq(contentPieces.lockedUntil, fence) : sql`true`,
+            ),
+          )
           .returning();
         if (!row) return null;
         await tx.insert(contentPieceEvents).values({
@@ -333,19 +350,37 @@ export function makeContentMachineRepository(db: Db): ContentMachineRepository {
       });
     },
 
-    async update(orgId, id, patch, onlyIn) {
-      const [row] = await db
-        .update(contentPieces)
-        .set(patchColumns(patch))
+    async update(orgId, id, patch, opts) {
+      const filtros = and(
+        eq(contentPieces.orgId, orgId),
+        eq(contentPieces.id, id),
+        opts?.onlyIn?.length ? inArray(contentPieces.status, opts.onlyIn) : sql`true`,
+        opts?.fence ? eq(contentPieces.lockedUntil, opts.fence) : sql`true`,
+        opts?.unlocked ? or(isNull(contentPieces.lockedUntil), lt(contentPieces.lockedUntil, sql`now()`)) : sql`true`,
+      );
+      const campos = patchColumns(patch);
+      // drizzle recusa `.set({})`: patch vazio só confere as condições e devolve a peça
+      if (Object.keys(campos).length === 0) {
+        const [row] = await db.select().from(contentPieces).where(filtros).limit(1);
+        return row ? toPiece(row) : null;
+      }
+      const [row] = await db.update(contentPieces).set(campos).where(filtros).returning();
+      return row ? toPiece(row) : null;
+    },
+
+    async plannedInRange(orgId, from, to) {
+      const [r] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(contentPieces)
         .where(
           and(
             eq(contentPieces.orgId, orgId),
-            eq(contentPieces.id, id),
-            onlyIn?.length ? inArray(contentPieces.status, onlyIn) : sql`true`,
+            sql`${contentPieces.plan}->>'origem' = 'pauta'`,
+            sql`${contentPieces.plan}->>'slot' between ${from} and ${to}`,
+            sql`${contentPieces.status} <> 'reprovado'`,
           ),
-        )
-        .returning();
-      return row ? toPiece(row) : null;
+        );
+      return r?.n ?? 0;
     },
 
     async events(orgId, pieceId) {

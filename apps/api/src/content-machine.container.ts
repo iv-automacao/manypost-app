@@ -1,6 +1,7 @@
 import { aiConfigFromEnv, contentMachineConfigFromEnv, type Env } from '@manypost/config';
 import {
   CONTENT_MACHINE_QUEUE,
+  CONTENT_PLAN_QUEUE,
   CONTENT_SWEEP_QUEUE,
   makeContentRenderer,
   makeContentSetup,
@@ -9,7 +10,9 @@ import {
   makeEditPiece,
   makeExtractPalette,
   makePlanContentWeek,
+  makeRequestPlan,
   makeRunContentStage,
+  type PlanWeekInput,
   makeSavePrompt,
   makeSpendSummary,
   makeSweepContent,
@@ -58,6 +61,16 @@ export async function buildContentMachine(
     (d: { orgId: string; pieceId: string }) => runStage(d.orgId, d.pieceId),
     { expireInSeconds: 3600, workers: 3 },
   );
+  // pauta: modelo de raciocínio passa do tempo de uma requisição; a geração roda aqui
+  const planWeek = makePlanContentWeek(deps);
+  await runtime.registerQueue(
+    CONTENT_PLAN_QUEUE,
+    async (d: { orgId: string; userId: string | null; input: PlanWeekInput }) => {
+      const criadas = await planWeek({ orgId: d.orgId, userId: d.userId }, d.input);
+      log('info', 'content-machine: pauta gerada', { orgId: d.orgId, weekStart: d.input.weekStart, pecas: criadas.length });
+    },
+    { expireInSeconds: 900, policy: 'stately' },
+  );
   await runtime.registerQueue(
     CONTENT_SWEEP_QUEUE,
     async () => {
@@ -80,7 +93,7 @@ export async function buildContentMachine(
     extractPalette: makeExtractPalette(deps),
     updateFoundation: makeUpdateFoundation(deps),
     savePrompt: makeSavePrompt(deps),
-    planWeek: makePlanContentWeek(deps),
+    requestPlan: makeRequestPlan(deps),
     createPiece: makeCreatePiece(deps),
     decide: makeDecidePiece(deps),
     edit: makeEditPiece(deps),

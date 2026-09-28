@@ -28,6 +28,7 @@ import { publicV1Routes } from './http/routes/public/public-v1.routes';
 import { publicationRoutes } from './http/routes/publications.routes';
 import { stripeWebhookRoutes } from './http/routes/stripe-webhook.routes';
 import { webhookRoutes } from './http/routes/webhooks.routes';
+import { contentMachineRoutes } from './http/routes/content-machine.routes';
 
 const env = loadEnv();
 
@@ -115,6 +116,8 @@ app.route('/v1/search', searchRoutes(ctn)); // busca de posts (paleta de comando
 // IA: as rotas existem sempre; sem AI_PROVIDER elas respondem `capability.disabled` (404), e
 // /best-times segue funcionando porque é heurística, não modelo (SPEC_AI §3)
 app.route('/v1/ai', aiRoutes(ctn));
+// máquina de conteúdo: pauta → roteiro → arte/vídeo → revisão → agendamento (add-content-machine)
+app.route('/v1/content-machine', contentMachineRoutes(ctn));
 if (ctn.billing) {
   // gerenciado apenas (IS_SELF_HOSTED=false + Stripe): em self-hosted estas rotas não existem
   app.route('/v1/billing', billingRoutes(ctn));

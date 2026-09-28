@@ -88,6 +88,15 @@ export interface PublishingRuntime {
   recover: () => Promise<{ due: number; stuck: number }>;
   /** profundidade das filas (jobs created/retry) p/ o gauge do /metrics — SPEC_INFRA §4 */
   queueDepths(): Promise<Record<string, number>>;
+  /**
+   * Fila extra de outro módulo (ex.: máquina de conteúdo). Cria a fila na hora — a API precisa
+   * conseguir enfileirar mesmo em MODE=api — e só consome depois do `startWorker`.
+   */
+  registerQueue(
+    queue: string,
+    run: (data: never) => Promise<void>,
+    opts?: { cron?: string; expireInSeconds?: number; workers?: number },
+  ): Promise<void>;
   startWorker(): Promise<void>;
   stop(): Promise<void>;
 }
@@ -101,6 +110,12 @@ export async function createPublishingRuntime(
   for (const q of [PUBLISH_QUEUE, THREAD_QUEUE, RECOVER_QUEUE, WEBHOOK_QUEUE]) {
     await boss.createQueue(q).catch(() => {}); // idempotente entre versões
   }
+  const extras: Array<{
+    queue: string;
+    run: (data: never) => Promise<void>;
+    cron?: string;
+    workers: number;
+  }> = [];
   // conexão dedicada para operações fora da API do pg-boss (cancel por singletonKey)
   const sqlc = postgres(opts.databaseUrl, { max: 1, onnotice: () => {} });
 
@@ -194,6 +209,12 @@ export async function createPublishingRuntime(
         return {};
       }
     },
+    async registerQueue(queue, run, o) {
+      await boss
+        .createQueue(queue, o?.expireInSeconds ? { name: queue, expireInSeconds: o.expireInSeconds } : { name: queue })
+        .catch(() => {}); // idempotente entre versões
+      extras.push({ queue, run, ...(o?.cron ? { cron: o.cron } : {}), workers: Math.max(1, o?.workers ?? 1) });
+    },
     async startWorker() {
       await boss.work<{ publicationId: string; v?: number }>(PUBLISH_QUEUE, (jobs) =>
         runBatch(jobs, (d) => publish(d.publicationId, d.v), 'publish handler falhou'),
@@ -220,8 +241,15 @@ export async function createPublishingRuntime(
         if (out.due || out.stuck) log('warn', 'recover-scan agiu', out);
       });
       await boss.schedule(RECOVER_QUEUE, '* * * * *', {}, {}); // barato: índices parciais
+      for (const x of extras) {
+        // pg-boss 10 não tem concorrência local: cada `work` é um laço independente
+        for (let i = 0; i < x.workers; i++) {
+          await boss.work<never>(x.queue, (jobs) => runBatch(jobs, x.run, `${x.queue} falhou`));
+        }
+        if (x.cron) await boss.schedule(x.queue, x.cron, {}, {});
+      }
       log('info', 'worker ativo', {
-        queues: [PUBLISH_QUEUE, THREAD_QUEUE, WEBHOOK_QUEUE, RECOVER_QUEUE],
+        queues: [PUBLISH_QUEUE, THREAD_QUEUE, WEBHOOK_QUEUE, RECOVER_QUEUE, ...extras.map((x) => x.queue)],
       });
     },
     async stop() {

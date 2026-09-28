@@ -2829,14 +2829,17 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/v1/billing/plans": {
+    "/v1/content-machine/overview": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Catálogo de planos, preços (centavos) e limites */
+        /**
+         * Estado da máquina: identidade, capacidades e contagem por etapa
+         * @description Na primeira chamada, configura a organização (prompts, fórmulas e fundação vazia).
+         */
         get: {
             parameters: {
                 query?: never;
@@ -2846,13 +2849,13 @@ export type paths = {
             };
             requestBody?: never;
             responses: {
-                /** @description catálogo */
+                /** @description visão geral */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["PlanCatalog"];
+                        "application/json": components["schemas"]["ContentOverview"];
                     };
                 };
                 /** @description não autenticado */
@@ -2874,52 +2877,7 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/v1/billing": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Plano efetivo, uso do período e assinatura da marca */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description estado de cobrança */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BillingState"];
-                    };
-                };
-                /** @description não autenticado */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/billing/checkout": {
+    "/v1/content-machine/brand": {
         parameters: {
             query?: never;
             header?: never;
@@ -2927,38 +2885,45 @@ export type paths = {
             cookie?: never;
         };
         get?: never;
-        put?: never;
-        /** Assina um plano (Checkout) ou troca o plano de quem já assina (proration) */
-        post: {
+        /** Atualiza a identidade visual e as preferências de publicação */
+        put: {
             parameters: {
                 query?: never;
                 header?: never;
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
                     "application/json": {
+                        name?: string;
+                        /** Format: uuid */
+                        logoMediaId?: string | null;
+                        /** Format: uuid */
+                        logoDarkMediaId?: string | null;
+                        palette?: components["schemas"]["ContentPalette"];
+                        slogan?: string;
+                        signature?: string;
+                        tone?: string;
+                        /** Format: uuid */
+                        defaultChannelId?: string | null;
                         /** @enum {string} */
-                        tier: "PRO" | "PREMIUM";
-                        /** @enum {string} */
-                        period: "MONTHLY" | "YEARLY";
+                        ctaChannel?: "direct" | "whatsapp";
+                        whatsappNumber?: string;
+                        publishHour?: number;
+                        timezone?: string;
+                        autoApprove?: boolean;
                     };
                 };
             };
             responses: {
-                /** @description url = Checkout hospedado; changed = trocou direto; portalUrl = pagamento precisa de ação */
+                /** @description identidade */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            url?: string;
-                            portalUrl?: string;
-                            changed?: boolean;
-                            identifier: string;
-                        };
+                        "application/json": components["schemas"]["ContentBrand"];
                     };
                 };
                 /** @description requisição fora do contrato (problem+json) */
@@ -2972,208 +2937,6 @@ export type paths = {
                 };
                 /** @description não autenticado */
                 401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description papel insuficiente (requer ADMIN/OWNER) */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/billing/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Quanto sai agora ao trocar de plano (proration, em centavos) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        tier: "PRO" | "PREMIUM";
-                        /** @enum {string} */
-                        period: "MONTHLY" | "YEARLY";
-                    };
-                };
-            };
-            responses: {
-                /** @description valor a pagar agora */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            amount: number;
-                        };
-                    };
-                };
-                /** @description requisição fora do contrato (problem+json) */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description não autenticado */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description papel insuficiente (requer ADMIN/OWNER) */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/billing/portal": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Link do portal da Stripe (cartão, faturas, dados fiscais) */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description portal */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            url: string;
-                        };
-                    };
-                };
-                /** @description não autenticado */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description papel insuficiente (requer ADMIN/OWNER) */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/billing/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Cancela ao fim do período (chamar de novo reativa) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": {
-                        feedback?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description cancelAt = quando perde o acesso; canceledImmediately = encerrou na hora (pagamento em atraso) */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            cancelAt: string | null;
-                            canceledImmediately: boolean;
-                        };
-                    };
-                };
-                /** @description não autenticado */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description papel insuficiente (requer ADMIN/OWNER) */
-                403: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -3192,20 +2955,112 @@ export type paths = {
                 };
             };
         };
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/billing/invoices": {
+    "/v1/content-machine/brand/palette": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Faturas pagas da marca (link e PDF hospedados pela Stripe) */
+        get?: never;
+        put?: never;
+        /**
+         * Extrai a paleta de cores da logo
+         * @description Sem `mediaId`, usa a logo principal. Sem logo definida, a imagem enviada vira a logo.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        mediaId?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description identidade com a paleta */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentBrand"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description capacidade não disponível nesta instalação */
+                501: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description provedor externo falhou — o pedido pode ser repetido */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/foundation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Documentos da fundação editorial */
         get: {
             parameters: {
                 query?: never;
@@ -3215,21 +3070,13 @@ export type paths = {
             };
             requestBody?: never;
             responses: {
-                /** @description faturas */
+                /** @description fundação */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            id: string;
-                            amountPaid: number;
-                            currency: string;
-                            status: string;
-                            createdAt: string;
-                            invoiceUrl: string | null;
-                            pdfUrl: string | null;
-                        }[];
+                        "application/json": components["schemas"]["ContentFoundation"][];
                     };
                 };
                 /** @description não autenticado */
@@ -3251,7 +3098,7 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/v1/billing/sync": {
+    "/v1/content-machine/foundation/{key}": {
         parameters: {
             query?: never;
             header?: never;
@@ -3259,26 +3106,41 @@ export type paths = {
             cookie?: never;
         };
         get?: never;
-        put?: never;
-        /** Reconcilia a assinatura com a Stripe (volta do checkout, sem esperar o webhook) */
-        post: {
+        /** Grava um documento da fundação */
+        put: {
             parameters: {
                 query?: never;
                 header?: never;
-                path?: never;
+                path: {
+                    key: "produtos" | "icp" | "personagem" | "marca" | "escada" | "pilares";
+                };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": {
+                        body: string;
+                        validUntil?: string | null;
+                    };
+                };
+            };
             responses: {
-                /** @description resultado */
+                /** @description documento */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            ok: boolean;
-                        };
+                        "application/json": components["schemas"]["ContentFoundation"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
                     };
                 };
                 /** @description não autenticado */
@@ -3290,8 +3152,273 @@ export type paths = {
                         "application/problem+json": components["schemas"]["Error"];
                     };
                 };
-                /** @description papel insuficiente (requer ADMIN/OWNER) */
-                403: {
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/prompts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Prompts da máquina, com o histórico de versões */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description prompts */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentPrompt"][];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/prompts/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Cria uma versão nova (ativa) do prompt */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    name: "pauta" | "roteiro" | "legenda" | "revisor";
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        system: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description versão criada */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentPrompt"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/hooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fórmulas de gancho que a pauta usa */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description fórmulas */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentHook"][];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/pieces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Peças da máquina, mais recentes primeiro */
+        get: {
+            parameters: {
+                query?: {
+                    status?: string;
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description peças */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentPiece"][];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Cria uma peça a partir de uma ideia; a esteira começa sozinha */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        format: "carrossel" | "post" | "story" | "reels";
+                        /** @description a ideia ou o gancho */
+                        hook: string;
+                        angle?: string;
+                        pillar?: string;
+                        icp?: string;
+                        market?: string;
+                        /** Format: date-time */
+                        scheduledFor?: string;
+                        /** Format: uuid */
+                        channelId?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description peça criada */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentPiece"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description capacidade não disponível nesta instalação */
+                501: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -3307,7 +3434,7 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/v1/stripe/webhook": {
+    "/v1/content-machine/plan": {
         parameters: {
             query?: never;
             header?: never;
@@ -3316,46 +3443,367 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Webhook da Stripe (assinado por HMAC — não usa sessão) */
+        /**
+         * Gera a pauta da semana e cria as peças
+         * @description Sem `slots`, usa o mix padrão (2 carrosséis, 1 reels, 1 post).
+         */
         post: {
             parameters: {
                 query?: never;
-                header: {
-                    "stripe-signature": string;
-                };
+                header?: never;
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        weekStart: string;
+                        market?: string;
+                        /** Format: uuid */
+                        channelId?: string;
+                        slots?: {
+                            date: string;
+                            /** @enum {string} */
+                            format: "carrossel" | "post" | "story" | "reels";
+                            pillar: string;
+                            icp?: string;
+                            market?: string;
+                        }[];
+                    };
                 };
             };
             responses: {
-                /** @description evento processado */
-                200: {
+                /** @description peças criadas */
+                201: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            ok: boolean;
-                        };
+                        "application/json": components["schemas"]["ContentPiece"][];
                     };
                 };
-                /** @description assinatura HMAC inválida */
+                /** @description requisição fora do contrato (problem+json) */
                 400: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            ok: boolean;
-                        };
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description plano atual não inclui — `extra.requiredTier` diz o plano mínimo */
+                402: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description capacidade não disponível nesta instalação */
+                501: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description provedor externo falhou — o pedido pode ser repetido */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
                     };
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/pieces/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Uma peça com o histórico de etapas */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description peça */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentPieceDetail"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Ajusta legenda, hashtags, data ou canal antes do agendamento */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        caption?: string;
+                        hashtags?: string[];
+                        /** Format: date-time */
+                        scheduledFor?: string | null;
+                        /** Format: uuid */
+                        channelId?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description peça */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentPiece"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description conflito */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/v1/content-machine/pieces/{id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decisão humana: aprovar, reprovar, refazer uma etapa ou tentar de novo */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        action: "approve";
+                    } | {
+                        /** @enum {string} */
+                        action: "reject";
+                        reason?: string;
+                    } | {
+                        /** @enum {string} */
+                        action: "redo";
+                        /** @enum {string} */
+                        stage: "roteiro" | "producao";
+                        feedback: string;
+                    } | {
+                        /** @enum {string} */
+                        action: "retry";
+                    };
+                };
+            };
+            responses: {
+                /** @description peça */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentPiece"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description conflito */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/spend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Gasto do mês por serviço e por peça (USD) */
+        get: {
+            parameters: {
+                query?: {
+                    month?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description gasto */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentSpend"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5678,62 +6126,172 @@ export type components = {
              */
             signal: "network_baseline" | "own_posting_history" | "own_engagement";
         };
-        PlanCatalog: {
-            currency: string;
-            trialDays: number;
-            plans: {
-                /** @enum {string} */
-                tier: "FREE" | "PRO" | "PREMIUM";
-                name: string;
-                limits: {
-                    channels: number;
-                    postsPerMonth: number;
-                    webhooks: number;
-                    apiKeys: number;
-                };
-                features: string[];
-                prices: {
-                    MONTHLY: number | null;
-                    YEARLY: number | null;
-                };
-            }[];
+        ContentPalette: {
+            primaria?: string;
+            destaque?: string;
+            fundoEscuro?: string;
+            fundoClaro?: string;
+            texto?: string;
+            textoSuave?: string;
+            extraidas?: string[];
         };
-        BillingState: {
-            plan: {
-                /** @enum {string} */
-                tier: "FREE" | "PRO" | "PREMIUM";
-                /** @enum {string|null} */
-                status: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "INCOMPLETE" | null;
-                /** @enum {string|null} */
-                period: "MONTHLY" | "YEARLY" | null;
-                currentPeriodEnd: string | null;
-                cancelAt: string | null;
-                limits: {
-                    channels: number;
-                    postsPerMonth: number;
-                    webhooks: number;
-                    apiKeys: number;
-                };
-                features: string[];
-                usage: {
-                    channels: number;
-                    postsThisMonth: number;
-                    webhooks: number;
-                    apiKeys: number;
-                };
-                enforced: boolean;
+        ContentBrand: {
+            name: string;
+            logoMediaId: string | null;
+            logoUrl: string | null;
+            logoDarkMediaId: string | null;
+            logoDarkUrl: string | null;
+            palette: components["schemas"]["ContentPalette"];
+            slogan: string;
+            signature: string;
+            tone: string;
+            defaultChannelId: string | null;
+            /** @enum {string} */
+            ctaChannel: "direct" | "whatsapp";
+            whatsappNumber: string;
+            publishHour: number;
+            timezone: string;
+            autoApprove: boolean;
+        };
+        ContentCapabilities: {
+            text: boolean;
+            renderer: boolean;
+            video: boolean;
+            videoModel: string | null;
+        };
+        ContentOverview: {
+            brand: components["schemas"]["ContentBrand"];
+            capabilities: components["schemas"]["ContentCapabilities"];
+            counts: {
+                [key: string]: number;
             };
-            subscription: {
-                /** @enum {string} */
-                tier: "FREE" | "PRO" | "PREMIUM";
-                /** @enum {string|null} */
-                period: "MONTHLY" | "YEARLY" | null;
-                /** @enum {string} */
-                status: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "INCOMPLETE";
-                currentPeriodEnd: string | null;
-                cancelAt: string | null;
-                identifier: string | null;
+            foundationFilled: number;
+            foundationTotal: number;
+        };
+        ContentFoundation: {
+            /** @enum {string} */
+            key: "produtos" | "icp" | "personagem" | "marca" | "escada" | "pilares";
+            body: string;
+            validUntil: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ContentPrompt: {
+            id: string;
+            /** @enum {string} */
+            name: "pauta" | "roteiro" | "legenda" | "revisor";
+            version: number;
+            system: string;
+            active: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ContentHook: {
+            id: string;
+            formula: string;
+            template: string;
+            example: string;
+            pillar: string;
+            origin: string;
+            score: number;
+            uses: number;
+        };
+        ContentPiece: {
+            id: string;
+            /** @enum {string} */
+            status: "ideia" | "roteiro" | "producao" | "revisao" | "aprovado" | "agendado" | "publicado" | "reprovado" | "erro";
+            /** @enum {string} */
+            format: "carrossel" | "post" | "story" | "reels";
+            pillar: string;
+            icp: string;
+            market: string;
+            awareness: string;
+            hook: string;
+            plan: {
+                [key: string]: unknown;
+            };
+            script: {
+                [key: string]: unknown;
             } | null;
+            caption: string;
+            hashtags: string[];
+            keyword: string;
+            media: {
+                mediaId: string;
+                /** @enum {string} */
+                kind: "image" | "video";
+                order: number;
+                url: string | null;
+                mime: string | null;
+            }[];
+            review: {
+                aprovado: boolean;
+                flags: {
+                    codigo: string;
+                    trecho: string;
+                    motivo: string;
+                }[];
+                motivo: string;
+                lint?: {
+                    /** @enum {string} */
+                    nivel: "erro" | "aviso";
+                    codigo: string;
+                    msg: string;
+                }[];
+            } | null;
+            feedback: {
+                at: string;
+                stage: string;
+                text: string;
+                by: string | null;
+            }[];
+            attempts: number;
+            /** Format: date-time */
+            scheduledFor: string | null;
+            channelId: string | null;
+            postGroupId: string | null;
+            /** Format: date-time */
+            publishedAt: string | null;
+            permalink: string | null;
+            costUsd: number;
+            error: string | null;
+            /** @description true = uma etapa está executando agora */
+            running: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ContentPieceEvent: {
+            id: string;
+            stage: string;
+            fromStatus: string | null;
+            toStatus: string;
+            detail: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ContentPieceDetail: {
+            piece: components["schemas"]["ContentPiece"];
+            events: components["schemas"]["ContentPieceEvent"][];
+        };
+        ContentSpend: {
+            month: string;
+            totalUsd: number;
+            byService: {
+                service: string;
+                model: string;
+                costUsd: number;
+                count: number;
+            }[];
+            pieces: {
+                pieceId: string;
+                keyword: string;
+                format: string;
+                costUsd: number;
+            }[];
         };
         ApprovalPreview: {
             /** @example PENDING */

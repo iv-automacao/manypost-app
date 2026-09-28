@@ -83,11 +83,9 @@ export const enqueuePiece = async (
     await deps.scheduler.enqueue(
       CONTENT_MACHINE_QUEUE,
       { orgId, pieceId: piece.id },
-      {
-        // uma execução por peça e etapa; o sweeper recupera o que se perder
-        singletonKey: `${piece.id}:${piece.status}`,
-        ...(startAfter ? { startAfter } : {}),
-      },
+      // uma execução por peça e etapa; reenvio adiado não usa a chave, porque o job atual
+      // (que ainda está ativo) a seguraria e o reenvio seria descartado
+      startAfter ? { startAfter } : { singletonKey: `${piece.id}:${piece.status}` },
     );
   } catch (err) {
     deps.log?.('warn', 'content-machine: enqueue falhou, o sweeper recupera', { pieceId: piece.id, err: String(err) });
@@ -331,8 +329,8 @@ export interface PlanSlot {
   date: string;
   format: ContentFormat;
   pillar: string;
-  icp?: string;
-  market?: string;
+  icp?: string | undefined;
+  market?: string | undefined;
 }
 
 const addDays = (day: string, n: number) => {
@@ -454,7 +452,7 @@ export const makeCreatePiece =
 
 export type ContentDecision =
   | { action: 'approve' }
-  | { action: 'reject'; reason?: string }
+  | { action: 'reject'; reason?: string | undefined }
   | { action: 'redo'; stage: 'roteiro' | 'producao'; feedback: string }
   | { action: 'retry' };
 

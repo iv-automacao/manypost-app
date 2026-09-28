@@ -88,6 +88,7 @@ import { providerRegistry } from '@manypost/providers';
 import { createPublishingRuntime } from '@manypost/queue';
 import { makeStripeGateway, type StripeGateway } from './infra/billing/stripe.gateway';
 import { makeConfiguredAiProviders } from './infra/ai/provider-composition';
+import { buildContentMachine } from './content-machine.container';
 import { makeClerkIdentityVerifier } from './infra/identity/clerk.identity';
 import { createPrometheusMetrics } from './infra/metrics/prometheus';
 
@@ -279,6 +280,28 @@ export async function buildContainer(env: Env) {
     enabled: Boolean(imageProvider),
   };
 
+  const schedulePost = makeSchedulePost({
+    channels: repos.channels,
+    publishing: repos.publishing,
+    registry: providerRegistry,
+    scheduler: runtime.scheduler,
+    media: repos.media,
+    storage,
+    events: runtime.events,
+    plan,
+  });
+
+  const contentMachine = await buildContentMachine(env, db, runtime, {
+    ai: aiProvider,
+    budget,
+    media: repos.media,
+    storage,
+    channels: repos.channels,
+    publishing: repos.publishing,
+    schedulePost,
+    audit: repos.audit,
+  });
+
   return {
     env,
     db,
@@ -286,6 +309,7 @@ export async function buildContainer(env: Env) {
     budget,
     ai,
     aiImage,
+    contentMachine,
     // resumo operacional da home: contagens agregadas do nosso próprio registro (sem métrica
     // de desempenho — `channel_metrics` está vazia porque nada escreve nela)
     insights: makeSummarizeInsights({
@@ -325,16 +349,7 @@ export async function buildContainer(env: Env) {
       listSubAccounts: makeListSubAccounts({ channels: repos.channels, crypto }),
     },
     posts: {
-      schedule: makeSchedulePost({
-        channels: repos.channels,
-        publishing: repos.publishing,
-        registry: providerRegistry,
-        scheduler: runtime.scheduler,
-        media: repos.media,
-        storage,
-        events: runtime.events,
-        plan,
-      }),
+      schedule: schedulePost,
       getGroup: (orgId: string, groupId: string) => repos.publishing.getGroup(orgId, groupId),
       // sem orgId de propósito: só chamar com ids vindos de um getGroup org-scoped (como o preview de aprovação)
       listItems: (publicationId: string) => repos.publishing.listItems(publicationId),

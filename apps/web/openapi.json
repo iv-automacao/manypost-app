@@ -1666,281 +1666,706 @@
           "signal"
         ]
       },
-      "PlanCatalog": {
+      "ContentPalette": {
         "type": "object",
         "properties": {
-          "currency": {
+          "primaria": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "destaque": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "fundoEscuro": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "fundoClaro": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "texto": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "textoSuave": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "extraidas": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ContentBrand": {
+        "type": "object",
+        "properties": {
+          "name": {
             "type": "string"
           },
-          "trialDays": {
+          "logoMediaId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "logoUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "logoDarkMediaId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "logoDarkUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "palette": {
+            "$ref": "#/components/schemas/ContentPalette"
+          },
+          "slogan": {
+            "type": "string"
+          },
+          "signature": {
+            "type": "string"
+          },
+          "tone": {
+            "type": "string"
+          },
+          "defaultChannelId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ctaChannel": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "whatsapp"
+            ]
+          },
+          "whatsappNumber": {
+            "type": "string"
+          },
+          "publishHour": {
             "type": "integer"
           },
-          "plans": {
+          "timezone": {
+            "type": "string"
+          },
+          "autoApprove": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "logoMediaId",
+          "logoUrl",
+          "logoDarkMediaId",
+          "logoDarkUrl",
+          "palette",
+          "slogan",
+          "signature",
+          "tone",
+          "defaultChannelId",
+          "ctaChannel",
+          "whatsappNumber",
+          "publishHour",
+          "timezone",
+          "autoApprove"
+        ]
+      },
+      "ContentCapabilities": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "boolean"
+          },
+          "renderer": {
+            "type": "boolean"
+          },
+          "video": {
+            "type": "boolean"
+          },
+          "videoModel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "text",
+          "renderer",
+          "video",
+          "videoModel"
+        ]
+      },
+      "ContentOverview": {
+        "type": "object",
+        "properties": {
+          "brand": {
+            "$ref": "#/components/schemas/ContentBrand"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/ContentCapabilities"
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "foundationFilled": {
+            "type": "integer"
+          },
+          "foundationTotal": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "brand",
+          "capabilities",
+          "counts",
+          "foundationFilled",
+          "foundationTotal"
+        ]
+      },
+      "ContentFoundation": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "produtos",
+              "icp",
+              "personagem",
+              "marca",
+              "escada",
+              "pilares"
+            ]
+          },
+          "body": {
+            "type": "string"
+          },
+          "validUntil": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "key",
+          "body",
+          "validUntil",
+          "updatedAt"
+        ]
+      },
+      "ContentPrompt": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "enum": [
+              "pauta",
+              "roteiro",
+              "legenda",
+              "revisor"
+            ]
+          },
+          "version": {
+            "type": "integer"
+          },
+          "system": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "version",
+          "system",
+          "active",
+          "createdAt"
+        ]
+      },
+      "ContentHook": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "formula": {
+            "type": "string"
+          },
+          "template": {
+            "type": "string"
+          },
+          "example": {
+            "type": "string"
+          },
+          "pillar": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string"
+          },
+          "score": {
+            "type": "integer"
+          },
+          "uses": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "formula",
+          "template",
+          "example",
+          "pillar",
+          "origin",
+          "score",
+          "uses"
+        ]
+      },
+      "ContentPiece": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ideia",
+              "roteiro",
+              "producao",
+              "revisao",
+              "aprovado",
+              "agendado",
+              "publicado",
+              "reprovado",
+              "erro"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "carrossel",
+              "post",
+              "story",
+              "reels"
+            ]
+          },
+          "pillar": {
+            "type": "string"
+          },
+          "icp": {
+            "type": "string"
+          },
+          "market": {
+            "type": "string"
+          },
+          "awareness": {
+            "type": "string"
+          },
+          "hook": {
+            "type": "string"
+          },
+          "plan": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "script": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {}
+          },
+          "caption": {
+            "type": "string"
+          },
+          "hashtags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "keyword": {
+            "type": "string"
+          },
+          "media": {
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
-                "tier": {
-                  "type": "string",
-                  "enum": [
-                    "FREE",
-                    "PRO",
-                    "PREMIUM"
-                  ]
-                },
-                "name": {
+                "mediaId": {
                   "type": "string"
                 },
-                "limits": {
-                  "type": "object",
-                  "properties": {
-                    "channels": {
-                      "type": "integer"
-                    },
-                    "postsPerMonth": {
-                      "type": "integer"
-                    },
-                    "webhooks": {
-                      "type": "integer"
-                    },
-                    "apiKeys": {
-                      "type": "integer"
-                    }
-                  },
-                  "required": [
-                    "channels",
-                    "postsPerMonth",
-                    "webhooks",
-                    "apiKeys"
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "image",
+                    "video"
                   ]
                 },
-                "features": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
+                "order": {
+                  "type": "integer"
                 },
-                "prices": {
-                  "type": "object",
-                  "properties": {
-                    "MONTHLY": {
-                      "type": [
-                        "integer",
-                        "null"
-                      ]
-                    },
-                    "YEARLY": {
-                      "type": [
-                        "integer",
-                        "null"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "MONTHLY",
-                    "YEARLY"
+                "url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "mime": {
+                  "type": [
+                    "string",
+                    "null"
                   ]
                 }
               },
               "required": [
-                "tier",
-                "name",
-                "limits",
-                "features",
-                "prices"
+                "mediaId",
+                "kind",
+                "order",
+                "url",
+                "mime"
               ]
             }
-          }
-        },
-        "required": [
-          "currency",
-          "trialDays",
-          "plans"
-        ]
-      },
-      "BillingState": {
-        "type": "object",
-        "properties": {
-          "plan": {
-            "type": "object",
-            "properties": {
-              "tier": {
-                "type": "string",
-                "enum": [
-                  "FREE",
-                  "PRO",
-                  "PREMIUM"
-                ]
-              },
-              "status": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "enum": [
-                  "ACTIVE",
-                  "TRIALING",
-                  "PAST_DUE",
-                  "CANCELED",
-                  "INCOMPLETE"
-                ]
-              },
-              "period": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "enum": [
-                  "MONTHLY",
-                  "YEARLY"
-                ]
-              },
-              "currentPeriodEnd": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "cancelAt": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "limits": {
-                "type": "object",
-                "properties": {
-                  "channels": {
-                    "type": "integer"
-                  },
-                  "postsPerMonth": {
-                    "type": "integer"
-                  },
-                  "webhooks": {
-                    "type": "integer"
-                  },
-                  "apiKeys": {
-                    "type": "integer"
-                  }
-                },
-                "required": [
-                  "channels",
-                  "postsPerMonth",
-                  "webhooks",
-                  "apiKeys"
-                ]
-              },
-              "features": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "usage": {
-                "type": "object",
-                "properties": {
-                  "channels": {
-                    "type": "integer"
-                  },
-                  "postsThisMonth": {
-                    "type": "integer"
-                  },
-                  "webhooks": {
-                    "type": "integer"
-                  },
-                  "apiKeys": {
-                    "type": "integer"
-                  }
-                },
-                "required": [
-                  "channels",
-                  "postsThisMonth",
-                  "webhooks",
-                  "apiKeys"
-                ]
-              },
-              "enforced": {
-                "type": "boolean"
-              }
-            },
-            "required": [
-              "tier",
-              "status",
-              "period",
-              "currentPeriodEnd",
-              "cancelAt",
-              "limits",
-              "features",
-              "usage",
-              "enforced"
-            ]
           },
-          "subscription": {
+          "review": {
             "type": [
               "object",
               "null"
             ],
             "properties": {
-              "tier": {
-                "type": "string",
-                "enum": [
-                  "FREE",
-                  "PRO",
-                  "PREMIUM"
-                ]
+              "aprovado": {
+                "type": "boolean"
               },
-              "period": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "enum": [
-                  "MONTHLY",
-                  "YEARLY"
-                ]
+              "flags": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "codigo": {
+                      "type": "string"
+                    },
+                    "trecho": {
+                      "type": "string"
+                    },
+                    "motivo": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "codigo",
+                    "trecho",
+                    "motivo"
+                  ]
+                }
               },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "ACTIVE",
-                  "TRIALING",
-                  "PAST_DUE",
-                  "CANCELED",
-                  "INCOMPLETE"
-                ]
+              "motivo": {
+                "type": "string"
               },
-              "currentPeriodEnd": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "cancelAt": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "identifier": {
-                "type": [
-                  "string",
-                  "null"
-                ]
+              "lint": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "nivel": {
+                      "type": "string",
+                      "enum": [
+                        "erro",
+                        "aviso"
+                      ]
+                    },
+                    "codigo": {
+                      "type": "string"
+                    },
+                    "msg": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "nivel",
+                    "codigo",
+                    "msg"
+                  ]
+                }
               }
             },
             "required": [
-              "tier",
-              "period",
-              "status",
-              "currentPeriodEnd",
-              "cancelAt",
-              "identifier"
+              "aprovado",
+              "flags",
+              "motivo"
             ]
+          },
+          "feedback": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "at": {
+                  "type": "string"
+                },
+                "stage": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "by": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "at",
+                "stage",
+                "text",
+                "by"
+              ]
+            }
+          },
+          "attempts": {
+            "type": "integer"
+          },
+          "scheduledFor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "channelId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "postGroupId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "publishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "permalink": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "costUsd": {
+            "type": "number"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "running": {
+            "type": "boolean",
+            "description": "true = uma etapa está executando agora"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "required": [
+          "id",
+          "status",
+          "format",
+          "pillar",
+          "icp",
+          "market",
+          "awareness",
+          "hook",
           "plan",
-          "subscription"
+          "script",
+          "caption",
+          "hashtags",
+          "keyword",
+          "media",
+          "review",
+          "feedback",
+          "attempts",
+          "scheduledFor",
+          "channelId",
+          "postGroupId",
+          "publishedAt",
+          "permalink",
+          "costUsd",
+          "error",
+          "running",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ContentPieceEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "stage": {
+            "type": "string"
+          },
+          "fromStatus": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "toStatus": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "stage",
+          "fromStatus",
+          "toStatus",
+          "detail",
+          "createdAt"
+        ]
+      },
+      "ContentPieceDetail": {
+        "type": "object",
+        "properties": {
+          "piece": {
+            "$ref": "#/components/schemas/ContentPiece"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContentPieceEvent"
+            }
+          }
+        },
+        "required": [
+          "piece",
+          "events"
+        ]
+      },
+      "ContentSpend": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "totalUsd": {
+            "type": "number"
+          },
+          "byService": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "service": {
+                  "type": "string"
+                },
+                "model": {
+                  "type": "string"
+                },
+                "costUsd": {
+                  "type": "number"
+                },
+                "count": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "service",
+                "model",
+                "costUsd",
+                "count"
+              ]
+            }
+          },
+          "pieces": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "pieceId": {
+                  "type": "string"
+                },
+                "keyword": {
+                  "type": "string"
+                },
+                "format": {
+                  "type": "string"
+                },
+                "costUsd": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "pieceId",
+                "keyword",
+                "format",
+                "costUsd"
+              ]
+            }
+          }
+        },
+        "required": [
+          "month",
+          "totalUsd",
+          "byService",
+          "pieces"
         ]
       },
       "ApprovalPreview": {
@@ -5880,24 +6305,25 @@
         }
       }
     },
-    "/v1/billing/plans": {
+    "/v1/content-machine/overview": {
       "get": {
         "tags": [
-          "billing"
+          "content-machine"
         ],
         "security": [
           {
             "clerkAuth": []
           }
         ],
-        "summary": "Catálogo de planos, preços (centavos) e limites",
+        "summary": "Estado da máquina: identidade, capacidades e contagem por etapa",
+        "description": "Na primeira chamada, configura a organização (prompts, fórmulas e fundação vazia).",
         "responses": {
           "200": {
-            "description": "catálogo",
+            "description": "visão geral",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanCatalog"
+                  "$ref": "#/components/schemas/ContentOverview"
                 }
               }
             }
@@ -5915,308 +6341,86 @@
         }
       }
     },
-    "/v1/billing": {
-      "get": {
+    "/v1/content-machine/brand": {
+      "put": {
         "tags": [
-          "billing"
+          "content-machine"
         ],
         "security": [
           {
             "clerkAuth": []
           }
         ],
-        "summary": "Plano efetivo, uso do período e assinatura da marca",
-        "responses": {
-          "200": {
-            "description": "estado de cobrança",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BillingState"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "não autenticado",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/billing/checkout": {
-      "post": {
-        "tags": [
-          "billing"
-        ],
-        "security": [
-          {
-            "clerkAuth": []
-          }
-        ],
-        "summary": "Assina um plano (Checkout) ou troca o plano de quem já assina (proration)",
+        "summary": "Atualiza a identidade visual e as preferências de publicação",
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
                 "properties": {
-                  "tier": {
+                  "name": {
                     "type": "string",
-                    "enum": [
-                      "PRO",
-                      "PREMIUM"
-                    ]
+                    "maxLength": 80
                   },
-                  "period": {
+                  "logoMediaId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  },
+                  "logoDarkMediaId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  },
+                  "palette": {
+                    "$ref": "#/components/schemas/ContentPalette"
+                  },
+                  "slogan": {
                     "type": "string",
-                    "enum": [
-                      "MONTHLY",
-                      "YEARLY"
-                    ]
-                  }
-                },
-                "required": [
-                  "tier",
-                  "period"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "url = Checkout hospedado; changed = trocou direto; portalUrl = pagamento precisa de ação",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "url": {
-                      "type": "string"
-                    },
-                    "portalUrl": {
-                      "type": "string"
-                    },
-                    "changed": {
-                      "type": "boolean"
-                    },
-                    "identifier": {
-                      "type": "string"
-                    }
+                    "maxLength": 200
                   },
-                  "required": [
-                    "identifier"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "requisição fora do contrato (problem+json)",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "não autenticado",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "papel insuficiente (requer ADMIN/OWNER)",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/billing/preview": {
-      "post": {
-        "tags": [
-          "billing"
-        ],
-        "security": [
-          {
-            "clerkAuth": []
-          }
-        ],
-        "summary": "Quanto sai agora ao trocar de plano (proration, em centavos)",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "tier": {
+                  "signature": {
                     "type": "string",
-                    "enum": [
-                      "PRO",
-                      "PREMIUM"
-                    ]
+                    "maxLength": 200
                   },
-                  "period": {
-                    "type": "string",
-                    "enum": [
-                      "MONTHLY",
-                      "YEARLY"
-                    ]
-                  }
-                },
-                "required": [
-                  "tier",
-                  "period"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "valor a pagar agora",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "amount": {
-                      "type": "integer"
-                    }
-                  },
-                  "required": [
-                    "amount"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "requisição fora do contrato (problem+json)",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "não autenticado",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "papel insuficiente (requer ADMIN/OWNER)",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/billing/portal": {
-      "get": {
-        "tags": [
-          "billing"
-        ],
-        "security": [
-          {
-            "clerkAuth": []
-          }
-        ],
-        "summary": "Link do portal da Stripe (cartão, faturas, dados fiscais)",
-        "responses": {
-          "200": {
-            "description": "portal",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "url": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "url"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "não autenticado",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "papel insuficiente (requer ADMIN/OWNER)",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/billing/cancel": {
-      "post": {
-        "tags": [
-          "billing"
-        ],
-        "security": [
-          {
-            "clerkAuth": []
-          }
-        ],
-        "summary": "Cancela ao fim do período (chamar de novo reativa)",
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "feedback": {
+                  "tone": {
                     "type": "string",
                     "maxLength": 2000
+                  },
+                  "defaultChannelId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  },
+                  "ctaChannel": {
+                    "type": "string",
+                    "enum": [
+                      "direct",
+                      "whatsapp"
+                    ]
+                  },
+                  "whatsappNumber": {
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "publishHour": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 23
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "autoApprove": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -6225,32 +6429,17 @@
         },
         "responses": {
           "200": {
-            "description": "cancelAt = quando perde o acesso; canceledImmediately = encerrou na hora (pagamento em atraso)",
+            "description": "identidade",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "cancelAt": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "canceledImmediately": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "cancelAt",
-                    "canceledImmediately"
-                  ]
+                  "$ref": "#/components/schemas/ContentBrand"
                 }
               }
             }
           },
-          "401": {
-            "description": "não autenticado",
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6259,8 +6448,8 @@
               }
             }
           },
-          "403": {
-            "description": "papel insuficiente (requer ADMIN/OWNER)",
+          "401": {
+            "description": "não autenticado",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6282,64 +6471,118 @@
         }
       }
     },
-    "/v1/billing/invoices": {
-      "get": {
+    "/v1/content-machine/brand/palette": {
+      "post": {
         "tags": [
-          "billing"
+          "content-machine"
         ],
         "security": [
           {
             "clerkAuth": []
           }
         ],
-        "summary": "Faturas pagas da marca (link e PDF hospedados pela Stripe)",
+        "summary": "Extrai a paleta de cores da logo",
+        "description": "Sem `mediaId`, usa a logo principal. Sem logo definida, a imagem enviada vira a logo.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mediaId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "faturas",
+            "description": "identidade com a paleta",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentBrand"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "capacidade não disponível nesta instalação",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "provedor externo falhou — o pedido pode ser repetido",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/foundation": {
+      "get": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Documentos da fundação editorial",
+        "responses": {
+          "200": {
+            "description": "fundação",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string"
-                      },
-                      "amountPaid": {
-                        "type": "integer"
-                      },
-                      "currency": {
-                        "type": "string"
-                      },
-                      "status": {
-                        "type": "string"
-                      },
-                      "createdAt": {
-                        "type": "string"
-                      },
-                      "invoiceUrl": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
-                      "pdfUrl": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "amountPaid",
-                      "currency",
-                      "status",
-                      "createdAt",
-                      "invoiceUrl",
-                      "pdfUrl"
-                    ]
+                    "$ref": "#/components/schemas/ContentFoundation"
                   }
                 }
               }
@@ -6358,32 +6601,392 @@
         }
       }
     },
-    "/v1/billing/sync": {
-      "post": {
+    "/v1/content-machine/foundation/{key}": {
+      "put": {
         "tags": [
-          "billing"
+          "content-machine"
         ],
         "security": [
           {
             "clerkAuth": []
           }
         ],
-        "summary": "Reconcilia a assinatura com a Stripe (volta do checkout, sem esperar o webhook)",
+        "summary": "Grava um documento da fundação",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "produtos",
+                "icp",
+                "personagem",
+                "marca",
+                "escada",
+                "pilares"
+              ]
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "maxLength": 30000
+                  },
+                  "validUntil": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  }
+                },
+                "required": [
+                  "body"
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "resultado",
+            "description": "documento",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean"
-                    }
+                  "$ref": "#/components/schemas/ContentFoundation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/prompts": {
+      "get": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Prompts da máquina, com o histórico de versões",
+        "responses": {
+          "200": {
+            "description": "prompts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContentPrompt"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/prompts/{name}": {
+      "put": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Cria uma versão nova (ativa) do prompt",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pauta",
+                "roteiro",
+                "legenda",
+                "revisor"
+              ]
+            },
+            "required": true,
+            "name": "name",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "system": {
+                    "type": "string",
+                    "minLength": 20,
+                    "maxLength": 30000
+                  }
+                },
+                "required": [
+                  "system"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "versão criada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentPrompt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/hooks": {
+      "get": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Fórmulas de gancho que a pauta usa",
+        "responses": {
+          "200": {
+            "description": "fórmulas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContentHook"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/pieces": {
+      "get": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Peças da máquina, mais recentes primeiro",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "status separados por vírgula"
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "peças",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContentPiece"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Cria uma peça a partir de uma ideia; a esteira começa sozinha",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "format": {
+                    "type": "string",
+                    "enum": [
+                      "carrossel",
+                      "post",
+                      "story",
+                      "reels"
+                    ]
                   },
-                  "required": [
-                    "ok"
-                  ]
+                  "hook": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500,
+                    "description": "a ideia ou o gancho"
+                  },
+                  "angle": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "pillar": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "icp": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "market": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "scheduledFor": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "channelId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "format",
+                  "hook"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "peça criada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentPiece"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -6398,8 +7001,18 @@
               }
             }
           },
-          "403": {
-            "description": "papel insuficiente (requer ADMIN/OWNER)",
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "capacidade não disponível nesta instalação",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6411,65 +7024,529 @@
         }
       }
     },
-    "/v1/stripe/webhook": {
+    "/v1/content-machine/plan": {
       "post": {
         "tags": [
-          "billing"
+          "content-machine"
         ],
-        "summary": "Webhook da Stripe (assinado por HMAC — não usa sessão)",
-        "parameters": [
+        "security": [
           {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "stripe-signature",
-            "in": "header"
+            "clerkAuth": []
           }
         ],
+        "summary": "Gera a pauta da semana e cria as peças",
+        "description": "Sem `slots`, usa o mix padrão (2 carrosséis, 1 reels, 1 post).",
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {}
+                "properties": {
+                  "weekStart": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "market": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "channelId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "slots": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "date": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        },
+                        "format": {
+                          "type": "string",
+                          "enum": [
+                            "carrossel",
+                            "post",
+                            "story",
+                            "reels"
+                          ]
+                        },
+                        "pillar": {
+                          "type": "string",
+                          "maxLength": 40
+                        },
+                        "icp": {
+                          "type": "string",
+                          "maxLength": 40
+                        },
+                        "market": {
+                          "type": "string",
+                          "maxLength": 40
+                        }
+                      },
+                      "required": [
+                        "date",
+                        "format",
+                        "pillar"
+                      ]
+                    },
+                    "maxItems": 14
+                  }
+                },
+                "required": [
+                  "weekStart"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "peças criadas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContentPiece"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "plano atual não inclui — `extra.requiredTier` diz o plano mínimo",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "capacidade não disponível nesta instalação",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "provedor externo falhou — o pedido pode ser repetido",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/pieces/{id}": {
+      "get": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Uma peça com o histórico de etapas",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "peça",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentPieceDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Ajusta legenda, hashtags, data ou canal antes do agendamento",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "caption": {
+                    "type": "string",
+                    "maxLength": 2200
+                  },
+                  "hashtags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "maxItems": 5
+                  },
+                  "scheduledFor": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "channelId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  }
+                }
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "evento processado",
+            "description": "peça",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ]
+                  "$ref": "#/components/schemas/ContentPiece"
                 }
               }
             }
           },
           "400": {
-            "description": "assinatura HMAC inválida",
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "conflito",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/pieces/{id}/decision": {
+      "post": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Decisão humana: aprovar, reprovar, refazer uma etapa ou tentar de novo",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "approve"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "action"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "reject"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "maxLength": 500
+                      }
+                    },
+                    "required": [
+                      "action"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "redo"
+                        ]
+                      },
+                      "stage": {
+                        "type": "string",
+                        "enum": [
+                          "roteiro",
+                          "producao"
+                        ]
+                      },
+                      "feedback": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2000
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "stage",
+                      "feedback"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "retry"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "action"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "peça",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ]
+                  "$ref": "#/components/schemas/ContentPiece"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "conflito",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/spend": {
+      "get": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Gasto do mês por serviço e por peça (USD)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$"
+            },
+            "required": false,
+            "name": "month",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "gasto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentSpend"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

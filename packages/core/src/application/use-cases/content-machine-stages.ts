@@ -14,6 +14,7 @@ import type {
 } from '../ports/content-machine';
 import {
   agora,
+  CAPTION_TOTAL_MAX,
   enqueuePiece,
   publishedText,
   foundationText,
@@ -165,10 +166,15 @@ async function etapaRoteiro(deps: ContentMachineDeps, piece: ContentPieceRecord,
       caption = lint.caption;
       hashtags = [...new Set(lint.hashtags.map(normalizeHashtag).filter(Boolean))].slice(0, 5);
       findings = lint.findings;
-      if (lint.hasError && tentativa === 0) {
-        correcoes = lint.findings.filter((f) => f.nivel === 'erro');
-        continue;
-      }
+    }
+    // limite do Instagram vale para legenda + hashtags juntas (o lint só olha a legenda)
+    const total = publishedText(caption, hashtags).length;
+    if (total > CAPTION_TOTAL_MAX) {
+      findings = [...findings, { nivel: 'erro', codigo: 'TEXTO_TOTAL', msg: `legenda e hashtags somam ${total} caracteres (máx. ${CAPTION_TOTAL_MAX})` }];
+    }
+    if (findings.some((f) => f.nivel === 'erro') && tentativa === 0) {
+      correcoes = findings.filter((f) => f.nivel === 'erro');
+      continue;
     }
     resultado = { script, caption, hashtags, findings };
     break;
@@ -301,8 +307,9 @@ async function etapaVideo(deps: ContentMachineDeps, piece: ContentPieceRecord, b
       throw err;
     }
     clipe.estado = 'pending';
-    await salvar();
+    // o gasto vem antes: se a posse cair ao salvar, a cobrança já feita fica registrada
     await gasto(clipe);
+    await salvar();
   }
 
   const dormir = deps.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));

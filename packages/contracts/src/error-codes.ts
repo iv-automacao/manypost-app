@@ -50,6 +50,8 @@ export const ErrorCodes = {
   ContentInvalidTransition: 'content.invalid_transition',
   ContentNotConfigured: 'content.not_configured',
   ContentGenerationFailed: 'content.generation_failed',
+  /** o serviço de arte recusou a entrada (imagem ilegível, clipe acima do limite) */
+  ContentInvalidInput: 'content.invalid_input',
   // genéricos
   NotFound: 'common.not_found',
   Forbidden: 'common.forbidden',

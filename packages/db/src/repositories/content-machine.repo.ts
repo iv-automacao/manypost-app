@@ -368,9 +368,9 @@ export function makeContentMachineRepository(db: Db): ContentMachineRepository {
       return row ? toPiece(row) : null;
     },
 
-    async plannedInRange(orgId, from, to) {
-      const [r] = await db
-        .select({ n: sql<number>`count(*)::int` })
+    async plannedSlots(orgId, from, to) {
+      const rows = await db
+        .select({ slot: sql<string>`${contentPieces.plan}->>'slot'`, format: contentPieces.format })
         .from(contentPieces)
         .where(
           and(
@@ -380,7 +380,7 @@ export function makeContentMachineRepository(db: Db): ContentMachineRepository {
             sql`${contentPieces.status} <> 'reprovado'`,
           ),
         );
-      return r?.n ?? 0;
+      return rows;
     },
 
     async events(orgId, pieceId) {

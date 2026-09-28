@@ -300,6 +300,7 @@ export async function buildContainer(env: Env) {
     publishing: repos.publishing,
     schedulePost,
     audit: repos.audit,
+    notifications: repos.notifications,
   });
 
   return {

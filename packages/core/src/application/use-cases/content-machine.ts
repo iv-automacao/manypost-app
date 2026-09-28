@@ -11,7 +11,7 @@ import { canContentTransition, isAutomatic, keywordFor } from '../../domain/cont
 import { DomainError } from '../../domain/shared/result';
 import { parseStructured } from '../ai/structured';
 import type { AiProvider, BudgetGuard, TokenUsage } from '../ports/ai-provider';
-import type { AuditLogRepository } from '../ports/approvals';
+import type { AuditLogRepository, NotificationRepository } from '../ports/approvals';
 import type {
   BrandPalette,
   ContentBrandPatch,
@@ -55,6 +55,8 @@ export interface ContentMachineDeps {
   schedulePost: ReturnType<typeof makeSchedulePost>;
   scheduler: JobScheduler;
   audit: AuditLogRepository;
+  /** sininho do app: avisa o que falhou fora da requisição (ex.: pauta na fila) */
+  notifications?: Pick<NotificationRepository, 'create'>;
   /** preço por milhão de tokens do modelo de texto (design D5) */
   prices: { textUsdIn: number; textUsdOut: number };
   /** rótulo do modelo de texto, só para o registro de gasto */
@@ -222,7 +224,9 @@ export function zonedDate(day: string, hour: number, timeZone: string): Date {
 export const isCalendarDate = (s: string): boolean => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
   const d = new Date(`${s}T00:00:00Z`);
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+  // ano fora de 2000–2100 é erro de digitação (o Postgres recusa o ano 0; 1900 publicaria agora)
+  const ano = d.getUTCFullYear();
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s && ano >= 2000 && ano <= 2100;
 };
 
 /** texto que vai ao ar: legenda + hashtags, como o agendamento monta */
@@ -421,6 +425,19 @@ const janelaDosSlots = (slots: PlanSlot[]) => {
   return { from: datas[0]!, to: datas[datas.length - 1]! };
 };
 
+/** slots do pedido que ainda não têm peça (mesma data e formato, fora as reprovadas) */
+async function slotsQueFaltam(deps: Pick<ContentMachineDeps, 'repo'>, orgId: string, slots: PlanSlot[]) {
+  const { from, to } = janelaDosSlots(slots);
+  const ocupados = await deps.repo.plannedSlots(orgId, from, to);
+  const restantes = [...ocupados];
+  return slots.filter((s) => {
+    const i = restantes.findIndex((o) => o.slot === s.date && o.format === s.format);
+    if (i === -1) return true;
+    restantes.splice(i, 1);
+    return false;
+  });
+}
+
 /**
  * Pede a pauta da semana: valida, recusa semana já planejada e enfileira. A geração roda na fila
  * (o modelo de raciocínio passa do tempo de uma requisição HTTP, e reenviar duplicaria a semana).
@@ -429,15 +446,18 @@ export const makeRequestPlan =
   (deps: ContentMachineDeps) =>
   async (actor: ContentActor, input: PlanWeekInput): Promise<{ queued: true; weekStart: string }> => {
     await loadBrand(deps, actor.orgId);
+    // sem modelo de texto a pauta nunca sai: recusa já, em vez de prometer e falhar na fila
+    requireAi(deps);
     const slots = await planSlots(deps, actor.orgId, input);
     const { from, to } = janelaDosSlots(slots);
-    if ((await deps.repo.plannedInRange(actor.orgId, from, to)) > 0) {
-      throw new DomainError(ErrorCodes.ContentInvalidTransition, 'Essa semana já tem pauta. Reprove as peças dela antes de gerar outra.');
+    if ((await slotsQueFaltam(deps, actor.orgId, slots)).length === 0) {
+      throw new DomainError(ErrorCodes.ContentInvalidTransition, 'Essa semana já tem pauta. Reprove as peças que quiser refazer e peça de novo.');
     }
     await deps.scheduler.enqueue(
       CONTENT_PLAN_QUEUE,
       { orgId: actor.orgId, userId: actor.userId, input },
-      { singletonKey: `${actor.orgId}:${from}:${to}`, retryLimit: 1 },
+      // retentativa é feita pelo próprio job, que avisa no sininho se não conseguir
+      { singletonKey: `${actor.orgId}:${from}:${to}`, retryLimit: 0 },
     );
     return { queued: true, weekStart: input.weekStart };
   };
@@ -446,11 +466,11 @@ export const makePlanContentWeek =
   (deps: ContentMachineDeps) =>
   async (actor: ContentActor, input: PlanWeekInput): Promise<ContentPieceRecord[]> => {
     const brand = await loadBrand(deps, actor.orgId);
-    const slots = await planSlots(deps, actor.orgId, input);
-    // idempotente: um segundo job da mesma semana (reenvio, retry da fila) não duplica as peças
-    const { from, to } = janelaDosSlots(slots);
-    if ((await deps.repo.plannedInRange(actor.orgId, from, to)) > 0) {
-      deps.log?.('info', 'content-machine: semana já planejada, pedido ignorado', { orgId: actor.orgId, from, to });
+    const pedidos = await planSlots(deps, actor.orgId, input);
+    // idempotente: gera só os slots que ainda não têm peça (reenvio não duplica; semana parcial se completa)
+    const slots = await slotsQueFaltam(deps, actor.orgId, pedidos);
+    if (slots.length === 0) {
+      deps.log?.('info', 'content-machine: semana já planejada, pedido ignorado', { orgId: actor.orgId, weekStart: input.weekStart });
       return [];
     }
 
@@ -494,6 +514,37 @@ export const makePlanContentWeek =
       await enqueuePiece(deps, actor.orgId, piece);
     }
     return criadas;
+  };
+
+/**
+ * Job da pauta: uma nova tentativa para falha momentânea; se ainda assim não sair, avisa no sininho
+ * (a pessoa recebeu 202 e está esperando as peças aparecerem no quadro).
+ */
+export const makeRunPlanJob =
+  (deps: ContentMachineDeps) =>
+  async (actor: ContentActor, input: PlanWeekInput): Promise<ContentPieceRecord[]> => {
+    const planWeek = makePlanContentWeek(deps);
+    for (let tentativa = 1; ; tentativa++) {
+      try {
+        return await planWeek(actor, input);
+      } catch (err) {
+        const retentavel = !(err instanceof DomainError) || err.detail?.retryable === true;
+        if (retentavel && tentativa < 2) continue;
+        const motivo = err instanceof Error ? err.message : String(err);
+        deps.log?.('warn', 'content-machine: pauta falhou', { orgId: actor.orgId, weekStart: input.weekStart, code: err instanceof DomainError ? err.code : 'unexpected' });
+        await deps.notifications
+          ?.create({
+            orgId: actor.orgId,
+            ...(actor.userId ? { userId: actor.userId } : {}),
+            kind: 'content.plan_failed',
+            title: `A pauta da semana de ${input.weekStart} não foi gerada`,
+            body: motivo.slice(0, 500),
+            link: '/maquina',
+          })
+          .catch(() => {});
+        return [];
+      }
+    }
   };
 
 export const makeCreatePiece =
@@ -565,9 +616,12 @@ export const makeDecidePiece =
           throw new DomainError(ErrorCodes.ContentInvalidTransition, 'A peça ainda não tem roteiro. Refaça o roteiro.');
         }
         patch.feedback = [...piece.feedback, { at: agora(deps).toISOString(), stage: decision.stage, text: texto, by: actor.userId }];
-        // conteúdo novo: clipes e agendamento anteriores não valem mais (o vídeo segue o roteiro)
+        // conteúdo novo: clipes, mídia e agendamento anteriores não valem mais; refazer o roteiro
+        // descarta também o roteiro recusado (senão "refazer arte" produziria a partir dele)
         patch.plan = { ...piece.plan, video: undefined, agendamentoId: undefined };
         patch.postGroupId = null;
+        patch.media = [];
+        if (decision.stage === 'roteiro') patch.script = null;
         patch.resetAttempts = true;
         break;
       }
@@ -628,7 +682,8 @@ export const makeEditPiece =
       throw new DomainError(ErrorCodes.PostInvalidSettings, `Legenda e hashtags somam ${total} caracteres; o limite do Instagram é ${CAPTION_TOTAL_MAX}.`);
     }
     // `ideia`: o roteiro ainda vai escrever a legenda; `aprovado`: o agendamento já leu o texto
-    const editaveis: ContentPieceStatus[] = ['roteiro', 'producao', 'revisao', 'erro', 'reprovado'];
+    // `reprovado` só sai para `ideia`, e o roteiro reescreve a legenda: editar ali se perderia
+    const editaveis: ContentPieceStatus[] = ['roteiro', 'producao', 'revisao', 'erro'];
     const r = await deps.repo.update(
       actor.orgId,
       pieceId,

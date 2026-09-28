@@ -271,8 +271,11 @@ export interface ContentMachineRepository {
     patch: ContentPiecePatch,
     opts?: { onlyIn?: ContentPieceStatus[]; fence?: Date | null; unlocked?: boolean },
   ): Promise<ContentPieceRecord | null>;
-  /** peças da pauta com slot entre `from` e `to` (inclusive, `YYYY-MM-DD`) — impede pauta duplicada */
-  plannedInRange(orgId: string, from: string, to: string): Promise<number>;
+  /**
+   * Slots da pauta já ocupados entre `from` e `to` (inclusive, `YYYY-MM-DD`), fora os reprovados.
+   * A pauta só gera o que falta: reenvio não duplica e semana parcial se completa.
+   */
+  plannedSlots(orgId: string, from: string, to: string): Promise<Array<{ slot: string; format: string }>>;
   events(orgId: string, pieceId: string): Promise<ContentPieceEventRecord[]>;
 
   /** peças automáticas paradas: trava vencida, ou sem trava e sem mudança há `idleSec` */

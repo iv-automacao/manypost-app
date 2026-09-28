@@ -39,6 +39,7 @@ const STATUS: Record<string, ContentfulStatusCode> = {
   // falta configurar renderizador, vídeo ou prompt nesta instalação/organização
   'content.not_configured': 501,
   'content.generation_failed': 502,
+  'content.invalid_input': 422,
 };
 
 export function errorHandler(err: unknown, c: Context) {

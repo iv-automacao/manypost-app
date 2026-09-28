@@ -25,8 +25,27 @@ const CalendarDate = z
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .refine((s) => {
     const d = new Date(`${s}T00:00:00Z`);
-    return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+    const ano = d.getUTCFullYear();
+    return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s && ano >= 2000 && ano <= 2100;
   }, 'data inexistente');
+
+/** instante ISO dentro de 2000–2100 (o banco recusa o ano 0; datas absurdas publicariam na hora) */
+const Instant = z
+  .string()
+  .datetime()
+  .refine((s) => {
+    const ano = new Date(s).getUTCFullYear();
+    return ano >= 2000 && ano <= 2100;
+  }, 'data fora do intervalo aceito');
+
+/** corpo JSON malformado é pedido errado (400), não falha do servidor */
+const corpoJson = async (c: { req: { json: () => Promise<unknown> } }): Promise<unknown> => {
+  try {
+    return await c.req.json();
+  } catch {
+    throw new DomainError('validation.invalid_json', 'corpo da requisição não é JSON válido');
+  }
+};
 
 const PiecesQuery = z.object({
   status: z.string().max(200).optional(),
@@ -179,7 +198,7 @@ const CreatePieceBody = z.object({
   pillar: z.string().max(40).optional(),
   icp: z.string().max(40).optional(),
   market: z.string().max(40).optional(),
-  scheduledFor: z.string().datetime().optional(),
+  scheduledFor: Instant.optional(),
   channelId: z.string().uuid().optional(),
 });
 
@@ -204,7 +223,7 @@ const PlanBody = z.object({
 const EditBody = z.object({
   caption: z.string().max(2200).optional(),
   hashtags: z.array(z.string().max(60)).max(5).optional(),
-  scheduledFor: z.string().datetime().nullable().optional(),
+  scheduledFor: Instant.nullable().optional(),
   channelId: z.string().uuid().nullable().optional(),
 });
 
@@ -307,7 +326,7 @@ export function contentMachineRoutes(ctn: Container) {
   });
   app.put('/brand', async (c) => {
     const { orgId } = actor(c);
-    const body = BrandPatch.parse(await c.req.json());
+    const body = BrandPatch.parse(await corpoJson(c));
     await cm.setup(orgId);
     const patch = Object.fromEntries(Object.entries(body).filter(([, v]) => v !== undefined));
     return c.json(await brandOut(await cm.updateBrand(orgId, patch)));
@@ -326,7 +345,7 @@ export function contentMachineRoutes(ctn: Container) {
   });
   app.post('/brand/palette', async (c) => {
     const { orgId } = actor(c);
-    const body = PaletteBody.parse(await c.req.json().catch(() => ({})));
+    const body = PaletteBody.parse((await c.req.json().catch(() => ({}))));
     await cm.setup(orgId);
     return c.json(await brandOut(await cm.extractPalette(orgId, body.mediaId)));
   });
@@ -359,7 +378,7 @@ export function contentMachineRoutes(ctn: Container) {
   });
   app.put('/foundation/:key', async (c) => {
     const key = z.enum(ContentFoundationKeys).parse(c.req.param('key')) as ContentFoundationKey;
-    const body = FoundationBody.parse(await c.req.json());
+    const body = FoundationBody.parse(await corpoJson(c));
     const d = await cm.updateFoundation(actor(c), key, body.body, body.validUntil ?? null);
     return c.json({ ...d, updatedAt: d.updatedAt.toISOString() });
   });
@@ -390,7 +409,7 @@ export function contentMachineRoutes(ctn: Container) {
   });
   app.put('/prompts/:name', async (c) => {
     const name = z.enum(ContentPromptNames).parse(c.req.param('name')) as ContentPromptName;
-    const body = PromptBody.parse(await c.req.json());
+    const body = PromptBody.parse(await corpoJson(c));
     const p = await cm.savePrompt(actor(c), name, body.system);
     return c.json({ ...p, createdAt: p.createdAt.toISOString() });
   });
@@ -442,7 +461,7 @@ export function contentMachineRoutes(ctn: Container) {
   });
   app.post('/pieces', async (c) => {
     const a = actor(c);
-    const body = CreatePieceBody.parse(await c.req.json());
+    const body = CreatePieceBody.parse(await corpoJson(c));
     const p = await cm.createPiece(a, {
       format: body.format,
       hook: body.hook,
@@ -473,7 +492,7 @@ export function contentMachineRoutes(ctn: Container) {
   });
   app.post('/plan', async (c) => {
     const a = actor(c);
-    const body = PlanBody.parse(await c.req.json());
+    const body = PlanBody.parse(await corpoJson(c));
     await cm.setup(a.orgId);
     const out = await cm.requestPlan(a, {
       weekStart: body.weekStart,
@@ -516,7 +535,7 @@ export function contentMachineRoutes(ctn: Container) {
   app.patch('/pieces/:id', async (c) => {
     const a = actor(c);
     const id = z.string().uuid().parse(c.req.param('id'));
-    const body = EditBody.parse(await c.req.json());
+    const body = EditBody.parse(await corpoJson(c));
     await cm.edit(a, id, {
       ...(body.caption !== undefined ? { caption: body.caption } : {}),
       ...(body.hashtags !== undefined ? { hashtags: body.hashtags } : {}),
@@ -538,7 +557,7 @@ export function contentMachineRoutes(ctn: Container) {
   app.post('/pieces/:id/decision', async (c) => {
     const a = actor(c);
     const id = z.string().uuid().parse(c.req.param('id'));
-    const body = DecisionBody.parse(await c.req.json());
+    const body = DecisionBody.parse(await corpoJson(c));
     await cm.decide(a, id, body);
     return c.json(await onePiece(a.orgId, id));
   });

@@ -9,8 +9,8 @@ import {
   makeDecidePiece,
   makeEditPiece,
   makeExtractPalette,
-  makePlanContentWeek,
   makeRequestPlan,
+  makeRunPlanJob,
   makeRunContentStage,
   type PlanWeekInput,
   makeSavePrompt,
@@ -35,7 +35,7 @@ export async function buildContentMachine(
   runtime: PublishingRuntime,
   base: Pick<
     ContentMachineDeps,
-    'ai' | 'budget' | 'media' | 'storage' | 'channels' | 'publishing' | 'schedulePost' | 'audit'
+    'ai' | 'budget' | 'media' | 'storage' | 'channels' | 'publishing' | 'schedulePost' | 'audit' | 'notifications'
   >,
 ) {
   const config = contentMachineConfigFromEnv(env);
@@ -62,7 +62,7 @@ export async function buildContentMachine(
     { expireInSeconds: 3600, workers: 3 },
   );
   // pauta: modelo de raciocínio passa do tempo de uma requisição; a geração roda aqui
-  const planWeek = makePlanContentWeek(deps);
+  const planWeek = makeRunPlanJob(deps);
   await runtime.registerQueue(
     CONTENT_PLAN_QUEUE,
     async (d: { orgId: string; userId: string | null; input: PlanWeekInput }) => {

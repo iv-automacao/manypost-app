@@ -63,9 +63,17 @@ export function makeContentRenderer(config: ContentRendererConfig, fetchImpl: Fe
         signal: controller.signal,
       });
       if (!res.ok) {
-        // 4xx = pedido que não vai passar repetindo; 5xx = o serviço tropeçou
-        const detalhe = res.status < 500 ? (await res.text().catch(() => '')).slice(0, 200) : '';
-        throw falhou(`status ${res.status}${detalhe ? ` (${detalhe})` : ''}`, res.status >= 500);
+        if (res.status < 500) {
+          // 4xx = o pedido não passa repetindo (imagem ilegível, clipe acima do limite): a mensagem
+          // do serviço já é para gente, em pt-BR
+          const corpo = (await res.json().catch(() => null)) as { detail?: unknown } | null;
+          const detalhe = typeof corpo?.detail === 'string' ? corpo.detail : `o renderizador recusou o pedido (status ${res.status})`;
+          throw new DomainError(ErrorCodes.ContentInvalidInput, `${detalhe.charAt(0).toUpperCase()}${detalhe.slice(1)}.`.replace(/\.\.$/, '.'), {
+            retryable: false,
+            status: res.status,
+          });
+        }
+        throw falhou(`status ${res.status}`, true);
       }
       return res;
     } catch (error) {

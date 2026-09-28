@@ -21,6 +21,7 @@ import {
   makeExtractPalette,
   makePlanContentWeek,
   makeRequestPlan,
+  makeRunPlanJob,
   makeSpendSummary,
   zonedDate,
   type ContentMachineDeps,
@@ -161,10 +162,10 @@ function fakeRepo(relogio: () => Date = () => new Date()) {
       aplicar(p, patch);
       return structuredClone(p);
     },
-    async plannedInRange(orgId, from, to) {
-      return [...pieces.values()].filter(
-        (p) => p.orgId === orgId && p.plan.origem === 'pauta' && String(p.plan.slot) >= from && String(p.plan.slot) <= to && p.status !== 'reprovado',
-      ).length;
+    async plannedSlots(orgId, from, to) {
+      return [...pieces.values()]
+        .filter((p) => p.orgId === orgId && p.plan.origem === 'pauta' && String(p.plan.slot) >= from && String(p.plan.slot) <= to && p.status !== 'reprovado')
+        .map((p) => ({ slot: String(p.plan.slot), format: p.format }));
     },
     async events(orgId, pieceId) {
       return events.filter((e) => e.pieceId === pieceId && pieces.get(pieceId)?.orgId === orgId);
@@ -754,11 +755,40 @@ describe('máquina de conteúdo: regressões da revisão adversarial', () => {
     const pedido = { weekStart: '2026-10-05' };
     expect(await makeRequestPlan(m.deps)(actor, pedido)).toEqual({ queued: true, weekStart: '2026-10-05' });
     expect(m.enfileirados.at(-1)?.queue).toBe('content-machine-plan');
-    const criadas = await makePlanContentWeek(m.deps)(actor, pedido);
-    expect(criadas.length).toBeGreaterThan(0);
+    // o modelo devolveu só 2 pautas para os 4 slots: a semana fica parcial...
+    expect(await makePlanContentWeek(m.deps)(actor, pedido)).toHaveLength(2);
+    // ...e um novo pedido completa só o que falta, sem duplicar
+    expect(await makeRequestPlan(m.deps)(actor, pedido)).toEqual({ queued: true, weekStart: '2026-10-05' });
+    expect(await makePlanContentWeek(m.deps)(actor, pedido)).toHaveLength(2);
     expect(await makePlanContentWeek(m.deps)(actor, pedido)).toEqual([]);
     await expect(makeRequestPlan(m.deps)(actor, pedido)).rejects.toMatchObject({ code: 'content.invalid_transition' });
+    const slots = [...m.f.pieces.values()].map((p) => `${p.plan.slot}:${p.format}`).sort();
+    expect(slots).toEqual(['2026-10-05:carrossel', '2026-10-07:reels', '2026-10-08:carrossel', '2026-10-10:post']);
     await expect(makeRequestPlan(m.deps)(actor, { weekStart: '2026-13-40' })).rejects.toThrow('AAAA-MM-DD');
+  });
+
+  it('pauta sem modelo de texto é recusada na hora; falha no job vira aviso no sininho', async () => {
+    const m = await pronto();
+    const avisos: Array<{ title: string }> = [];
+    m.deps.notifications = { create: async (n) => void avisos.push(n) };
+    const semAi = { ...m.deps, ai: null };
+    await expect(makeRequestPlan(semAi)(actor, { weekStart: '2026-10-05' })).rejects.toMatchObject({ code: 'capability.disabled' });
+    await makeRunPlanJob(semAi)(actor, { weekStart: '2026-10-05' });
+    expect(avisos[0]?.title).toContain('não foi gerada');
+  });
+
+  it('refazer roteiro descarta o roteiro e a mídia recusados', async () => {
+    const m = await pronto({ revisor: { aprovado: false, flags: [{ codigo: 'X', trecho: '', motivo: '' }], motivo: '' } });
+    const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho' });
+    await avancarAte(m, p.id, ['revisao']);
+    const r = await makeDecidePiece(m.deps)(actor, p.id, { action: 'redo', stage: 'roteiro', feedback: 'outro ângulo' });
+    expect(r.script).toBeNull();
+    expect(r.media).toEqual([]);
+  });
+
+  it('data fora de 2000–2100 é recusada', async () => {
+    const m = await pronto();
+    await expect(makeRequestPlan(m.deps)(actor, { weekStart: '0000-01-03' })).rejects.toThrow('AAAA-MM-DD');
   });
 
   it('extração de paleta vazia não apaga a paleta salva', async () => {

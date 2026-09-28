@@ -46,6 +46,10 @@ export const ErrorCodes = {
   AuthUnauthorized: 'auth.unauthorized',
   AuthProviderUnavailable: 'auth.provider_unavailable',
   AuthSocialEmailUnverified: 'auth.social_email_unverified',
+  // máquina de conteúdo
+  ContentInvalidTransition: 'content.invalid_transition',
+  ContentNotConfigured: 'content.not_configured',
+  ContentGenerationFailed: 'content.generation_failed',
   // genéricos
   NotFound: 'common.not_found',
   Forbidden: 'common.forbidden',

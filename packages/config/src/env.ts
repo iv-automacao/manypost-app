@@ -164,6 +164,27 @@ const EnvSchema = z
      */
     AI_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(64).max(32_000).default(4000),
     /**
+     * Nome do parâmetro de teto de saída no dialeto chat-completions. Modelos da família de
+     * raciocínio recusam `max_tokens` e exigem `max_completion_tokens` (change add-content-machine).
+     */
+    AI_TOKEN_LIMIT_PARAM: z.enum(['max_tokens', 'max_completion_tokens']).default('max_tokens'),
+    /** `false` = não envia `temperature` (modelos de raciocínio só aceitam o padrão) */
+    AI_SEND_TEMPERATURE: z
+      .union([z.boolean(), z.string()])
+      .default('true')
+      .transform((v) => v === true || v === 'true'),
+    /**
+     * Máquina de conteúdo (change add-content-machine). Renderizador HTTP (artes, lint, paleta,
+     * montagem de vídeo) e provedor de vídeo; ausentes = a máquina recusa com capability indisponível.
+     */
+    CONTENT_RENDERER_URL: z.string().url().optional(),
+    CONTENT_RENDERER_KEY: z.string().optional(),
+    VIDEO_PROVIDER_KEY: z.string().optional(),
+    VIDEO_PROVIDER_MODEL: z.string().default('bytedance/seedance-2.5/text-to-video'),
+    /** preço de texto por milhão de tokens (entrada/saída), para o registro de gasto da máquina */
+    CONTENT_TEXT_USD_IN: z.coerce.number().min(0).default(0.25),
+    CONTENT_TEXT_USD_OUT: z.coerce.number().min(0).default(2),
+    /**
      * Provedor de imagem independente. Ausente = modo de compatibilidade, herdando a conexão
      * completa de texto; `none` desliga somente imagens.
      */
@@ -415,6 +436,8 @@ export type AiConfig = {
   model: string;
   timeoutMs: number;
   maxOutputTokens: number;
+  tokenLimitParam: 'max_tokens' | 'max_completion_tokens';
+  sendTemperature: boolean;
 };
 
 export function aiConfigFromEnv(env: Env): AiConfig | null {
@@ -427,6 +450,8 @@ export function aiConfigFromEnv(env: Env): AiConfig | null {
     model: env.AI_MODEL!,
     timeoutMs: env.AI_TIMEOUT_MS,
     maxOutputTokens: env.AI_MAX_OUTPUT_TOKENS,
+    tokenLimitParam: env.AI_TOKEN_LIMIT_PARAM,
+    sendTemperature: env.AI_SEND_TEMPERATURE,
   };
 }
 

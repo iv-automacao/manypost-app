@@ -244,6 +244,8 @@ describe('IA agnóstica de provedor (SPEC_AI §2)', () => {
         model: 'modelo-de-teste',
         timeoutMs: 45_000,
         maxOutputTokens: 4000,
+        tokenLimitParam: 'max_tokens',
+        sendTemperature: true,
       },
     );
   });
@@ -397,5 +399,20 @@ describe('IA agnóstica de provedor (SPEC_AI §2)', () => {
     const config = aiConfigFromEnv(loadEnv({ ...base, ...ia, AI_PROVIDER: 'anthropic' }));
     expect(config?.protocol).toBe('anthropic');
     expect(config?.baseUrl).toBe('https://gateway.example/v1');
+  });
+});
+
+describe('ajustes do adapter para modelos de raciocínio (add-content-machine)', () => {
+  const ia = { AI_PROVIDER: 'openai-compatible', AI_BASE_URL: 'https://gateway.example/v1', AI_MODEL: 'm' };
+
+  it('lê o nome do parâmetro de teto e a omissão de temperature', () => {
+    const config = aiConfigFromEnv(
+      loadEnv({ ...base, ...ia, AI_TOKEN_LIMIT_PARAM: 'max_completion_tokens', AI_SEND_TEMPERATURE: 'false' }),
+    );
+    expect(config).toMatchObject({ tokenLimitParam: 'max_completion_tokens', sendTemperature: false });
+  });
+
+  it('rejeita nome de parâmetro fora da lista', () => {
+    expect(() => loadEnv({ ...base, ...ia, AI_TOKEN_LIMIT_PARAM: 'tokens' })).toThrow();
   });
 });

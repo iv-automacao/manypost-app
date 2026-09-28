@@ -4,6 +4,7 @@ import {
   Bell,
   CalendarDays,
   CreditCard,
+  Factory,
   Image as ImageIcon,
   LogOut,
   PanelLeftClose,
@@ -43,6 +44,7 @@ const MAIN_NAV: Array<{ href: string; key: string; icon: IconType }> = [
   { href: '/compor', key: 'compose', icon: PenSquare },
   { href: '/calendario', key: 'calendar', icon: CalendarDays },
   { href: '/kanban', key: 'kanban', icon: SquareKanban },
+  { href: '/maquina', key: 'maquina', icon: Factory },
   { href: '/midia', key: 'media', icon: ImageIcon },
   { href: '/conexoes', key: 'connections', icon: Plug },
 ];

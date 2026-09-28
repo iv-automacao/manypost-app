@@ -30,9 +30,9 @@
 
 ## 6. Web
 
-- [ ] 6.1 Routes `app/(app)/maquina`, sidebar, topbar and command-palette entries, `pt-BR.json` namespace
-- [ ] 6.2 Board + piece detail sheet; brand identity; foundation and prompts; spend
-- [ ] 6.3 `bun test apps/web/src/features/content-machine`
+- [x] 6.1 Routes `app/(app)/maquina`, sidebar, topbar and command-palette entries, `pt-BR.json` namespace
+- [x] 6.2 Board + piece detail sheet; brand identity; foundation and prompts; spend
+- [x] 6.3 `bun test apps/web/src/features/content-machine`
 
 ## 7. Validation and docs
 

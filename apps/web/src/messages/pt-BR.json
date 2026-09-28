@@ -147,6 +147,7 @@
     "compose": "Novo post",
     "calendar": "Calendário",
     "kanban": "Quadro",
+    "maquina": "Máquina",
     "connections": "Conexões",
     "media": "Mídia",
     "notifications": "Notificações",
@@ -1008,6 +1009,331 @@
       }
     }
   },
+  "maquina": {
+    "title": "Máquina",
+    "pageDescription": "A esteira que leva a ideia até o post publicado: roteiro, arte e legenda saem sozinhos, e você decide o que vai ao ar.",
+    "sectionsLabel": "Seções da máquina",
+    "sections": {
+      "board": "Quadro",
+      "identity": "Identidade",
+      "foundation": "Fundação",
+      "prompts": "Prompts",
+      "spend": "Gastos"
+    },
+    "capabilities": {
+      "title": "Partes da máquina desligadas nesta instalação",
+      "text": "Geração de texto não configurada: nenhuma peça passa da etapa Ideia.",
+      "renderer": "Renderizador de artes não configurado: carrossel, post e story param na produção, e a paleta não pode ser extraída da logo.",
+      "video": "Geração de vídeo não configurada: reels param na produção."
+    },
+    "loadError": "Não deu para carregar a máquina.",
+    "optional": "opcional",
+    "status": {
+      "ideia": "Ideia",
+      "roteiro": "Roteiro",
+      "producao": "Produção",
+      "revisao": "Revisão",
+      "aprovado": "Aprovado",
+      "agendado": "Agendado",
+      "publicado": "Publicado",
+      "reprovado": "Reprovado",
+      "erro": "Erro"
+    },
+    "format": {
+      "carrossel": "Carrossel",
+      "post": "Post",
+      "story": "Story",
+      "reels": "Reels"
+    },
+    "market": {
+      "manaus": "Manaus",
+      "boa_vista": "Boa Vista",
+      "belem": "Belém",
+      "nacional": "Nacional"
+    },
+    "board": {
+      "newIdea": "Nova ideia",
+      "planWeek": "Gerar pauta da semana",
+      "summary": "{total, plural, =0 {Nenhuma peça} one {# peça} other {# peças}} · {active, plural, =0 {nada em andamento} other {# em andamento}}",
+      "empty": "A máquina ainda não tem peças. Comece por uma ideia ou gere a pauta da semana.",
+      "emptyColumn": "Nada aqui.",
+      "loadError": "Não deu para carregar as peças.",
+      "truncated": "Mostrando as {count} peças mais recentes.",
+      "sideGroups": {
+        "erro": "Com erro",
+        "reprovado": "Reprovadas"
+      },
+      "show": "Mostrar",
+      "hide": "Ocultar"
+    },
+    "card": {
+      "running": "Gerando…",
+      "flags": "{count, plural, one {# alerta} other {# alertas}}",
+      "open": "Abrir a peça {keyword}",
+      "video": "Vídeo"
+    },
+    "newIdea": {
+      "title": "Nova ideia",
+      "description": "A peça entra em Ideia e a esteira segue sozinha até a revisão.",
+      "format": "Formato",
+      "hook": "Ideia ou gancho",
+      "hookPlaceholder": "ex.: 3 erros que deixam o plano de saúde da empresa mais caro",
+      "angle": "Ângulo",
+      "anglePlaceholder": "O recorte, o argumento ou o caso que sustenta a peça",
+      "pillar": "Pilar",
+      "icp": "Público (ICP)",
+      "icpPlaceholder": "ex.: empresario",
+      "market": "Mercado",
+      "marketDefault": "Padrão da marca",
+      "date": "Data de publicação",
+      "dateHint": "Sem data, a peça vai ao ar assim que for aprovada.",
+      "submit": "Criar peça",
+      "created": "Peça criada. A esteira já começou."
+    },
+    "plan": {
+      "title": "Gerar pauta da semana",
+      "description": "A máquina escolhe os temas a partir da fundação e cria as peças da semana. Mix padrão: 2 carrosséis, 1 reels e 1 post.",
+      "weekStart": "Semana que começa em",
+      "notMonday": "A pauta começa numa segunda-feira.",
+      "market": "Mercado",
+      "submit": "Gerar pauta",
+      "created": "{count, plural, =0 {Nenhuma peça criada} one {# peça criada} other {# peças criadas}} para a semana."
+    },
+    "piece": {
+      "loadError": "Não deu para carregar a peça.",
+      "running": "Uma etapa está rodando agora. A tela atualiza sozinha.",
+      "errorTitle": "A última etapa falhou",
+      "keyword": "Palavra-chave",
+      "media": "Mídia",
+      "noMedia": "A mídia aparece aqui depois da produção.",
+      "slideOf": "{n} de {total}",
+      "videoLabel": "Vídeo da peça",
+      "imageAlt": "Arte {n} da peça",
+      "caption": "Legenda",
+      "noCaption": "A legenda aparece aqui depois da etapa Roteiro.",
+      "hashtags": "Hashtags",
+      "hashtagsHint": "Até 5, separadas por espaço.",
+      "scheduledFor": "Data de publicação",
+      "noDate": "Sem data definida",
+      "save": "Salvar ajustes",
+      "saved": "Ajustes salvos.",
+      "script": "Roteiro",
+      "scriptEmpty": "O roteiro aparece aqui depois da etapa Roteiro.",
+      "hook": "Gancho",
+      "story": "História",
+      "offer": "Oferta",
+      "pending": "Pendências do roteiro",
+      "slideLabel": "Slide {n}",
+      "sceneLabel": "Cena {n} · {seconds} s",
+      "voiceover": "Locução",
+      "onScreen": "Texto na tela",
+      "visual": "Visual",
+      "review": "Revisão",
+      "reviewApproved": "O revisor aprovou a peça.",
+      "reviewHeld": "O revisor segurou a peça.",
+      "flags": "Alertas do revisor",
+      "lint": "Verificação automática",
+      "lintLevel": {
+        "erro": "Erro",
+        "aviso": "Aviso"
+      },
+      "feedback": "Ajustes pedidos",
+      "feedbackStage": {
+        "roteiro": "Roteiro",
+        "producao": "Arte ou vídeo"
+      },
+      "events": "Histórico",
+      "cost": "Custo",
+      "approx": "≈ {brl}",
+      "permalink": "Ver publicação"
+    },
+    "actions": {
+      "approve": "Aprovar",
+      "reject": "Reprovar",
+      "redoScript": "Refazer roteiro",
+      "redoArt": "Refazer arte",
+      "redoVideo": "Refazer vídeo",
+      "retry": "Tentar de novo",
+      "approved": "Peça aprovada. Ela segue para o agendamento.",
+      "rejected": "Peça reprovada.",
+      "redone": "Pedido enviado. A esteira refaz a etapa.",
+      "retried": "Nova tentativa iniciada.",
+      "redoDescription": "Diga o que precisa mudar. O pedido vai junto para a próxima geração.",
+      "feedback": "O que precisa mudar",
+      "feedbackPlaceholder": "ex.: o gancho promete demais; troque o exemplo por um caso de clínica",
+      "redoSubmit": "Enviar pedido",
+      "rejectTitle": "Reprovar esta peça?",
+      "rejectDescription": "A peça sai da esteira. Dá para reabrir depois com Refazer roteiro.",
+      "reason": "Motivo",
+      "reasonPlaceholder": "Opcional",
+      "rejectSubmit": "Reprovar peça"
+    },
+    "identity": {
+      "brandSection": "Marca",
+      "brandDescription": "Nome e voz que entram em todo roteiro e legenda.",
+      "name": "Nome da marca",
+      "slogan": "Slogan",
+      "signature": "Assinatura",
+      "signatureHint": "Aparece no fechamento das peças.",
+      "tone": "Tom de voz",
+      "tonePlaceholder": "ex.: direto, técnico, sem promessa de resultado",
+      "logosSection": "Logos",
+      "logosDescription": "A logo principal assina as peças de fundo claro e é a base da paleta.",
+      "logoLight": "Logo (fundo claro)",
+      "logoLightHint": "Normalmente a versão escura ou colorida.",
+      "logoDark": "Logo para fundo escuro",
+      "logoDarkHint": "Normalmente a versão branca.",
+      "upload": "Enviar logo",
+      "replace": "Trocar",
+      "remove": "Remover",
+      "noLogo": "Sem logo",
+      "uploaded": "Logo salva.",
+      "removed": "Logo removida.",
+      "notImage": "Envie uma imagem PNG, JPG ou WebP.",
+      "paletteSection": "Paleta",
+      "paletteDescription": "Cores usadas nas artes. Extraia da logo principal e ajuste o que precisar.",
+      "extract": "Extrair paleta da logo",
+      "extracted": "Paleta extraída da logo e salva. Ajuste o que precisar.",
+      "extractNeedsLogo": "Envie a logo (fundo claro) para extrair a paleta.",
+      "extractUnavailable": "Extração indisponível: o renderizador não está configurado.",
+      "colors": {
+        "primaria": "Primária",
+        "destaque": "Destaque",
+        "fundoEscuro": "Fundo escuro",
+        "fundoClaro": "Fundo claro",
+        "texto": "Texto",
+        "textoSuave": "Texto suave"
+      },
+      "pickColor": "Escolher a cor {name}",
+      "invalidHex": "Use o formato #RRGGBB.",
+      "extractedColors": "Cores extraídas da logo",
+      "extractedHint": "Clique numa cor para aplicar em um papel da paleta.",
+      "applySwatch": "Aplicar {hex}",
+      "useAs": "Usar como {name}",
+      "publishSection": "Publicação",
+      "publishDescription": "Para onde as peças vão e como o CTA chama o cliente.",
+      "channel": "Canal padrão",
+      "noChannel": "Nenhum canal",
+      "channelHint": "Peças sem canal próprio são agendadas aqui.",
+      "cta": "Canal do CTA",
+      "ctaDirect": "Direct do Instagram",
+      "ctaWhatsapp": "WhatsApp",
+      "whatsapp": "Número do WhatsApp",
+      "whatsappPlaceholder": "ex.: 5592999999999",
+      "whatsappHint": "Com DDI e DDD, só números.",
+      "publishHour": "Horário de publicação",
+      "timezone": "Fuso horário",
+      "timezoneHint": "Nome IANA, ex.: America/Manaus.",
+      "autoApprove": "Aprovar automaticamente",
+      "autoApproveHint": "Peça que passa na revisão sem nenhum alerta segue direto para o agendamento. Desligado, toda peça espera a sua aprovação.",
+      "save": "Salvar identidade",
+      "saved": "Identidade salva.",
+      "unsaved": "Há alterações não salvas.",
+      "previewSection": "Prévia",
+      "previewDescription": "Capa de carrossel com a paleta atual. A arte real sai do renderizador.",
+      "previewKicker": "Carrossel",
+      "previewTitle": "O gancho da peça, com",
+      "previewHighlight": "o trecho em destaque",
+      "previewSwipe": "Arraste para o lado",
+      "previewCtaDirect": "Manda {keyword} no direct",
+      "previewCtaWhatsapp": "Chama no WhatsApp com {keyword}",
+      "previewCover": "Capa",
+      "previewClosing": "Fechamento"
+    },
+    "foundation": {
+      "description": "O que a máquina lê antes de gerar qualquer peça. Quanto mais específico, menos genérico o resultado.",
+      "progress": "{filled} de {total} documentos preenchidos",
+      "keys": {
+        "produtos": {
+          "title": "Produtos e ofertas",
+          "hint": "O que você vende, para quem, preço ou faixa, condições e o que não pode ser prometido."
+        },
+        "icp": {
+          "title": "Público ideal (ICP)",
+          "hint": "Quem compra: perfil, dores, objeções e como fala."
+        },
+        "personagem": {
+          "title": "Personagem",
+          "hint": "Quem assina o conteúdo: história, credenciais e jeito de falar."
+        },
+        "marca": {
+          "title": "Marca",
+          "hint": "Posicionamento, palavras que usa e que nunca usa, regras de linguagem."
+        },
+        "escada": {
+          "title": "Escada de valor",
+          "hint": "Do conteúdo gratuito à oferta principal: cada degrau e o próximo passo."
+        },
+        "pilares": {
+          "title": "Pilares de conteúdo",
+          "hint": "Os temas fixos e o peso de cada um na pauta."
+        }
+      },
+      "empty": "Vazio",
+      "filled": "Preenchido",
+      "validUntil": "Válido até",
+      "validUntilHint": "Preços e condições mudam. Depois dessa data o documento aparece como vencido.",
+      "expired": "Vencido desde {date}",
+      "updated": "Atualizado {when}",
+      "save": "Salvar",
+      "saved": "{title}: salvo.",
+      "loadError": "Não deu para carregar a fundação."
+    },
+    "prompts": {
+      "description": "Instruções de sistema de cada etapa. Salvar cria uma versão nova e ativa; as anteriores ficam no histórico.",
+      "names": {
+        "pauta": {
+          "title": "Pauta",
+          "hint": "Escolhe os temas e os ganchos da semana."
+        },
+        "roteiro": {
+          "title": "Roteiro",
+          "hint": "Escreve os slides ou as cenas a partir da ideia."
+        },
+        "legenda": {
+          "title": "Legenda",
+          "hint": "Escreve a legenda, as hashtags e o CTA."
+        },
+        "revisor": {
+          "title": "Revisor",
+          "hint": "Confere a peça antes da aprovação e aponta os alertas."
+        }
+      },
+      "activeVersion": "Versão ativa v{version} · {when}",
+      "noVersion": "Sem versão ativa",
+      "save": "Salvar nova versão",
+      "saved": "{title}: nova versão ativa.",
+      "history": "{count, plural, one {# versão anterior} other {# versões anteriores}}",
+      "versionLabel": "v{version} · {date}",
+      "restore": "Copiar para o editor",
+      "restored": "Versão copiada para o editor. Salve para ativar.",
+      "hooksTitle": "Fórmulas de gancho",
+      "hooksDescription": "Estruturas que a pauta usa para abrir as peças. Somente leitura.",
+      "hooksEmpty": "Nenhuma fórmula cadastrada.",
+      "hookTemplate": "Modelo",
+      "hookExample": "Exemplo",
+      "hookMeta": "{pillar} · {origin} · nota {score} · {uses, plural, =0 {nunca usada} one {usada # vez} other {usada # vezes}}",
+      "loadError": "Não deu para carregar os prompts."
+    },
+    "spend": {
+      "description": "Quanto a máquina gastou com texto e vídeo no mês, por serviço e por peça.",
+      "month": "Mês",
+      "previous": "Mês anterior",
+      "next": "Próximo mês",
+      "total": "Total do mês",
+      "approx": "≈ {brl} na cotação de referência de {rate}",
+      "byService": "Por serviço",
+      "service": "Serviço",
+      "model": "Modelo",
+      "calls": "Chamadas",
+      "cost": "Custo",
+      "topPieces": "Peças mais caras",
+      "piece": "Peça",
+      "format": "Formato",
+      "empty": "Nenhum gasto registrado neste mês.",
+      "loadError": "Não deu para carregar os gastos."
+    }
+  },
   "postDetail": {
     "title": "Publicação",
     "content": "Conteúdo",
@@ -1434,6 +1760,7 @@
       "home": "Início",
       "calendar": "Calendário",
       "board": "Quadro",
+      "maquina": "Máquina",
       "media": "Mídia",
       "channels": "Conexões",
       "compose": "Compor",

@@ -37,6 +37,13 @@ export const TELAS: EntradaDoCatalogo[] = [
     href: '/calendario',
   },
   { id: 'board', tipo: 'page', chaveDeRotulo: 'board', termos: 'kanban quadro pipeline etapas', href: '/kanban' },
+  {
+    id: 'maquina',
+    tipo: 'page',
+    chaveDeRotulo: 'maquina',
+    termos: 'maquina conteudo esteira pauta roteiro carrossel reels identidade fundacao prompts gastos',
+    href: '/maquina',
+  },
   { id: 'media', tipo: 'page', chaveDeRotulo: 'media', termos: 'midia biblioteca imagens videos', href: '/midia' },
   {
     id: 'channels',

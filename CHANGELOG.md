@@ -95,6 +95,23 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
 
 ### Fixed
 
+- **Máquina de conteúdo: correções de três revisões adversariais.** Posse da etapa com token (uma
+  execução que perdeu a peça para uma decisão humana não grava mais por cima); espera de
+  retentativa gravada na trava (job duplicado não fura o intervalo) e respeito ao `retryable` do
+  adapter (402/4xx não são repetidos); agendamento idempotente com id do post escolhido antes de
+  criar; post que falhou é descartado quando a máquina cria o novo, e reprovar ou refazer tira do ar
+  o post anterior; vídeo marcado como "enviando" antes do pedido (resposta ambígua para para uma
+  pessoa em vez de pagar de novo) e gasto conciliado por id; refazer roteiro descarta roteiro,
+  mídia e clipes antigos; carrossel limitado a 10; legenda + hashtags até 2.200; pauta assíncrona
+  (202) que gera só os slots que faltam e avisa no sininho se falhar; edição bloqueada em `ideia`,
+  `aprovado`, `reprovado` e durante uma etapa; datas, `limit`, mês e JSON malformado respondem 400;
+  canal via Facebook recusado antes das etapas pagas. Na tela: rascunho por campo que sobrevive a
+  decisões, travas e salvamento; ações bloqueadas com ajuste não salvo; pauta e ideia indisponíveis
+  sem modelo de texto.
+- **Publicação com resultado incerto na máquina.** Nova decisão `resolvePublication`: "saiu" marca
+  publicação e peça como publicadas (com o link), "não saiu" libera o "tentar de novo" em um post
+  novo. O domínio de publicação ganhou `FAILED → CANCELLED` (descartar post que falhou).
+
 - **As tools MCP de posts viam um post diferente do REST.** `get_post` (e as respostas de
   agendar/reagendar/cancelar via MCP) omitia `media` e `attemptCount` de cada publicação porque o
   servidor MCP mantinha uma cópia própria do serializer — e as cópias divergiram em silêncio. A

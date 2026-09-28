@@ -46,6 +46,15 @@ refeito por decisão humana na tela, reaprovado e publicado
 `erro` por saldo insuficiente no fornecedor de vídeo, com as 3 tentativas da cena 3 estornadas —
 retoma com "Tentar de novo" depois da recarga.
 
+**Revisões adversariais (28/09).** Três rodadas (60, 29 e 9+ agentes): 37 achados confirmados na
+primeira (deduplicados em ~20 defeitos), resíduos e 3 regressões na segunda, e uma final sobre as
+rodadas 3 e 4. Tudo corrigido com teste de regressão por achado (core: 440 testes; web: 42) e em
+produção. Destaques: token de posse, espera no banco, agendamento com id escolhido antes, descarte
+do post anterior, publicação incerta com confirmação humana, vídeo sem reenvio pago em resposta
+ambígua, pauta assíncrona idempotente por slot, contraste da paleta nos dois fundos mantendo o tom
+da marca. Produção validou os quatro formatos: post, carrossel, reels
+(https://www.instagram.com/reel/Dd1DF1cEZ9b/) e story.
+
 ## Onda 38 — 2026-08-13 — registro regularizado: modos de custo e qualidade na imagem (entrega de 2026-07-28)
 
 Regularização de registro: a entrega abaixo estava documentada no `CHANGELOG.md` da raiz e na

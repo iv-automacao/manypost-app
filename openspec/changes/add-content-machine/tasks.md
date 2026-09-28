@@ -36,6 +36,6 @@
 
 ## 7. Validation and docs
 
-- [ ] 7.1 `bun install --frozen-lockfile && bun run check && bun run db:check && bun run build:web`
-- [ ] 7.2 `bun run spec:validate`
-- [ ] 7.3 CHANGELOG, `docs/principal/STATUS.md`, `docs/principal/CHANGELOG_ONDAS.md`, repository map
+- [x] 7.1 `bun install --frozen-lockfile && bun run check && bun run db:check && bun run build:web`
+- [x] 7.2 `bun run spec:validate`
+- [x] 7.3 CHANGELOG, `docs/principal/STATUS.md`, `docs/principal/CHANGELOG_ONDAS.md`, repository map

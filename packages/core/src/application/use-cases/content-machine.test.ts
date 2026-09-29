@@ -261,7 +261,8 @@ function montar(
           ? { ...roteiroCarrossel, slides: Array.from({ length: opts.slides }, (_, i) => ({ ordem: i + 1, tipo: i === 0 ? 'capa' : 'ideia', titulo: `S${i + 1}`, texto: '', itens: [] })) }
           : roteiroCarrossel,
     legenda: () => ({ legenda: 'Primeira linha.\n\nCorpo.', hashtags: ['#planodesaudemanaus', 'saude'], cta: 'x' }),
-    revisor: () => opts.revisor ?? { aprovado: true, flags: [], motivo: '' },
+    revisor: (entrada) =>
+      typeof opts.revisor === 'function' ? (opts.revisor as (e: string) => unknown)(entrada) : (opts.revisor ?? { aprovado: true, flags: [], motivo: '' }),
   });
   const media: MediaRecord[] = [];
   let lintChamadas = 0;
@@ -498,6 +499,17 @@ describe('máquina de conteúdo: pauta e etapas', () => {
     const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho' });
     const final = await avancarAte(m, p.id, ['revisao', 'agendado', 'erro']);
     expect(final?.status).toBe('revisao');
+  });
+
+  it('JSON quebrado do revisor ganha uma segunda chamada na hora', async () => {
+    let chamadas = 0;
+    const m = await pronto({
+      revisor: () => (++chamadas === 1 ? '{"aprovado": true, "flags": [], "motivo": "trecho "citado""}' : { aprovado: true, flags: [], motivo: '' }),
+    });
+    const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho' });
+    const final = await avancarAte(m, p.id, ['revisao', 'agendado', 'erro']);
+    expect(chamadas).toBe(2);
+    expect(final?.status).toBe('agendado');
   });
 
   it('sem aprovação automática, até peça limpa espera uma pessoa', async () => {

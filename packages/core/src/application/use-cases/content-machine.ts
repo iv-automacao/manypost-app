@@ -217,26 +217,30 @@ export async function generateJson(
     throw new DomainError(ErrorCodes.ContentNotConfigured, `O prompt "${name}" não existe. Rode a configuração inicial.`);
   }
   const system = prompt.system.replaceAll('{{marca}}', ctx.brandName || 'a marca');
-  const resposta = await withBudget(deps.budget, { orgId: ctx.orgId, operation: `content.${name}`, credits: 1 }, async () => {
-    const r = await ai.generateText({ system, prompt: input, maxTokens: 16_000, temperature: 0.7 });
-    return { result: r, usage: r.usage };
-  });
-  await deps.repo.addSpend({
-    orgId: ctx.orgId,
-    pieceId: ctx.pieceId,
-    service: 'texto',
-    model: deps.textModel,
-    externalId: crypto.randomUUID(),
-    costUsd: textCost(deps, resposta.usage),
-    detail: { prompt: name, versao: prompt.version, ...resposta.usage },
-  });
-  const lido = parseStructured(resposta.text);
-  if (!lido.ok) {
-    throw new DomainError(ErrorCodes.ContentGenerationFailed, `O modelo não devolveu JSON válido (${name}).`, {
-      retryable: true,
+  // JSON quebrado (aspa sem escape num trecho citado) é ocasional: uma segunda chamada na hora
+  // resolve quase sempre e evita mandar a peça para revisão humana à toa
+  for (let tentativa = 1; tentativa <= 2; tentativa++) {
+    const prompt2 =
+      tentativa === 1 ? input : `${input}\n\nResponda só com um objeto JSON válido; escape as aspas dentro dos textos citados.`;
+    const resposta = await withBudget(deps.budget, { orgId: ctx.orgId, operation: `content.${name}`, credits: 1 }, async () => {
+      const r = await ai.generateText({ system, prompt: prompt2, maxTokens: 16_000, temperature: 0.7 });
+      return { result: r, usage: r.usage };
     });
+    await deps.repo.addSpend({
+      orgId: ctx.orgId,
+      pieceId: ctx.pieceId,
+      service: 'texto',
+      model: deps.textModel,
+      externalId: crypto.randomUUID(),
+      costUsd: textCost(deps, resposta.usage),
+      detail: { prompt: name, versao: prompt.version, tentativa, ...resposta.usage },
+    });
+    const lido = parseStructured(resposta.text);
+    if (lido.ok) return lido.value;
   }
-  return lido.value;
+  throw new DomainError(ErrorCodes.ContentGenerationFailed, `O modelo não devolveu JSON válido (${name}).`, {
+    retryable: true,
+  });
 }
 
 /** `YYYY-MM-DD` + hora local da marca → instante UTC (sem biblioteca de fuso) */

@@ -23,6 +23,9 @@
 - **Prova:** `bun run check` (1507 pass; 2 falhas conhecidas do catálogo por caminho com espaço),
   `check:brand`, `check:boundaries`, `check:ai-providers`, `db:check`, `spec:validate`, `build:web`;
   arte de teste renderizada com "Comenta **PLANO** aqui".
+- **Junto:** fundação aceita até 60 mil caracteres (a tabela de produtos da Seed tem 46 mil) e
+  `generateJson` faz uma segunda chamada na hora quando o modelo devolve JSON quebrado — o revisor
+  deixava a peça em revisão humana por uma aspa sem escape.
 
 ## Onda 39 — 2026-09-28 — máquina de conteúdo (`add-content-machine`)
 

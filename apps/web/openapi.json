@@ -6984,7 +6984,7 @@
                 "properties": {
                   "body": {
                     "type": "string",
-                    "maxLength": 30000
+                    "maxLength": 60000
                   },
                   "validUntil": {
                     "type": [

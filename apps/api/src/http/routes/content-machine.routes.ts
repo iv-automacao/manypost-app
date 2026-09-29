@@ -375,7 +375,7 @@ export function contentMachineRoutes(ctn: Container) {
     return c.json(docs.map((d) => ({ ...d, updatedAt: d.updatedAt.toISOString() })));
   });
 
-  const FoundationBody = z.object({ body: z.string().max(30_000), validUntil: CalendarDate.nullable().optional() });
+  const FoundationBody = z.object({ body: z.string().max(60_000), validUntil: CalendarDate.nullable().optional() });
   app.openAPIRegistry.registerPath({
     method: 'put',
     path: '/foundation/{key}',

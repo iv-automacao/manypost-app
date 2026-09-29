@@ -61,8 +61,9 @@ foundation templates, prompts and hook formulas once and SHALL be idempotent.
 
 ### Requirement: A plan creates pieces and stages advance them automatically
 
-The system SHALL create one piece in `ideia` per planned slot with a unique call-to-action keyword
-per organization, then execute stages asynchronously: script (script, caption, lint with one
+The system SHALL create one piece in `ideia` per planned slot carrying the organization's
+call-to-action word (one simple uppercase word, a separate word for business audiences, repeated
+across pieces so it can be an automation trigger), then execute stages asynchronously: script (script, caption, lint with one
 automatic retry carrying the lint findings), production (rendered art, or narrated video scenes
 assembled into one vertical video with a closing brand card), review (reviewer answer plus lint)
 and scheduling. A stage SHALL persist its result before the next stage is enqueued.

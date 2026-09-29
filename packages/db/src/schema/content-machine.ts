@@ -43,6 +43,10 @@ export const contentBrands = pgTable(
     defaultChannelId: uuid('default_channel_id').references(() => channels.id),
     ctaChannel: text('cta_channel').notNull().default('direct'),
     whatsappNumber: text('whatsapp_number').notNull().default(''),
+    /** palavra do CTA ("Manda PLANO no direct"): simples de propósito, repetida entre peças */
+    ctaWord: text('cta_word').notNull().default('PLANO'),
+    /** palavra do CTA para empresa/MEI */
+    ctaWordBusiness: text('cta_word_business').notNull().default('EMPRESA'),
     /** hora local (0–23) em que a peça aprovada é publicada no dia do slot */
     publishHour: integer('publish_hour').notNull().default(18),
     timezone: text('timezone').notNull().default('America/Manaus'),
@@ -130,7 +134,8 @@ export const contentPieces = pgTable(
     ...timestamps,
   },
   (t) => [
-    uniqueIndex('content_pieces_org_keyword_ux').on(t.orgId, t.keyword),
+    // a palavra do CTA é simples e se repete entre peças (não identifica a peça)
+    index('content_pieces_org_keyword_ix').on(t.orgId, t.keyword),
     index('content_pieces_org_status_ix').on(t.orgId, t.status),
     index('content_pieces_org_created_ix').on(t.orgId, t.createdAt),
   ],

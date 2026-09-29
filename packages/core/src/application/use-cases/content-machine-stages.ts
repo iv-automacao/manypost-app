@@ -92,7 +92,19 @@ const invalido = (o: string) =>
   new DomainError(ErrorCodes.ContentGenerationFailed, `O modelo devolveu ${o} fora do formato esperado.`, { retryable: true });
 
 const ctaTexto = (brand: ContentBrandRecord, keyword: string) =>
-  brand.ctaChannel === 'whatsapp' ? `Chama no WhatsApp com ${keyword}` : `Manda ${keyword} no direct`;
+  brand.ctaChannel === 'whatsapp'
+    ? `Chama no WhatsApp com ${keyword}`
+    : brand.ctaChannel === 'comentario'
+      ? `Comenta ${keyword} aqui`
+      : `Manda ${keyword} no direct`;
+
+/** o que cada canal significa para o modelo — o nome sozinho não explica a mecânica */
+const canalCtaParaModelo = (brand: ContentBrandRecord): string =>
+  brand.ctaChannel === 'comentario'
+    ? 'comentario (a pessoa comenta a palavra no post e recebe a resposta no direct; escreva "Comenta <palavra> aqui" ou "Comenta <palavra> que a gente te chama no direct")'
+    : brand.ctaChannel === 'whatsapp'
+      ? 'whatsapp (a pessoa chama no WhatsApp com a palavra)'
+      : 'direct (a pessoa manda a palavra no direct)'
 
 const linkWhatsapp = (brand: ContentBrandRecord, keyword: string) =>
   brand.ctaChannel === 'whatsapp' && brand.whatsappNumber
@@ -135,7 +147,7 @@ async function etapaRoteiro(deps: ContentMachineDeps, piece: ContentPieceRecord,
       `FUNDAÇÃO:\n${await foundationText(deps, piece.orgId, ['produtos', 'icp', 'personagem', 'marca', 'escada'])}`,
       `PAUTA: ${JSON.stringify(pauta)}`,
       `CTA_KEYWORD: ${piece.keyword}`,
-      `CANAL_CTA: ${brand.ctaChannel}`,
+      `CANAL_CTA: ${canalCtaParaModelo(brand)}`,
       feedbackTexto(piece),
       corrigir,
     ].filter(Boolean).join('\n\n'));
@@ -149,7 +161,7 @@ async function etapaRoteiro(deps: ContentMachineDeps, piece: ContentPieceRecord,
       `FUNDAÇÃO:\n${await foundationText(deps, piece.orgId, ['marca', 'escada'])}`,
       `ROTEIRO: ${JSON.stringify(roteiro.data)}`,
       `CTA_KEYWORD: ${piece.keyword}`,
-      `CANAL_CTA: ${brand.ctaChannel}`,
+      `CANAL_CTA: ${canalCtaParaModelo(brand)}`,
       `LINK_WHATSAPP: ${linkWhatsapp(brand, piece.keyword)}`,
       feedbackTexto(piece),
     ].filter(Boolean).join('\n\n'));
@@ -227,6 +239,7 @@ async function etapaArte(deps: ContentMachineDeps, piece: ContentPieceRecord, br
   const imagens = await requireRenderer(deps).render({
     format,
     kicker: brand.name,
+    keyword: piece.keyword,
     slides: format === 'carrossel' ? slides : slides.slice(0, 1),
     cta: format === 'carrossel' ? '' : script.offer || ctaTexto(brand, piece.keyword),
     brand: await renderBrandFor(deps, brand),
@@ -341,6 +354,7 @@ async function etapaVideo(deps: ContentMachineDeps, piece: ContentPieceRecord, b
       title: brand.slogan || script.hook,
       text: script.story.slice(0, 140),
       cta: ctaTexto(brand, piece.keyword),
+      keyword: piece.keyword,
       brand: await renderBrandFor(deps, brand),
     },
   });

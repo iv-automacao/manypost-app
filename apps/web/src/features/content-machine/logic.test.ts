@@ -25,6 +25,7 @@ import {
   actionsFor,
   brandDraft,
   brandPatchFrom,
+  ctaWordFrom,
   captionLock,
   captionPatch,
   captionValues,
@@ -401,6 +402,8 @@ describe('rascunho da identidade', () => {
     defaultChannelId: null,
     ctaChannel: 'whatsapp',
     whatsappNumber: '',
+    ctaWord: 'PLANO',
+    ctaWordBusiness: 'EMPRESA',
     publishHour: 9,
     timezone: 'America/Manaus',
     autoApprove: false,
@@ -425,6 +428,14 @@ describe('rascunho da identidade', () => {
     expect(body.name).toBe('VANTAGE');
     expect(body.whatsappNumber).toBe('5592999990000');
     expect(body.palette).toEqual({ primaria: '#aabbcc' });
+  });
+
+  test('palavra do CTA sai como o gatilho do ManyChat espera', () => {
+    expect(ctaWordFrom(' saúde ')).toBe('SAUDE');
+    expect(ctaWordFrom('Plano-1')).toBe('PLANO');
+    const d = brandDraft(brand);
+    d.ctaWord = 'Saúde';
+    expect(brandPatchFrom(d).ctaWord).toBe('SAUDE');
   });
 
   test('o rascunho recém-lido é igual ao servidor; editar o torna diferente', () => {

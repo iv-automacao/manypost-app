@@ -9,7 +9,7 @@ the API image).
 
 ### D1. Package ownership
 - `contracts`: status set, formats, foundation keys, error codes, request/response schemas' enums.
-- `core/domain/content-machine`: pure transition table (`canTransition`), keyword format, lint-free
+- `core/domain/content-machine`: pure transition table (`canTransition`), lint-free
   helpers. Imports contracts only.
 - `core/application`: ports (`ContentMachineRepository`, `ContentRenderer`, `VideoGenerationProvider`)
   and use cases (`content-machine.ts`, `content-machine-stages.ts`). Text generation goes through the
@@ -27,7 +27,7 @@ the API image).
 - `content_foundations`: key (closed set), body; unique (org, key).
 - `content_prompts`: name, version, system, active; unique (org, name, version); one active per name.
 - `content_pieces`: status (text, closed set validated in core), format, pillar, icp, market,
-  awareness, hook, plan jsonb, script jsonb, caption, hashtags text[], keyword (unique per org),
+  awareness, hook, plan jsonb, script jsonb, caption, hashtags text[], keyword (the brand's CTA word, repeated across pieces),
   media jsonb (media ids + order), review jsonb, feedback jsonb, attempts, scheduled_for, channel_id,
   post_group_id, published_at, permalink, cost_usd numeric, error, locked_until.
 - `content_piece_events`: piece_id, stage, from_status, to_status, detail jsonb.

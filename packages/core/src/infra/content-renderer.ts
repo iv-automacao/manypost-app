@@ -98,6 +98,7 @@ export function makeContentRenderer(config: ContentRendererConfig, fetchImpl: Fe
       const r = await json('v2/render', {
         formato: req.format,
         kicker: req.kicker,
+        palavra_chave: req.keyword ?? '',
         slides: req.slides,
         cta: req.cta,
         marca: marca(req.brand),
@@ -154,7 +155,13 @@ export function makeContentRenderer(config: ContentRendererConfig, fetchImpl: Fe
         'montar-reel',
         {
           clipes: req.clipUrls,
-          fechamento: { titulo: req.closing.title, texto: req.closing.text, cta: req.closing.cta, marca: marca(req.closing.brand) },
+          fechamento: {
+            titulo: req.closing.title,
+            texto: req.closing.text,
+            cta: req.closing.cta,
+            palavra_chave: req.closing.keyword ?? '',
+            marca: marca(req.closing.brand),
+          },
         },
         config.reelTimeoutMs ?? 5 * 60_000,
       );

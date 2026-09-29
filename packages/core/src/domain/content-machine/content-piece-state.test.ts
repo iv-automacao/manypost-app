@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { ContentPieceStatuses } from '@manypost/contracts';
-import { AUTOMATIC_STAGES, canContentTransition, isAutomatic, keywordFor } from './content-piece-state';
+import { AUTOMATIC_STAGES, canContentTransition, isAutomatic } from './content-piece-state';
 
 describe('ciclo de vida da peça', () => {
   test('as etapas automáticas avançam na ordem da esteira', () => {
@@ -40,11 +40,5 @@ describe('ciclo de vida da peça', () => {
     expect([...AUTOMATIC_STAGES].sort()).toEqual(['aprovado', 'ideia', 'producao', 'roteiro']);
     expect(isAutomatic('revisao')).toBe(false);
     expect(isAutomatic('ideia')).toBe(true);
-  });
-
-  test('palavra-chave: linha, dia e letra', () => {
-    const d = new Date('2026-10-06T12:00:00Z');
-    expect(keywordFor('empresario', d, [])).toBe('PME-1006-A');
-    expect(keywordFor('familia', d, ['PLANO-1006-A', 'PLANO-1006-B'])).toBe('PLANO-1006-C');
   });
 });

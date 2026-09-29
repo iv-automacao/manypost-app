@@ -28,6 +28,7 @@ import {
   PALETTE_ROLES,
   brandDraft,
   brandPatchFrom,
+  ctaWordFrom,
   hourLabel,
   invalidPaletteRoles,
   isPaletteEmpty,
@@ -140,11 +141,13 @@ function IdentityForm({ brand, rendererOn }: { brand: ContentBrand; rendererOn: 
     : !brand.logoMediaId
       ? t('extractNeedsLogo')
       : undefined;
-  const sampleKeyword = 'PME-1005-A';
+  const sampleKeyword = ctaWordFrom(draft.ctaWord) || 'PLANO';
   const cta =
     draft.ctaChannel === 'whatsapp'
       ? t('previewCtaWhatsapp', { keyword: sampleKeyword })
-      : t('previewCtaDirect', { keyword: sampleKeyword });
+      : draft.ctaChannel === 'comentario'
+        ? t('previewCtaComment', { keyword: sampleKeyword })
+        : t('previewCtaDirect', { keyword: sampleKeyword });
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -260,6 +263,7 @@ function IdentityForm({ brand, rendererOn }: { brand: ContentBrand; rendererOn: 
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="direct">{t('ctaDirect')}</SelectItem>
+                  <SelectItem value="comentario">{t('ctaComment')}</SelectItem>
                   <SelectItem value="whatsapp">{t('ctaWhatsapp')}</SelectItem>
                 </SelectContent>
               </Select>
@@ -278,6 +282,24 @@ function IdentityForm({ brand, rendererOn }: { brand: ContentBrand; rendererOn: 
             ) : (
               <div className="hidden sm:block" />
             )}
+            <Field id="cm-brand-cta-word" label={t('ctaWord')} hint={t('ctaWordHint')}>
+              <Input
+                id="cm-brand-cta-word"
+                value={draft.ctaWord}
+                onChange={(e) => set('ctaWord', ctaWordFrom(e.target.value))}
+                placeholder="PLANO"
+                maxLength={15}
+              />
+            </Field>
+            <Field id="cm-brand-cta-word-business" label={t('ctaWordBusiness')} hint={t('ctaWordBusinessHint')}>
+              <Input
+                id="cm-brand-cta-word-business"
+                value={draft.ctaWordBusiness}
+                onChange={(e) => set('ctaWordBusiness', ctaWordFrom(e.target.value))}
+                placeholder="EMPRESA"
+                maxLength={15}
+              />
+            </Field>
             <Field id="cm-brand-hour" label={t('publishHour')}>
               <Select value={String(draft.publishHour)} onValueChange={(v) => set('publishHour', Number(v))}>
                 <SelectTrigger id="cm-brand-hour">

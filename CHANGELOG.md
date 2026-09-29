@@ -24,6 +24,13 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
   `VIDEO_PROVIDER_RESOLUTION`, `CONTENT_TEXT_USD_IN`, `CONTENT_TEXT_USD_OUT`; sem elas a máquina
   responde que a capacidade não está configurada. As etapas rodam no processo da API (`MODE=all`,
   `standalone` ou `full`); o worker dedicado não consome esta fila.
+- **CTA da máquina com palavra simples e canal por comentário.** A marca define a palavra do CTA
+  (`ctaWord`, padrão `PLANO`) e a palavra para empresa/MEI (`ctaWordBusiness`, padrão `EMPRESA`):
+  uma palavra, maiúsculas, sem acento, repetida entre peças para servir de gatilho de automação
+  (ManyChat). Novo canal `comentario` ("Comenta PLANO aqui"), além de direct e WhatsApp. A palavra
+  sai em destaque na pílula de CTA da arte e do card final do reels. Migration `0009_content-cta-word`
+  troca o índice único de `keyword` por índice simples; o código por peça (`PME-1005-A`) deixa de
+  ser gerado.
 - **Adapter de texto aceita modelos de raciocínio.** `AI_TOKEN_LIMIT_PARAM`
   (`max_tokens` | `max_completion_tokens`) e `AI_SEND_TEMPERATURE` (padrão `true`) ajustam o
   pedido do dialeto chat-completions; o padrão mantém o comportamento anterior.

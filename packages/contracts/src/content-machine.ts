@@ -26,7 +26,8 @@ export type ContentFoundationKey = (typeof ContentFoundationKeys)[number];
 export const ContentPromptNames = ['pauta', 'roteiro', 'legenda', 'revisor'] as const;
 export type ContentPromptName = (typeof ContentPromptNames)[number];
 
-export const ContentCtaChannels = ['direct', 'whatsapp'] as const;
+/** `comentario` = a pessoa comenta a palavra no post e a automação (ex.: ManyChat) responde no direct */
+export const ContentCtaChannels = ['direct', 'whatsapp', 'comentario'] as const;
 export type ContentCtaChannel = (typeof ContentCtaChannels)[number];
 
 export const ContentMarkets = ['manaus', 'boa_vista', 'belem', 'nacional'] as const;

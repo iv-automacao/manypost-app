@@ -23,6 +23,7 @@ import {
   makeRequestPlan,
   makeRunPlanJob,
   makeSpendSummary,
+  makeUpdateBrand,
   zonedDate,
   type ContentMachineDeps,
 } from './content-machine';
@@ -61,7 +62,7 @@ function fakeRepo(relogio: () => Date = () => new Date()) {
       brand = {
         ...(brand ?? {
           orgId, name: '', logoMediaId: null, logoDarkMediaId: null, palette: {}, slogan: '', signature: '', tone: '',
-          defaultChannelId: null, ctaChannel: 'direct', whatsappNumber: '', publishHour: 18, timezone: 'America/Manaus', autoApprove: true, updatedAt: new Date(),
+          defaultChannelId: null, ctaChannel: 'direct', whatsappNumber: '', ctaWord: 'PLANO', ctaWordBusiness: 'EMPRESA', publishHour: 18, timezone: 'America/Manaus', autoApprove: true, updatedAt: new Date(),
         }),
         ...Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)),
       } as ContentBrandRecord;
@@ -106,7 +107,6 @@ function fakeRepo(relogio: () => Date = () => new Date()) {
       if (h) h.uses++;
     },
     async createPiece(orgId, d) {
-      if ([...pieces.values()].some((p) => p.orgId === orgId && p.keyword === d.keyword)) throw new Error('unique keyword');
       const p: ContentPieceRecord = {
         id: `piece-${++seq}`, orgId, status: 'ideia', ...d, script: null, caption: '', hashtags: [], media: [], review: null, feedback: [],
         attempts: 0, postGroupId: null, publishedAt: null, permalink: null, costUsd: 0, error: null, lockedUntil: null, createdAt: new Date(), updatedAt: new Date(),
@@ -433,7 +433,8 @@ describe('máquina de conteúdo: pauta e etapas', () => {
         { date: '2026-10-07', format: 'reels', pillar: 'dor_objecao' },
       ],
     });
-    expect(pecas.map((p) => p.keyword)).toEqual(['PLANO-1005-A', 'PME-1007-A']);
+    // palavra simples por público: repetida entre peças, empresa tem a sua
+    expect(pecas.map((p) => p.keyword)).toEqual(['PLANO', 'EMPRESA']);
     // 18h em Manaus (UTC-4) = 22h UTC
     expect(pecas[0]!.scheduledFor?.toISOString()).toBe('2026-10-05T22:00:00.000Z');
     expect(pecas[0]!.channelId).toBe('canal-ig');
@@ -892,6 +893,26 @@ describe('máquina de conteúdo: regressões da revisão adversarial', () => {
     expect(final?.status).toBe('agendado');
     expect(final?.postGroupId).not.toBe(ag!.postGroupId);
     expect(m.grupos.get(ag!.postGroupId!)?.pubState).toBe('CANCELLED');
+  });
+
+  it('CTA de comentário: o roteiro recebe a mecânica e a arte recebe a palavra para destacar', async () => {
+    const m = await pronto();
+    await m.deps.repo.upsertBrand(ORG, { ctaChannel: 'comentario', ctaWord: 'SAUDE' });
+    let renderPedido: { keyword?: string; cta: string } | null = null;
+    const original = m.deps.renderer!.render;
+    m.deps.renderer = { ...m.deps.renderer!, render: async (req) => ((renderPedido = req), original(req)) };
+    const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho', icp: 'familia' });
+    expect(p.keyword).toBe('SAUDE');
+    await avancarAte(m, p.id, ['producao', 'revisao', 'agendado']);
+    expect(m.chamadas.find((c) => c.system.includes('roteirista'))?.prompt).toContain('comentario (a pessoa comenta');
+    expect(renderPedido!.keyword).toBe('SAUDE');
+  });
+
+  it('palavra do CTA inválida é recusada na identidade', async () => {
+    const m = await pronto();
+    await expect(makeUpdateBrand(m.deps)(ORG, { ctaWord: 'SAÚDE' })).rejects.toThrow('sem acento');
+    await expect(makeUpdateBrand(m.deps)(ORG, { ctaWord: 'plano de saude' })).rejects.toThrow('uma palavra');
+    expect((await makeUpdateBrand(m.deps)(ORG, { ctaWord: 'SAUDE' })).ctaWord).toBe('SAUDE');
   });
 
   it('extração de paleta vazia não apaga a paleta salva', async () => {

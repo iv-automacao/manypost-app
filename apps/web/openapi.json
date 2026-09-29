@@ -1753,11 +1753,20 @@
             "type": "string",
             "enum": [
               "direct",
-              "whatsapp"
+              "whatsapp",
+              "comentario"
             ]
           },
           "whatsappNumber": {
             "type": "string"
+          },
+          "ctaWord": {
+            "type": "string",
+            "description": "palavra do CTA para pessoa física (ex.: PLANO)"
+          },
+          "ctaWordBusiness": {
+            "type": "string",
+            "description": "palavra do CTA para empresa/MEI (ex.: EMPRESA)"
           },
           "publishHour": {
             "type": "integer"
@@ -1782,6 +1791,8 @@
           "defaultChannelId",
           "ctaChannel",
           "whatsappNumber",
+          "ctaWord",
+          "ctaWordBusiness",
           "publishHour",
           "timezone",
           "autoApprove"
@@ -6728,12 +6739,21 @@
                     "type": "string",
                     "enum": [
                       "direct",
-                      "whatsapp"
+                      "whatsapp",
+                      "comentario"
                     ]
                   },
                   "whatsappNumber": {
                     "type": "string",
                     "maxLength": 20
+                  },
+                  "ctaWord": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3,15}$"
+                  },
+                  "ctaWordBusiness": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3,15}$"
                   },
                   "publishHour": {
                     "type": "integer",

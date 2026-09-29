@@ -37,6 +37,8 @@ const toBrand = (row: typeof contentBrands.$inferSelect): ContentBrandRecord => 
   defaultChannelId: row.defaultChannelId,
   ctaChannel: row.ctaChannel as ContentCtaChannel,
   whatsappNumber: row.whatsappNumber,
+  ctaWord: row.ctaWord,
+  ctaWordBusiness: row.ctaWordBusiness,
   publishHour: row.publishHour,
   timezone: row.timezone,
   autoApprove: row.autoApprove,

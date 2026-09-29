@@ -10,6 +10,20 @@
 > **Como manter:** ao fechar uma fatia, adicione a onda nova **no topo** e atualize o STATUS.
 > Cada entrada é auto-contida: o que mudou, onde no código, e a prova de que funciona.
 
+## Onda 40 — 2026-09-28 — CTA simples e canal por comentário
+
+- **O que mudou:** a palavra do CTA deixou de ser um código por peça (`PME-1005-A`) e passou a ser
+  uma palavra da marca (`PLANO`; `EMPRESA` para empresa/MEI), editável na Identidade e validada
+  (`^[A-Z]{3,15}$`). Canal novo `comentario` para o gatilho de comentário do ManyChat; o modelo
+  recebe a mecânica do canal no prompt e o lint do renderizador exige "coment…" na legenda.
+- **Onde:** `packages/core/src/application/use-cases/content-machine.ts` (`palavraDoCta`,
+  `PALAVRA_CTA`), `content-machine-stages.ts` (`ctaTexto`, `canalCtaParaModelo`), migration
+  `0009_content-cta-word`, `apps/web/src/features/content-machine/identity-view.tsx`,
+  renderizador `scripts/render_marca.py` (`_cta` com `palavra_chave`) e `scripts/lint.py`.
+- **Prova:** `bun run check` (1507 pass; 2 falhas conhecidas do catálogo por caminho com espaço),
+  `check:brand`, `check:boundaries`, `check:ai-providers`, `db:check`, `spec:validate`, `build:web`;
+  arte de teste renderizada com "Comenta **PLANO** aqui".
+
 ## Onda 39 — 2026-09-28 — máquina de conteúdo (`add-content-machine`)
 
 A esteira de conteúdo que rodava fora do produto (n8n + renderizador Python + API de vídeo + banco

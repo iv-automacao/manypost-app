@@ -7,7 +7,7 @@ import {
   type ContentPromptName,
 } from '@manypost/contracts';
 import { z } from 'zod';
-import { canContentTransition, isAutomatic, keywordFor } from '../../domain/content-machine/content-piece-state';
+import { canContentTransition, isAutomatic } from '../../domain/content-machine/content-piece-state';
 import { DomainError } from '../../domain/shared/result';
 import { parseStructured } from '../ai/structured';
 import type { AiProvider, BudgetGuard, TokenUsage } from '../ports/ai-provider';
@@ -324,6 +324,11 @@ export const makeUpdateBrand =
       const [m] = await deps.media.findMany(orgId, [id]);
       if (!m || !m.mime.startsWith('image/')) throw new DomainError(ErrorCodes.NotFound, 'logo não encontrada na biblioteca');
     }
+    for (const palavra of [patch.ctaWord, patch.ctaWordBusiness]) {
+      if (palavra !== undefined && !PALAVRA_CTA.test(palavra)) {
+        throw new DomainError(ErrorCodes.PostInvalidSettings, 'A palavra do CTA precisa ser uma palavra só, em maiúsculas e sem acento (ex.: PLANO).');
+      }
+    }
     if (patch.publishHour !== undefined && (patch.publishHour < 0 || patch.publishHour > 23)) {
       throw new DomainError(ErrorCodes.PostInvalidSettings, 'hora de publicação entre 0 e 23');
     }
@@ -420,15 +425,18 @@ const addDays = (day: string, n: number) => {
   return d.toISOString().slice(0, 10);
 };
 
-/** palavra-chave nova, única na org (o índice único é a garantia final) */
-async function novaKeyword(deps: Pick<ContentMachineDeps, 'repo'>, orgId: string, icp: string, dia: Date, reservadas: string[]) {
-  const linha = icp === 'empresario' ? 'PME' : 'PLANO';
-  const mmdd = `${String(dia.getUTCMonth() + 1).padStart(2, '0')}${String(dia.getUTCDate()).padStart(2, '0')}`;
-  const usadas = await deps.repo.keywordsWithPrefix(orgId, `${linha}-${mmdd}`);
-  const k = keywordFor(icp, dia, [...usadas, ...reservadas]);
-  reservadas.push(k);
-  return k;
-}
+/** públicos de empresa (CNPJ/MEI) usam a palavra de empresa; o resto, a palavra padrão */
+const PUBLICOS_EMPRESA = new Set(['empresario', 'empresa', 'mei', 'pme', 'cnpj']);
+
+/**
+ * Palavra do CTA da peça ("Comenta PLANO"): simples e repetida entre peças de propósito — é o
+ * gatilho que a pessoa digita e que a automação de conversa reconhece. Não identifica a peça.
+ */
+export const palavraDoCta = (brand: Pick<ContentBrandRecord, 'ctaWord' | 'ctaWordBusiness'>, icp: string): string =>
+  PUBLICOS_EMPRESA.has(icp.toLowerCase()) ? brand.ctaWordBusiness : brand.ctaWord;
+
+/** palavra de CTA válida: uma palavra, letras sem acento, de 3 a 15 caracteres */
+export const PALAVRA_CTA = /^[A-Z]{3,15}$/;
 
 export interface PlanWeekInput {
   weekStart: string;
@@ -529,7 +537,6 @@ export const makePlanContentWeek =
     }
 
     const criadas: ContentPieceRecord[] = [];
-    const reservadas: string[] = [];
     for (const [i, slot] of slots.entries()) {
       const p = lido.data.pautas[i];
       if (!p) break;
@@ -543,7 +550,7 @@ export const makePlanContentWeek =
         awareness: p.consciencia,
         hook: p.gancho,
         plan: { angulo: p.angulo, formula: p.formula, slot: slot.date, origem: 'pauta' },
-        keyword: await novaKeyword(deps, actor.orgId, icp, new Date(`${slot.date}T12:00:00Z`), reservadas),
+        keyword: palavraDoCta(brand, icp),
         scheduledFor,
         channelId: input.channelId ?? brand.defaultChannelId,
       });
@@ -605,7 +612,6 @@ export const makeCreatePiece =
     if (!hook) throw new DomainError(ErrorCodes.PostEmptyContent, 'escreva a ideia ou o gancho da peça');
     if (input.channelId) await assertMachineChannel(deps, actor.orgId, input.channelId);
     const icp = (input.icp ?? '').toLowerCase();
-    const dia = input.scheduledFor ?? agora(deps);
     const piece = await deps.repo.createPiece(actor.orgId, {
       format: input.format,
       pillar: input.pillar ?? 'educar',
@@ -614,7 +620,7 @@ export const makeCreatePiece =
       awareness: '',
       hook,
       plan: { angulo: input.angle ?? '', origem: 'manual' },
-      keyword: await novaKeyword(deps, actor.orgId, icp, dia, []),
+      keyword: palavraDoCta(brand, icp),
       scheduledFor: input.scheduledFor ?? null,
       channelId: input.channelId ?? brand.defaultChannelId,
     });

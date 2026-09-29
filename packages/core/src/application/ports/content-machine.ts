@@ -36,6 +36,10 @@ export interface ContentBrandRecord {
   defaultChannelId: string | null;
   ctaChannel: ContentCtaChannel;
   whatsappNumber: string;
+  /** palavra do CTA para pessoa física ("Comenta PLANO") — simples, sem acento */
+  ctaWord: string;
+  /** palavra do CTA para empresa/MEI */
+  ctaWordBusiness: string;
   publishHour: number;
   timezone: string;
   autoApprove: boolean;
@@ -225,7 +229,7 @@ export interface ContentMachineRepository {
   createPiece(orgId: string, d: NewContentPiece): Promise<ContentPieceRecord>;
   listPieces(orgId: string, opts?: { statuses?: ContentPieceStatus[]; limit?: number }): Promise<ContentPieceRecord[]>;
   getPiece(orgId: string, id: string): Promise<ContentPieceRecord | null>;
-  /** palavras-chave que começam com `prefix` — alimenta `keywordFor` */
+  /** palavras de CTA que começam com `prefix` */
   keywordsWithPrefix(orgId: string, prefix: string): Promise<string[]>;
   /** ganchos usados desde `since` — a pauta não repete */
   hooksSince(orgId: string, since: Date): Promise<string[]>;
@@ -325,6 +329,8 @@ export interface ContentRenderer {
   render(req: {
     format: 'carrossel' | 'post' | 'story';
     kicker: string;
+    /** palavra do CTA, destacada na arte onde aparecer */
+    keyword?: string;
     slides: unknown[];
     cta: string;
     brand: RenderBrand;
@@ -340,7 +346,7 @@ export interface ContentRenderer {
   palette(req: { imageUrl: string }): Promise<{ colors: string[]; suggestion: BrandPalette }>;
   assembleReel(req: {
     clipUrls: string[];
-    closing: { title: string; text: string; cta: string; brand: RenderBrand };
+    closing: { title: string; text: string; cta: string; keyword?: string; brand: RenderBrand };
   }): Promise<{ bytes: Uint8Array; durationSec: number }>;
 }
 

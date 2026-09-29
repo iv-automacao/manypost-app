@@ -437,6 +437,8 @@ export type BrandDraft = Pick<
   | 'defaultChannelId'
   | 'ctaChannel'
   | 'whatsappNumber'
+  | 'ctaWord'
+  | 'ctaWordBusiness'
   | 'publishHour'
   | 'timezone'
   | 'autoApprove'
@@ -452,11 +454,21 @@ export function brandDraft(b: ContentBrand): BrandDraft {
     defaultChannelId: b.defaultChannelId,
     ctaChannel: b.ctaChannel,
     whatsappNumber: b.whatsappNumber,
+    ctaWord: b.ctaWord,
+    ctaWordBusiness: b.ctaWordBusiness,
     publishHour: b.publishHour,
     timezone: b.timezone,
     autoApprove: b.autoApprove,
   };
 }
+
+/** palavra do CTA como o gatilho do ManyChat espera: uma palavra, maiúsculas, sem acento */
+export const ctaWordFrom = (value: string): string =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z]/g, '');
 
 /** rascunho → corpo do PUT: textos aparados, paleta limpa, WhatsApp só com dígitos */
 export function brandPatchFrom(d: BrandDraft): BrandPatch {
@@ -469,6 +481,8 @@ export function brandPatchFrom(d: BrandDraft): BrandPatch {
     defaultChannelId: d.defaultChannelId,
     ctaChannel: d.ctaChannel,
     whatsappNumber: d.whatsappNumber.replace(/\D/g, ''),
+    ctaWord: ctaWordFrom(d.ctaWord),
+    ctaWordBusiness: ctaWordFrom(d.ctaWordBusiness),
     publishHour: d.publishHour,
     timezone: d.timezone.trim(),
     autoApprove: d.autoApprove,

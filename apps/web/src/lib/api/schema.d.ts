@@ -2908,8 +2908,10 @@ export type paths = {
                         /** Format: uuid */
                         defaultChannelId?: string | null;
                         /** @enum {string} */
-                        ctaChannel?: "direct" | "whatsapp";
+                        ctaChannel?: "direct" | "whatsapp" | "comentario";
                         whatsappNumber?: string;
+                        ctaWord?: string;
+                        ctaWordBusiness?: string;
                         publishHour?: number;
                         timezone?: string;
                         autoApprove?: boolean;
@@ -6678,8 +6680,12 @@ export type components = {
             tone: string;
             defaultChannelId: string | null;
             /** @enum {string} */
-            ctaChannel: "direct" | "whatsapp";
+            ctaChannel: "direct" | "whatsapp" | "comentario";
             whatsappNumber: string;
+            /** @description palavra do CTA para pessoa física (ex.: PLANO) */
+            ctaWord: string;
+            /** @description palavra do CTA para empresa/MEI (ex.: EMPRESA) */
+            ctaWordBusiness: string;
             publishHour: number;
             timezone: string;
             autoApprove: boolean;

@@ -266,8 +266,10 @@ function montar(
   });
   const media: MediaRecord[] = [];
   let lintChamadas = 0;
+  const renders: Array<{ cta?: string; format: string }> = [];
   const renderer: ContentRenderer = {
     async render(req) {
+      renders.push({ cta: req.cta, format: req.format });
       return (req.format === 'carrossel' ? req.slides : [1]).map(() => ({ bytes: PNG, width: 1080, height: 1350 }));
     },
     async lint(req) {
@@ -372,7 +374,7 @@ function montar(
     sleep: async () => {},
     now: () => relogio.agora,
   };
-  return { f, deps, chamadas, media, pedidos, enfileirados, agendados, grupos, refreshs, relogio, run: makeRunContentStage(deps) };
+  return { f, deps, chamadas, media, pedidos, enfileirados, agendados, grupos, refreshs, relogio, renders, run: makeRunContentStage(deps) };
 }
 
 const actor = { orgId: ORG, userId: 'u1' };
@@ -499,6 +501,23 @@ describe('máquina de conteúdo: pauta e etapas', () => {
     const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho' });
     const final = await avancarAte(m, p.id, ['revisao', 'agendado', 'erro']);
     expect(final?.status).toBe('revisao');
+  });
+
+  it('post: a pílula da arte é o CTA fixo do canal, não o offer do roteiro', async () => {
+    const m = await pronto();
+    await m.deps.repo.upsertBrand(ORG, { ctaChannel: 'comentario' });
+    const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho' });
+    await avancarAte(m, p.id, ['revisao', 'agendado', 'erro']);
+    expect(m.renders.at(-1)?.cta).toBe('Comenta PLANO aqui');
+  });
+
+  it('legenda recebe praça e público da pauta', async () => {
+    const m = await pronto();
+    const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho', market: 'boa_vista', icp: 'familia' });
+    await avancarAte(m, p.id, ['revisao', 'agendado', 'erro']);
+    const legenda = m.chamadas.find((c) => c.prompt.includes('ROTEIRO:'));
+    expect(legenda?.prompt).toContain('"praca":"boa_vista"');
+    expect(legenda?.prompt).toContain('"icp":"familia"');
   });
 
   it('JSON quebrado do revisor ganha uma segunda chamada na hora', async () => {

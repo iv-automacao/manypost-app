@@ -160,6 +160,8 @@ async function etapaRoteiro(deps: ContentMachineDeps, piece: ContentPieceRecord,
     const legendaBruta = await generateJson(deps, ctx, 'legenda', [
       `FUNDAÇÃO:\n${await foundationText(deps, piece.orgId, ['marca', 'escada'])}`,
       `ROTEIRO: ${JSON.stringify(roteiro.data)}`,
+      // praça e público: a legenda escolhe hashtag de cidade e respeita regra de praça
+      `PAUTA: ${JSON.stringify({ formato: pauta.formato, icp: pauta.icp, praca: pauta.praca })}`,
       `CTA_KEYWORD: ${piece.keyword}`,
       `CANAL_CTA: ${canalCtaParaModelo(brand)}`,
       `LINK_WHATSAPP: ${linkWhatsapp(brand, piece.keyword)}`,
@@ -241,7 +243,7 @@ async function etapaArte(deps: ContentMachineDeps, piece: ContentPieceRecord, br
     kicker: brand.name,
     keyword: piece.keyword,
     slides: format === 'carrossel' ? slides : slides.slice(0, 1),
-    cta: format === 'carrossel' ? '' : script.offer || ctaTexto(brand, piece.keyword),
+    cta: format === 'carrossel' ? '' : ctaTexto(brand, piece.keyword),
     brand: await renderBrandFor(deps, brand),
   });
   if (imagens.length === 0) throw new DomainError(ErrorCodes.ContentGenerationFailed, 'o renderizador não devolveu imagens', { retryable: true });

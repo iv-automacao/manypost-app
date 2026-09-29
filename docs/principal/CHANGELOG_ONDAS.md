@@ -10,6 +10,19 @@
 > **Como manter:** ao fechar uma fatia, adicione a onda nova **no topo** e atualize o STATUS.
 > Cada entrada é auto-contida: o que mudou, onde no código, e a prova de que funciona.
 
+## Onda 42 — 2026-09-29 — roteiros pelo método do cliente dos sonhos
+
+- **O que mudou:** na fundação e nos prompts da Invista (fora do código), ICP, personagem e
+  escada refeitos pelo método do Segredos DotCom; prompts pauta v2, roteiro v6, legenda v3 e
+  revisor v5. No código: pílula de CTA fixa do canal em post e story, `PAUTA` (formato, icp,
+  praça) e os achados do lint também na etapa de legenda, até duas correções de lint no roteiro
+  (`TENTATIVAS_ROTEIRO`) e descarte de flag do revisor com `falhou: false`.
+- **Onde:** `content-machine-stages.ts` (etapa de roteiro, `etapaArte`, `etapaRevisao`).
+- **Prova:** testes novos no core (pílula fixa, praça na legenda, legenda recebe CORRIJA, erro de
+  lint persistente vai para revisão, flag `falhou: false` descartada); 549 pass em core + api.
+  Em produção, peças de teste no perfil de teste: carrossel de servidor em Boa Vista aprovado com
+  aviso e registros ANS; reels de família e de profissional com a apresentação da Jéssica.
+
 ## Onda 41 — 2026-09-29 — reels só com roteiro
 
 - **O que mudou:** a marca pode desligar o vídeo automático dos reels (`reelsVideo`). Desligado, a

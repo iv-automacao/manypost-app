@@ -63,14 +63,17 @@ foundation templates, prompts and hook formulas once and SHALL be idempotent.
 
 The system SHALL create one piece in `ideia` per planned slot carrying the organization's
 call-to-action word (one simple uppercase word, a separate word for business audiences, repeated
-across pieces so it can be an automation trigger), then execute stages asynchronously: script (script, caption, lint with one
-automatic retry carrying the lint findings), production (rendered art, or narrated video scenes
-assembled into one vertical video with a closing brand card), review (reviewer answer plus lint)
+across pieces so it can be an automation trigger), then execute stages asynchronously: script (script, caption, lint with up
+to two automatic corrections carrying the lint findings to both script and caption), production
+(rendered art, or narrated video scenes assembled into one vertical video with a closing brand
+card; when the organization turned automatic reel video off, the reel skips video generation and
+stops in review as a script for a person to record), review (reviewer answer plus lint)
 and scheduling. A stage SHALL persist its result before the next stage is enqueued.
 
 #### Scenario: Lint error on first attempt
 - **WHEN** the script stage produces text with a lint error on the first attempt
-- **THEN** the piece stays in `ideia` with the findings stored and the stage is retried once
+- **THEN** script and caption are regenerated with the findings, up to two times, and an error
+  that remains sends the piece to human review with the finding as a flag
 
 #### Scenario: Review flags a risk
 - **WHEN** the reviewer returns any flag or the lint has an error

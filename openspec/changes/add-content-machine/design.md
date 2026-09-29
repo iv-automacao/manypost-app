@@ -44,7 +44,7 @@ update (`locked_until < now()`), reads its status and runs one stage:
 
 | Status | Stage | Next |
 |---|---|---|
-| `ideia` | script + caption + lint (1 retry with findings) | `roteiro` |
+| `ideia` | script + caption + lint (up to 2 corrections with findings) | `roteiro` |
 | `roteiro` | production: render art, or generate narrated scenes and assemble the reel | `producao` |
 | `producao` | review (reviewer prompt + lint) | `aprovado` or `revisao` |
 | `aprovado` | schedule through the publishing use case | `agendado` |

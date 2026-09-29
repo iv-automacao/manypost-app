@@ -237,7 +237,7 @@ const roteiroReels = {
 function montar(
   opts: {
     revisor?: unknown;
-    lintErro?: boolean;
+    lintErro?: boolean | 'sempre';
     videoFalha?: 'uma' | 'sempre';
     /** erro lançado pelo submit do vídeo na N-ésima chamada (1 = primeira) */
     submitErro?: { chamada: number; erro: Error };
@@ -274,7 +274,7 @@ function montar(
     },
     async lint(req) {
       lintChamadas++;
-      const erro = Boolean(opts.lintErro) && lintChamadas === 1;
+      const erro = opts.lintErro === 'sempre' || (Boolean(opts.lintErro) && lintChamadas === 1);
       const findings: ContentLintFinding[] = erro ? [{ nivel: 'erro', codigo: 'SEM_CTA', msg: 'sem palavra-chave' }] : [];
       return { script: req.script, caption: req.caption, hashtags: req.hashtags.slice(0, 5), findings, hasError: erro };
     },
@@ -480,6 +480,15 @@ describe('máquina de conteúdo: pauta e etapas', () => {
     expect(legendas).toHaveLength(2);
     expect(legendas[1]!.prompt).toContain('CORRIJA');
     expect((await m.deps.repo.getPiece(ORG, p.id))?.status).toBe('roteiro');
+  });
+
+  it('erro de lint que não sai em duas correções segue para revisão humana com o achado', async () => {
+    const m = await pronto({ lintErro: 'sempre' });
+    const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho' });
+    const final = await avancarAte(m, p.id, ['revisao', 'agendado', 'erro']);
+    expect(m.chamadas.filter((c) => c.system.includes('roteirista'))).toHaveLength(3);
+    expect(final?.status).toBe('revisao');
+    expect(final?.review?.flags.map((f) => f.codigo)).toContain('LINT_SEM_CTA');
   });
 
   it('flag do revisor para a peça em revisão humana', async () => {

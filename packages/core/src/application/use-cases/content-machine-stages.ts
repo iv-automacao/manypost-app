@@ -134,6 +134,8 @@ const feedbackTexto = (piece: ContentPieceRecord) =>
 
 // ------------------------------------------------------------------ etapa 1: roteiro
 
+const TENTATIVAS_ROTEIRO = 3;
+
 async function etapaRoteiro(deps: ContentMachineDeps, piece: ContentPieceRecord, brand: ContentBrandRecord) {
   const ctx = { orgId: piece.orgId, pieceId: piece.id, brandName: brand.name };
   const pauta = {
@@ -148,8 +150,9 @@ async function etapaRoteiro(deps: ContentMachineDeps, piece: ContentPieceRecord,
   let correcoes: ContentLintFinding[] = [];
   let resultado: { script: RoteiroT; caption: string; hashtags: string[]; findings: ContentLintFinding[] } | null = null;
 
-  // uma tentativa + uma correção com os achados do lint (design D3)
-  for (let tentativa = 0; tentativa < 2; tentativa++) {
+  // uma tentativa + até duas correções com os achados do lint (design D3; a segunda correção
+  // pega o que a primeira deixou, ex.: uma fala esquecida)
+  for (let tentativa = 0; tentativa < TENTATIVAS_ROTEIRO; tentativa++) {
     const corrigir = correcoes.length
       ? `CORRIJA estes problemas da versão anterior:\n${correcoes.map((f) => `- ${f.codigo}: ${f.msg}`).join('\n')}`
       : '';
@@ -199,7 +202,7 @@ async function etapaRoteiro(deps: ContentMachineDeps, piece: ContentPieceRecord,
     if (total > CAPTION_TOTAL_MAX) {
       findings = [...findings, { nivel: 'erro', codigo: 'TEXTO_TOTAL', msg: `legenda e hashtags somam ${total} caracteres (máx. ${CAPTION_TOTAL_MAX})` }];
     }
-    if (findings.some((f) => f.nivel === 'erro') && tentativa === 0) {
+    if (findings.some((f) => f.nivel === 'erro') && tentativa < TENTATIVAS_ROTEIRO - 1) {
       correcoes = findings.filter((f) => f.nivel === 'erro');
       continue;
     }

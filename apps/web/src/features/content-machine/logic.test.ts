@@ -205,6 +205,12 @@ describe('ações humanas por status', () => {
     expect(com('reprovado')).toEqual(['redoScript']);
   });
 
+  test('reels sem vídeo (roteiro para gravar) não oferece aprovar', () => {
+    const reels = (media: ContentPiece['media']) => actionsFor(piece({ status: 'revisao', script: roteiro, format: 'reels', media }));
+    expect(reels([])).toEqual(['redoScript', 'redoProduction', 'reject']);
+    expect(reels([{ mediaId: 'm1', kind: 'video', order: 1, url: 'https://x/v.mp4', mime: 'video/mp4' }])).toContain('approve');
+  });
+
   test('refazer arte/vídeo exige roteiro gravado: erro antes do roteiro não oferece', () => {
     expect(sem('erro')).toEqual(['retry', 'redoScript', 'reject']);
     for (const s of STATUSES) expect(sem(s)).not.toContain('redoProduction');
@@ -407,6 +413,7 @@ describe('rascunho da identidade', () => {
     publishHour: 9,
     timezone: 'America/Manaus',
     autoApprove: false,
+    reelsVideo: true,
   };
 
   test('paleta vazia = nenhum papel e nenhuma cor extraída', () => {
@@ -503,7 +510,7 @@ describe('prompts', () => {
 
 describe('publicação incerta', () => {
   test('peça em erro com publicação NEEDS_REVIEW só oferece a confirmação', () => {
-    const piece = { status: 'erro' as const, script: { hook: 'h' } };
+    const piece = { status: 'erro' as const, script: { hook: 'h' }, format: 'post' as const, media: [] };
     expect(needsPublicationCheck(piece, 'NEEDS_REVIEW')).toBe(true);
     expect(actionsFor(piece, 'NEEDS_REVIEW')).toEqual([]);
     expect(actionsFor(piece, 'FAILED').length).toBeGreaterThan(0);

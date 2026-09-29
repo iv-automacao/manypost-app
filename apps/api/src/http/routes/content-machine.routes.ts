@@ -85,6 +85,7 @@ const BrandOut = z
     publishHour: z.number().int(),
     timezone: z.string(),
     autoApprove: z.boolean(),
+    reelsVideo: z.boolean().openapi({ description: 'false = reels sai só como roteiro para gravar' }),
   })
   .openapi('ContentBrand');
 
@@ -105,6 +106,7 @@ const BrandPatch = z
     publishHour: z.number().int().min(0).max(23),
     timezone: z.string().max(60),
     autoApprove: z.boolean(),
+    reelsVideo: z.boolean(),
   })
   .partial();
 

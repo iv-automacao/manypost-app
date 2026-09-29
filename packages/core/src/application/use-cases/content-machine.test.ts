@@ -62,7 +62,7 @@ function fakeRepo(relogio: () => Date = () => new Date()) {
       brand = {
         ...(brand ?? {
           orgId, name: '', logoMediaId: null, logoDarkMediaId: null, palette: {}, slogan: '', signature: '', tone: '',
-          defaultChannelId: null, ctaChannel: 'direct', whatsappNumber: '', ctaWord: 'PLANO', ctaWordBusiness: 'EMPRESA', publishHour: 18, timezone: 'America/Manaus', autoApprove: true, updatedAt: new Date(),
+          defaultChannelId: null, ctaChannel: 'direct', whatsappNumber: '', ctaWord: 'PLANO', ctaWordBusiness: 'EMPRESA', publishHour: 18, timezone: 'America/Manaus', autoApprove: true, reelsVideo: true, updatedAt: new Date(),
         }),
         ...Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)),
       } as ContentBrandRecord;
@@ -529,6 +529,22 @@ describe('máquina de conteúdo: pauta e etapas', () => {
     const video = m.f.spend.filter((s) => s.service === 'video');
     expect(video.map((s) => s.externalId)).toEqual(['req-1', 'req-2']);
     expect(final!.costUsd).toBeGreaterThan(5.5);
+  });
+
+  it('reels com vídeo desligado para em revisão como roteiro para gravar, sem pedir vídeo', async () => {
+    const m = await pronto();
+    await m.deps.repo.upsertBrand(ORG, { reelsVideo: false });
+    const p = await makeCreatePiece(m.deps)(actor, { format: 'reels', hook: 'Servidor, este é pra você.' });
+    const final = await avancarAte(m, p.id, ['agendado', 'erro', 'revisao']);
+    expect(final?.status).toBe('revisao');
+    expect(final?.script).not.toBeNull();
+    expect(final?.media).toEqual([]);
+    expect(final?.review?.motivo).toContain('Roteiro para gravar');
+    expect(m.pedidos).toEqual([]);
+    expect(m.f.spend.some((s) => s.service === 'video')).toBe(false);
+    // aprovar reels sem vídeo não pode seguir para o agendamento
+    await expect(makeDecidePiece(m.deps)(actor, p.id, { action: 'approve' })).rejects.toThrow('ainda não tem vídeo');
+    expect((await m.deps.repo.getPiece(ORG, p.id))?.status).toBe('revisao');
   });
 
   it('reels retomado não paga de novo o clipe já pedido', async () => {

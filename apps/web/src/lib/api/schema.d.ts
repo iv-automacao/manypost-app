@@ -2915,6 +2915,7 @@ export type paths = {
                         publishHour?: number;
                         timezone?: string;
                         autoApprove?: boolean;
+                        reelsVideo?: boolean;
                     };
                 };
             };
@@ -6689,6 +6690,8 @@ export type components = {
             publishHour: number;
             timezone: string;
             autoApprove: boolean;
+            /** @description false = reels sai só como roteiro para gravar */
+            reelsVideo: boolean;
         };
         ContentCapabilities: {
             text: boolean;

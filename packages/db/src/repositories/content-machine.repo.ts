@@ -42,6 +42,7 @@ const toBrand = (row: typeof contentBrands.$inferSelect): ContentBrandRecord => 
   publishHour: row.publishHour,
   timezone: row.timezone,
   autoApprove: row.autoApprove,
+  reelsVideo: row.reelsVideo,
   updatedAt: row.updatedAt,
 });
 

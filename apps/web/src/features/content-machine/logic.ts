@@ -154,12 +154,22 @@ function actionsByStatus(status: PieceStatus): PieceAction[] {
  * roteiro. Agendado e publicado não têm ação aqui. Refazer arte/vídeo produz de novo a partir do
  * roteiro gravado: peça que falhou antes de ter roteiro não oferece (o backend também recusa).
  */
-export function actionsFor(piece: Pick<ContentPiece, 'status' | 'script'>, publicationState?: string | null): PieceAction[] {
+export function actionsFor(
+  piece: Pick<ContentPiece, 'status' | 'script' | 'format' | 'media'>,
+  publicationState?: string | null,
+): PieceAction[] {
   // publicação incerta: antes de qualquer decisão a pessoa diz se o post saiu (o backend recusa o resto)
   if (needsPublicationCheck(piece, publicationState)) return [];
-  const actions = actionsByStatus(piece.status);
-  return piece.script ? actions : actions.filter((a) => a !== 'redoProduction');
+  let actions = actionsByStatus(piece.status);
+  if (!piece.script) actions = actions.filter((a) => a !== 'redoProduction');
+  // reels só com roteiro (vídeo automático desligado): é para gravar, não há o que aprovar
+  if (isReelsToRecord(piece)) actions = actions.filter((a) => a !== 'approve');
+  return actions;
 }
+
+/** reels sem vídeo: roteiro para uma pessoa gravar */
+export const isReelsToRecord = (piece: Pick<ContentPiece, 'format' | 'media'>): boolean =>
+  piece.format === 'reels' && !piece.media.some((m) => m.kind === 'video');
 
 /** link de post do Instagram aceito na confirmação de publicação (o mesmo critério do backend) */
 export const isInstagramLink = (s: string): boolean => /^https:\/\/(www\.|m\.)?instagram\.com\//.test(s.trim());
@@ -442,6 +452,7 @@ export type BrandDraft = Pick<
   | 'publishHour'
   | 'timezone'
   | 'autoApprove'
+  | 'reelsVideo'
 >;
 
 export function brandDraft(b: ContentBrand): BrandDraft {
@@ -459,6 +470,7 @@ export function brandDraft(b: ContentBrand): BrandDraft {
     publishHour: b.publishHour,
     timezone: b.timezone,
     autoApprove: b.autoApprove,
+    reelsVideo: b.reelsVideo,
   };
 }
 
@@ -486,6 +498,7 @@ export function brandPatchFrom(d: BrandDraft): BrandPatch {
     publishHour: d.publishHour,
     timezone: d.timezone.trim(),
     autoApprove: d.autoApprove,
+    reelsVideo: d.reelsVideo,
   };
 }
 

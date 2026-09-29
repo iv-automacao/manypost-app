@@ -52,6 +52,8 @@ export const contentBrands = pgTable(
     timezone: text('timezone').notNull().default('America/Manaus'),
     /** false = toda peça para em `revisao`, mesmo sem flag do revisor */
     autoApprove: boolean('auto_approve').notNull().default(true),
+    /** false = reels sai só como roteiro para gravar (sem vídeo gerado nem gasto de vídeo) */
+    reelsVideo: boolean('reels_video').notNull().default(true),
     ...timestamps,
   },
   (t) => [uniqueIndex('content_brands_org_ux').on(t.orgId)],

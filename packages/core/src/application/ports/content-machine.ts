@@ -43,6 +43,8 @@ export interface ContentBrandRecord {
   publishHour: number;
   timezone: string;
   autoApprove: boolean;
+  /** false = reels para no roteiro (uma pessoa grava); nenhum vídeo é gerado */
+  reelsVideo: boolean;
   updatedAt: Date;
 }
 

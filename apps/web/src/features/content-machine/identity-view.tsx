@@ -337,6 +337,15 @@ function IdentityForm({ brand, rendererOn }: { brand: ContentBrand; rendererOn: 
               </div>
               <Switch id="cm-brand-auto" checked={draft.autoApprove} onCheckedChange={(v) => set('autoApprove', v)} />
             </div>
+            <div className="flex items-start justify-between gap-4 rounded-control border border-line p-4 sm:col-span-2">
+              <div className="flex min-w-0 flex-col gap-1">
+                <label htmlFor="cm-brand-reels-video" className="text-compact font-semibold text-ink">
+                  {t('reelsVideo')}
+                </label>
+                <p className="text-meta leading-relaxed text-graphite">{t('reelsVideoHint')}</p>
+              </div>
+              <Switch id="cm-brand-reels-video" checked={draft.reelsVideo} onCheckedChange={(v) => set('reelsVideo', v)} />
+            </div>
           </div>
         </Card>
 

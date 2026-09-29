@@ -1255,6 +1255,8 @@
       "timezoneHint": "Nome IANA, ex.: America/Manaus.",
       "autoApprove": "Aprovar automaticamente",
       "autoApproveHint": "Peça que passa na revisão sem nenhum alerta segue direto para o agendamento. Desligado, toda peça espera a sua aprovação.",
+      "reelsVideo": "Gerar o vídeo dos reels",
+      "reelsVideoHint": "Desligado, o reels sai só como roteiro para gravar: passa pela revisão de conformidade, para em revisão e não gera vídeo nem gasto de vídeo.",
       "save": "Salvar identidade",
       "saved": "Identidade salva.",
       "unsaved": "Há alterações não salvas.",

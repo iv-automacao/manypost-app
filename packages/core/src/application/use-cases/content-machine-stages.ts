@@ -381,6 +381,8 @@ async function etapaVideo(deps: ContentMachineDeps, piece: ContentPieceRecord, b
 
 // ------------------------------------------------------------------ etapa 3: revisão
 
+export const REELS_PARA_GRAVAR = 'Roteiro para gravar: o vídeo automático do reels está desligado.';
+
 async function etapaRevisao(deps: ContentMachineDeps, piece: ContentPieceRecord, brand: ContentBrandRecord) {
   const hoje = agora(deps).toISOString().slice(0, 10);
   const lint = piece.review?.lint ?? [];
@@ -405,6 +407,11 @@ async function etapaRevisao(deps: ContentMachineDeps, piece: ContentPieceRecord,
     if (err instanceof DomainError && err.code === ErrorCodes.ContentGenerationFailed) {
       review = { aprovado: false, flags: [], motivo: 'O revisor não respondeu em formato válido; precisa de olho humano.' };
     } else throw err;
+  }
+  // reels sem vídeo gerado: o roteiro passou pela conformidade e espera uma pessoa gravar
+  if (piece.format === 'reels' && !piece.media.some((m) => m.kind === 'video')) {
+    review.aprovado = false;
+    review.motivo = [REELS_PARA_GRAVAR, review.motivo].filter(Boolean).join(' ');
   }
   // erro de lint que sobrou depois da correção também segura a peça
   const errosLint = lint.filter((f) => f.nivel === 'erro');
@@ -507,7 +514,12 @@ export const makeRunContentStage = (deps: ContentMachineDeps) =>
           out = await etapaRoteiro(deps, piece, brand);
           break;
         case 'roteiro':
-          out = piece.format === 'reels' ? await etapaVideo(deps, piece, brand) : await etapaArte(deps, piece, brand);
+          out =
+            piece.format !== 'reels'
+              ? await etapaArte(deps, piece, brand)
+              : brand.reelsVideo
+                ? await etapaVideo(deps, piece, brand)
+                : { to: 'producao', patch: {}, detail: { video: 'desligado' } };
           break;
         case 'producao':
           out = await etapaRevisao(deps, piece, brand);

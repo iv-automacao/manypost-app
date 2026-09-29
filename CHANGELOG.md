@@ -24,6 +24,10 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
   `VIDEO_PROVIDER_RESOLUTION`, `CONTENT_TEXT_USD_IN`, `CONTENT_TEXT_USD_OUT`; sem elas a máquina
   responde que a capacidade não está configurada. As etapas rodam no processo da API (`MODE=all`,
   `standalone` ou `full`); o worker dedicado não consome esta fila.
+- **Reels só com roteiro.** Interruptor "Gerar o vídeo dos reels" na Identidade (`reelsVideo`,
+  migration `0010_content-reels-video`, padrão ligado). Desligado, o reels passa pelo roteiro e pela
+  revisão de conformidade, para em `revisao` como "roteiro para gravar" e não gera vídeo nem gasto
+  de vídeo; aprovar reels sem vídeo é recusado (a tela não oferece o botão).
 - **CTA da máquina com palavra simples e canal por comentário.** A marca define a palavra do CTA
   (`ctaWord`, padrão `PLANO`) e a palavra para empresa/MEI (`ctaWordBusiness`, padrão `EMPRESA`):
   uma palavra, maiúsculas, sem acento, repetida entre peças para servir de gatilho de automação

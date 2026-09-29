@@ -10,6 +10,19 @@
 > **Como manter:** ao fechar uma fatia, adicione a onda nova **no topo** e atualize o STATUS.
 > Cada entrada é auto-contida: o que mudou, onde no código, e a prova de que funciona.
 
+## Onda 41 — 2026-09-29 — reels só com roteiro
+
+- **O que mudou:** a marca pode desligar o vídeo automático dos reels (`reelsVideo`). Desligado, a
+  etapa de produção do reels não chama o gerador de vídeo; a peça segue para a revisão de
+  conformidade do roteiro e da legenda e para em `revisao` com o motivo "Roteiro para gravar". O
+  backend recusa aprovar reels sem vídeo e a ficha da peça esconde o botão.
+- **Onde:** `content-machine-stages.ts` (despacho da etapa `roteiro`, `REELS_PARA_GRAVAR` na
+  revisão), `content-machine.ts` (guarda no `approve`), migration `0010_content-reels-video`,
+  `identity-view.tsx` e `logic.ts` (`isReelsToRecord`).
+- **Prova:** teste novo no core (sem pedido nem gasto de vídeo, revisão com o motivo, aprovar
+  recusado) e na web (sem "aprovar"); `bun run check` 1510 pass (2 falhas conhecidas do catálogo),
+  `check:*`, `db:check`, `spec:validate`, `build:web`.
+
 ## Onda 40 — 2026-09-28 — CTA simples e canal por comentário
 
 - **O que mudou:** a palavra do CTA deixou de ser um código por peça (`PME-1005-A`) e passou a ser

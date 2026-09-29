@@ -1776,6 +1776,10 @@
           },
           "autoApprove": {
             "type": "boolean"
+          },
+          "reelsVideo": {
+            "type": "boolean",
+            "description": "false = reels sai só como roteiro para gravar"
           }
         },
         "required": [
@@ -1795,7 +1799,8 @@
           "ctaWordBusiness",
           "publishHour",
           "timezone",
-          "autoApprove"
+          "autoApprove",
+          "reelsVideo"
         ]
       },
       "ContentCapabilities": {
@@ -6765,6 +6770,9 @@
                     "maxLength": 60
                   },
                   "autoApprove": {
+                    "type": "boolean"
+                  },
+                  "reelsVideo": {
                     "type": "boolean"
                   }
                 }

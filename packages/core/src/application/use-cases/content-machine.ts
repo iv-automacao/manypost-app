@@ -683,6 +683,12 @@ export const makeDecidePiece =
     const patch: Parameters<ContentMachineRepository['transition']>[4] = {};
     switch (decision.action) {
       case 'approve':
+        if (piece.format === 'reels' && !piece.media.some((m) => m.kind === 'video')) {
+          throw new DomainError(
+            ErrorCodes.ContentInvalidTransition,
+            'Este reels ainda não tem vídeo: o roteiro é para gravar. Com o vídeo automático desligado, ele não é publicado pela Máquina.',
+          );
+        }
         destino = 'aprovado';
         break;
       case 'reject':

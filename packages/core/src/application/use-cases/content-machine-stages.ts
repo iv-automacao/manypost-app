@@ -84,7 +84,17 @@ type RoteiroT = z.infer<typeof Roteiro>;
 const Legenda = z.object({ legenda: z.string().min(1), hashtags: z.array(z.string()).default([]), cta: z.string().default('') });
 const Revisao = z.object({
   aprovado: z.boolean(),
-  flags: z.array(z.object({ codigo: z.string(), trecho: z.string().default(''), motivo: z.string().default('') })).default([]),
+  flags: z
+    .array(
+      z.object({
+        codigo: z.string(),
+        trecho: z.string().default(''),
+        motivo: z.string().default(''),
+        /** o modelo às vezes lista o item que conferiu e passou: `falhou: false` é descartado */
+        falhou: z.boolean().default(true),
+      }),
+    )
+    .default([]),
   motivo: z.string().default(''),
 });
 
@@ -166,6 +176,8 @@ async function etapaRoteiro(deps: ContentMachineDeps, piece: ContentPieceRecord,
       `CANAL_CTA: ${canalCtaParaModelo(brand)}`,
       `LINK_WHATSAPP: ${linkWhatsapp(brand, piece.keyword)}`,
       feedbackTexto(piece),
+      // erro de lint da legenda (sem a palavra, canal errado, tamanho) só a legenda corrige
+      corrigir,
     ].filter(Boolean).join('\n\n'));
     const legenda = Legenda.safeParse(legendaBruta);
     if (!legenda.success) throw invalido('a legenda');
@@ -400,7 +412,9 @@ async function etapaRevisao(deps: ContentMachineDeps, piece: ContentPieceRecord,
     if (lido.success) {
       // CTA é checável sem modelo: com a palavra-chave exata na legenda, SEM_CTA do revisor é engano
       const temCta = piece.caption.includes(piece.keyword);
-      const flags = lido.data.flags.filter((f) => !(f.codigo === 'SEM_CTA' && temCta));
+      const flags = lido.data.flags
+        .filter((f) => f.falhou && !(f.codigo === 'SEM_CTA' && temCta))
+        .map(({ codigo, trecho, motivo }) => ({ codigo, trecho, motivo }));
       review = { ...lido.data, flags, aprovado: flags.length === 0 && (lido.data.aprovado || flags.length < lido.data.flags.length) };
     } else {
       review = { aprovado: false, flags: [], motivo: 'O revisor respondeu fora do formato; precisa de olho humano.' };

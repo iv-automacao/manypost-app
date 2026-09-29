@@ -475,6 +475,10 @@ describe('máquina de conteúdo: pauta e etapas', () => {
     const roteiros = m.chamadas.filter((c) => c.system.includes('roteirista'));
     expect(roteiros).toHaveLength(2);
     expect(roteiros[1]!.prompt).toContain('CORRIJA');
+    // a legenda também recebe os achados: erro de legenda só ela corrige
+    const legendas = m.chamadas.filter((c) => c.prompt.includes('ROTEIRO:'));
+    expect(legendas).toHaveLength(2);
+    expect(legendas[1]!.prompt).toContain('CORRIJA');
     expect((await m.deps.repo.getPiece(ORG, p.id))?.status).toBe('roteiro');
   });
 
@@ -518,6 +522,16 @@ describe('máquina de conteúdo: pauta e etapas', () => {
     const legenda = m.chamadas.find((c) => c.prompt.includes('ROTEIRO:'));
     expect(legenda?.prompt).toContain('"praca":"boa_vista"');
     expect(legenda?.prompt).toContain('"icp":"familia"');
+  });
+
+  it('flag que o revisor marca como não falhou é descartada e não segura a peça', async () => {
+    const m = await pronto({
+      revisor: { aprovado: false, flags: [{ codigo: 'PRACA', trecho: '', motivo: 'Não falha.', falhou: false }], motivo: '1 flag' },
+    });
+    const p = await makeCreatePiece(m.deps)(actor, { format: 'post', hook: 'Gancho' });
+    const final = await avancarAte(m, p.id, ['revisao', 'agendado', 'erro']);
+    expect(final?.status).toBe('agendado');
+    expect(final?.review?.flags).toEqual([]);
   });
 
   it('JSON quebrado do revisor ganha uma segunda chamada na hora', async () => {

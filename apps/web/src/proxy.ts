@@ -9,6 +9,9 @@ const PUBLIC_PREFIXES = [
   '/auth/complete',
   '/session-tasks/',
   '/__clerk/',
+  // páginas legais exigidas pelo Google/Meta para publicar o app OAuth
+  '/privacidade',
+  '/termos',
 ];
 /** AS MCP machine endpoints (issuer → API): always allow, signed-in or not. */
 const OAUTH_MACHINE_PATHS = new Set([

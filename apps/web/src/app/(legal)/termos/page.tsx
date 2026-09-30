@@ -36,7 +36,8 @@ export default function TermosPage() {
         <p>
           Ao conectar um canal do YouTube, você também concorda com os{' '}
           <Ext href="https://www.youtube.com/t/terms">Termos de Serviço do YouTube</Ext>. Contas da Meta (Instagram,
-          Facebook e Threads) seguem os termos da Meta. O acesso pode ser revogado a qualquer momento na própria rede.
+          Facebook e Threads) seguem os termos da Meta, e contas do TikTok seguem os{' '}
+          <Ext href="https://www.tiktok.com/legal/terms-of-service">Termos de Serviço do TikTok</Ext>. O acesso pode ser revogado a qualquer momento na própria rede.
         </p>
       </Secao>
 

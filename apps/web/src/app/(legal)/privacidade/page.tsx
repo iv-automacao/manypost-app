@@ -82,14 +82,23 @@ export default function PrivacidadePage() {
         </p>
       </Secao>
 
-      <Secao titulo="5. Armazenamento e segurança">
+      <Secao titulo="5. TikTok">
+        <p>
+          No TikTok usamos as permissões user.info.basic e user.info.profile (nome, foto e nome de usuário da conta,
+          para mostrar qual conta está conectada) e video.upload e video.publish (enviar e publicar os vídeos e fotos
+          que a equipe agendou). O acesso pode ser removido no app do TikTok, em Configurações e privacidade ›
+          Segurança › Apps e serviços.
+        </p>
+      </Secao>
+
+      <Secao titulo="6. Armazenamento e segurança">
         <p>
           Os tokens de acesso ficam cifrados no banco de dados e só são decifrados no momento de publicar. O painel
           exige login e o acesso é restrito à equipe autorizada.
         </p>
       </Secao>
 
-      <Secao titulo="6. Compartilhamento">
+      <Secao titulo="7. Compartilhamento">
         <p>
           Os dados só saem da ferramenta para a própria rede social, no ato da publicação, e para os provedores de
           infraestrutura necessários para operar o serviço (hospedagem e armazenamento de mídia). Não compartilhamos
@@ -97,7 +106,7 @@ export default function PrivacidadePage() {
         </p>
       </Secao>
 
-      <Secao id="exclusao-de-dados" titulo="7. Retenção e exclusão de dados">
+      <Secao id="exclusao-de-dados" titulo="8. Retenção e exclusão de dados">
         <p>
           Ao desconectar uma conta no painel, a ferramenta deixa de usar aquele acesso. Para apagar de vez os tokens e os
           dados ligados à conta, envie um pedido para <Ext href={`mailto:${CONTATO}`}>{CONTATO}</Ext> informando a rede
@@ -106,14 +115,14 @@ export default function PrivacidadePage() {
         </p>
       </Secao>
 
-      <Secao titulo="8. Seus direitos">
+      <Secao titulo="9. Seus direitos">
         <p>
           Nos termos da Lei Geral de Proteção de Dados (Lei 13.709/2018), você pode pedir acesso, correção ou exclusão
           dos seus dados pelo e-mail <Ext href={`mailto:${CONTATO}`}>{CONTATO}</Ext>.
         </p>
       </Secao>
 
-      <Secao titulo="9. Alterações">
+      <Secao titulo="10. Alterações">
         <p>
           Se esta política mudar, a nova versão fica nesta página com a data de atualização no topo.
         </p>

@@ -10,6 +10,30 @@
 > **Como manter:** ao fechar uma fatia, adicione a onda nova **no topo** e atualize o STATUS.
 > Cada entrada é auto-contida: o que mudou, onde no código, e a prova de que funciona.
 
+## Onda 43 — 2026-10-12 — comentários e insights do Instagram
+
+- **O que mudou:** as funções de comentário e métrica do `instagram-mcp` (MIT, Python) entraram no
+  produto em TypeScript, sem rodar o servidor: telas **Comentários** (listar por post, responder,
+  ocultar) e **Insights** (conta e por post) sobre as contas `instagram-standalone` já conectadas.
+  Antes, conferido em produção pelo `GET /v1/channels`: a conta da Invista usa o login pelo
+  Instagram e já concedia `instagram_business_manage_comments` e `_manage_insights`; faltava
+  `_manage_messages` (direct), que fica para a automação comentário → direct. Direct, automação e
+  histórico de métricas ficaram de fora de propósito (a caixa do direct é do CRM).
+- **Onde:** `packages/contracts/src/channel-provider.ts` (tipos + métodos opcionais +
+  `ProviderFailure`), `packages/providers/src/shared/instagram-engagement.ts`,
+  `instagram-standalone.provider.ts`, `packages/core/src/application/use-cases/engagement.ts`,
+  `apps/api/src/http/routes/engagement.routes.ts`, `apps/web/src/features/engagement/`, rotas
+  `app/(app)/comentarios` e `app/(app)/insights`.
+- **Prova:** testes novos — 25 do módulo Graph (paginação, respostas, degradação por métrica,
+  concorrência, classificação), 3 do provider, 21 do caso de uso (outra org sem decifrar, escopo e
+  status sem rede, incerteza sem retry, auditoria sem token), 17 de rota (id `../me` → 400,
+  replay por `Idempotency-Key`, status dos códigos) e 16 de lógica do web. `bun run check` 1599
+  pass (2 falhas conhecidas do catálogo por caminho com espaço; o mesmo teste rodado com o caminho
+  decodificado passa), `check:boundaries`, `check:ai-providers`, `check:brand`, `spec:validate`,
+  `git diff --check`; `build:web` com `/comentarios` e `/insights` (rodado numa cópia fora de
+  `~/Documents` por bloqueio de privacidade do macOS). OpenAPI regenerado: só adições.
+  **Não verificado em navegador nem contra a Graph real** — fica para o deploy.
+
 ## Onda 42 — 2026-09-29 — roteiros pelo método do cliente dos sonhos
 
 - **O que mudou:** na fundação e nos prompts da Invista (fora do código), ICP, personagem e

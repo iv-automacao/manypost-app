@@ -10,6 +10,12 @@
 > **Como manter:** ao fechar uma fatia, atualize as seções abaixo **e** abra uma entrada nova no
 > topo do changelog. Este arquivo é sobre o presente; o changelog é sobre o passado.
 >
+> **Atualização — comentários e insights do Instagram (2026-10-12, onda 43):** telas
+> `/comentarios` (ler, responder, ocultar) e `/insights` (conta e por post) para canais
+> `instagram-standalone`, lidas direto da Graph sem persistir. Direct e automação comentário →
+> direct ficam para a próxima mudança (exige `instagram_business_manage_messages` e reconexão).
+> Mudança OpenSpec `add-instagram-engagement` aberta até a verificação em produção.
+>
 > **Atualização — máquina de conteúdo (2026-09-28, onda 39):** a área "Máquina" leva a ideia até o
 > post publicado dentro do produto (pauta, roteiro, arte ou reels com narração, revisão, agendamento,
 > acompanhamento), com identidade visual, fundação, prompts versionados e gasto por peça. Rodando em

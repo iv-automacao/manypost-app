@@ -8,6 +8,17 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
 
 ### Added
 
+- **Comentários e Insights do Instagram (`add-instagram-engagement`).** Duas telas novas no menu:
+  **Comentários** (posts recentes da conta, comentários com respostas, responder em público,
+  ocultar/mostrar) e **Insights** (seguidores, alcance, visualizações e interações da conta em 7/14/28
+  dias, alcance por dia e tabela por post). Lido direto da Graph do Instagram Login a cada consulta,
+  sem persistir. O contrato de provider ganhou métodos opcionais de engajamento e
+  `engagementScopes`; o caso de uso confere organização, status do canal e escopo antes de chamar a
+  rede e classifica a falha (`channel.refresh_required` 409, `channel.missing_scopes` 403,
+  `channel.provider_rejected` 422, `channel.provider_failed` 502 com `uncertain` em escrita). Rotas
+  `/v1/channels/{id}/{media,insights,…}`; ids de mídia/comentário só numéricos; resposta aceita
+  `Idempotency-Key` e resposta/ocultação vão para a auditoria. Catálogo de providers expõe
+  `engagement`. Sem migration e sem variável nova; nenhuma conta precisa reconectar.
 - **Máquina de conteúdo (`add-content-machine`).** Nova área "Máquina" com a esteira completa por
   organização: pauta da semana (fórmulas de gancho) → roteiro e legenda (com lint mecânico e uma
   correção automática) → produção (carrossel, post e story renderizados com a identidade da marca;

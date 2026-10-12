@@ -118,6 +118,30 @@ Igual à direção do Postiz com três correções: state single-use com TTL, to
 
 `fetchAnalytics` on-demand com cache Redis 1h (*direção do Postiz*) **e** persistência diária em `channel_metrics` (job `analytics-cache`) para histórico — série básica (followers, impressões, engajamento). Benchmarking/comparação/alertas vivem na camada avançada do monorepo, consumindo essas séries via API de domínio e sendo controlados por `PlanPolicy` no SaaS.
 
+### 6.1 Engajamento: comentários e métricas ao vivo (change `add-instagram-engagement`, 2026-10-12)
+
+Primeira implementação real de métricas — e ela **não** segue o desenho acima ainda: lê direto da
+rede a cada consulta, sem cache Redis nem `channel_metrics` (histórico é uma mudança futura). O
+contrato ganhou métodos **opcionais** (`listRecentMedia`, `listComments`, `replyToComment`,
+`setCommentHidden`, `fetchAccountInsights`, `fetchMediaInsights`) e `engagementScopes`
+(`{ comments, insights }`), que a plataforma confere contra os escopos do canal **antes** de
+chamar a rede. Os stubs `fetchAnalytics`/`fetchPostAnalytics` seguem sem implementação: o formato
+`MetricSeries[]` por dia não descreve os totais `metric_type=total_value` que a Graph devolve hoje.
+
+- **Quem implementa:** só `instagram-standalone` (Instagram Login, `graph.instagram.com/v21.0`),
+  via `shared/instagram-engagement.ts` (`makeInstagramEngagement(apiBase)`, pronto para o
+  Facebook Login quando a resolução por Página for feita).
+- **Erros:** o provider lança `ProviderFailure` já classificado por `code` da Meta
+  (`classifyEngagementError`): 190 e 200–299 → reconectar; 1/2/4/17/32/341/613/429/5xx →
+  transitório; o resto (100, 10 "Not enough viewers", 803) → permanente. O `type: OAuthException`
+  **não** decide nada aqui — a Meta o usa também em erro de parâmetro.
+- **Métricas que mudam de nome:** conjunto recusado com `#100` é refeito uma métrica por chamada;
+  a recusada volta `null` (nunca zero). Por post, concorrência 4 e falha isolada por post.
+- **Superfície:** `/v1/channels/{id}/media`, `…/media/{mediaId}/comments`,
+  `…/comments/{commentId}/replies` (com `Idempotency-Key` e auditoria),
+  `…/comments/{commentId}/visibility`, `…/insights?days=`, `…/insights/media`; telas
+  `/comentarios` e `/insights`. O catálogo de providers expõe `engagement: { comments, insights }`.
+
 ## 7. Suíte de contrato de provider (qualidade)
 
 Todo provider passa pela mesma suíte (`packages/providers/test-kit`):

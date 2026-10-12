@@ -71,6 +71,9 @@ const ProviderInfo = z
         description:
           'feature de plano exigida por esta rede no serviço gerenciado (ex.: `x_network`); ausente = incluída em todos os planos. Em self-hosted nunca é imposta',
       }),
+    engagement: z
+      .object({ comments: z.boolean(), insights: z.boolean() })
+      .openapi({ description: 'comentários (ler/responder/ocultar) e métricas disponíveis para canais desta rede' }),
     available: z.boolean().openapi({
       description:
         'false = rede implementada, mas SEM as credenciais de app no env desta instalação; `POST /connect` responde 404 até configurar',

@@ -15,6 +15,12 @@ const STATUS: Record<string, ContentfulStatusCode> = {
   'common.not_found': 404,
   'common.forbidden': 403,
   'common.idempotency_conflict': 409,
+  // canal: reconectar (409 — o estado do canal impede, não o pedido), permissão não concedida
+  // na conexão (403), recusa da rede (422) e rede indisponível/limitada (502)
+  'channel.refresh_required': 409,
+  'channel.missing_scopes': 403,
+  'channel.provider_rejected': 422,
+  'channel.provider_failed': 502,
   'rate.limited': 429,
   // 402 Payment Required: o pedido é válido, falta plano — a UI abre o CTA de upgrade
   'plan.channel_limit': 402,

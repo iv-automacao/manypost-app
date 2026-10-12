@@ -59,6 +59,7 @@ import {
   makeListInvoices,
   makeListMedia,
   makeListSubAccounts,
+  makeEngagement,
   makeListWebhooks,
   makeOpenBillingPortal,
   makePlanUsageReader,
@@ -91,6 +92,8 @@ import { makeConfiguredAiProviders } from './infra/ai/provider-composition';
 import { buildContentMachine } from './content-machine.container';
 import { makeClerkIdentityVerifier } from './infra/identity/clerk.identity';
 import { createPrometheusMetrics } from './infra/metrics/prometheus';
+import { isProviderAvailable } from './http/routes/shared/provider-catalog';
+import { log } from './log';
 
 export type Container = Awaited<ReturnType<typeof buildContainer>>;
 
@@ -343,6 +346,26 @@ export async function buildContainer(env: Env) {
       setAlt: makeSetMediaAlt(mediaDeps),
       remove: makeDeleteMedia(mediaDeps),
     },
+    // comentários e métricas lidos direto da rede, sem persistir (add-instagram-engagement)
+    engagement: makeEngagement({
+      channels: repos.channels,
+      crypto,
+      audit: repos.audit,
+      providerFor: (id: string) => {
+        const provider = providerRegistry.get(id);
+        if (!provider || !isProviderAvailable(provider, providerSecrets)) return null;
+        return {
+          provider,
+          ctx: {
+            fetch: globalThis.fetch,
+            // o caso de uso só loga metadados (op, provider, status, classe) — nunca token/corpo
+            log: (level, msg, data) => log(level === 'debug' ? 'info' : level, msg, { ...data }),
+            now: () => new Date(),
+            secrets: providerSecrets[id] ?? {},
+          },
+        };
+      },
+    }),
     channels: {
       connect: makeConnectChannel({ channels: repos.channels, crypto, plan }),
       list: makeListChannels({ channels: repos.channels }),

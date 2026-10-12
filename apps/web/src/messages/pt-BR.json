@@ -29,7 +29,10 @@
     },
     "channel": {
       "connect_failed": "A rede recusou a conexão. Confira as credenciais e tente de novo.",
-      "disabled": "Um dos canais selecionados não está ativo — reconecte-o em Conexões."
+      "disabled": "Um dos canais selecionados não está ativo — reconecte-o em Conexões.",
+      "refresh_required": "A conexão com a rede venceu ou foi revogada — reconecte o canal em Conexões.",
+      "missing_scopes": "A conexão não concedeu a permissão necessária — reconecte marcando todas as permissões.",
+      "provider_failed": "A rede não respondeu agora. Tente de novo em instantes."
     },
     "post": {
       "too_long": "O texto passou do limite de caracteres de um dos canais.",
@@ -45,6 +48,12 @@
       "no_subscription": "Não há assinatura ativa nesta marca.",
       "provider_error": "A operadora de pagamento não respondeu. Tente de novo em instantes.",
       "disabled": "Cobrança não está habilitada nesta instalação."
+    },
+    "capability": {
+      "disabled": "Esta rede não oferece isso por aqui."
+    },
+    "common": {
+      "idempotency_conflict": "Esse envio ainda está em andamento — aguarde um instante."
     }
   },
   "auth": {
@@ -147,6 +156,8 @@
     "compose": "Novo post",
     "calendar": "Calendário",
     "kanban": "Quadro",
+    "comments": "Comentários",
+    "insights": "Insights",
     "maquina": "Máquina",
     "connections": "Conexões",
     "media": "Mídia",
@@ -1792,6 +1803,8 @@
       "home": "Início",
       "calendar": "Calendário",
       "board": "Quadro",
+      "comments": "Comentários",
+      "insights": "Insights",
       "maquina": "Máquina",
       "media": "Mídia",
       "channels": "Conexões",
@@ -1811,5 +1824,77 @@
     "postsError": "Não deu para buscar posts. As telas e ações continuam funcionando.",
     "postsMin": "Digite ao menos 2 letras para buscar posts.",
     "navHint": "↑↓ navega · ↵ abre · esc fecha"
+  },
+  "engagement": {
+    "channelLabel": "Canal",
+    "noChannels": "Nenhuma conta do Instagram conectada com acesso a comentários e métricas. Conecte uma em Conexões.",
+    "goToConnections": "Abrir Conexões",
+    "reconnectTitle": "Reconecte o canal",
+    "reconnect": "Reconectar",
+    "retry": "Tentar de novo",
+    "loadMore": "Carregar mais",
+    "openOnNetwork": "Abrir no Instagram",
+    "noCaption": "Sem legenda",
+    "mediaType": {
+      "IMAGE": "Foto",
+      "VIDEO": "Vídeo",
+      "CAROUSEL_ALBUM": "Carrossel",
+      "REELS": "Reels"
+    }
+  },
+  "comments": {
+    "title": "Comentários",
+    "subtitle": "Leia, responda e oculte comentários dos posts da conta.",
+    "posts": "Posts recentes",
+    "noPosts": "Nenhum post publicado nesta conta ainda.",
+    "commentsCount": "{count, plural, =0 {Sem comentários} one {# comentário} other {# comentários}}",
+    "pickPost": "Escolha um post para ver os comentários.",
+    "noComments": "Este post ainda não tem comentários.",
+    "hiddenBadge": "Oculto",
+    "ownerBadge": "Você",
+    "reply": "Responder",
+    "cancel": "Cancelar",
+    "send": "Enviar resposta",
+    "replyPlaceholder": "Escreva a resposta pública…",
+    "replyCounter": "{length} de {max}",
+    "replySent": "Resposta publicada.",
+    "replyUncertain": "A rede não confirmou o envio. Atualize os comentários antes de tentar de novo.",
+    "hide": "Ocultar",
+    "unhide": "Mostrar",
+    "hidden": "Comentário ocultado.",
+    "unhidden": "Comentário visível de novo.",
+    "refresh": "Atualizar",
+    "publicNote": "A resposta aparece publicamente no post, assinada pela conta.",
+    "anonymous": "Usuário"
+  },
+  "insightsPage": {
+    "title": "Insights",
+    "subtitle": "Alcance, visualizações e interações da conta e de cada post.",
+    "period": "Período",
+    "periodOption": "Últimos {days} dias",
+    "delayNote": "Os números vêm da rede e podem atrasar até 48 horas.",
+    "followers": "Seguidores",
+    "posts": "Posts",
+    "dailyReach": "Alcance por dia",
+    "dailyReachEmpty": "A rede não devolveu a série diária deste período.",
+    "dayValue": "{date}: {value}",
+    "account": "Conta no período",
+    "perPost": "Por post",
+    "post": "Post",
+    "date": "Data",
+    "unavailable": "Indisponível",
+    "noPosts": "Nenhum post publicado nesta conta ainda.",
+    "metric": {
+      "reach": "Alcance",
+      "views": "Visualizações",
+      "accounts_engaged": "Contas engajadas",
+      "total_interactions": "Interações",
+      "likes": "Curtidas",
+      "comments": "Comentários",
+      "shares": "Compartilhamentos",
+      "saves": "Salvamentos",
+      "saved": "Salvamentos"
+    },
+    "metricMissing": "Métrica indisponível"
   }
 }

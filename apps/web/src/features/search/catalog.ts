@@ -38,6 +38,20 @@ export const TELAS: EntradaDoCatalogo[] = [
   },
   { id: 'board', tipo: 'page', chaveDeRotulo: 'board', termos: 'kanban quadro pipeline etapas', href: '/kanban' },
   {
+    id: 'comments',
+    tipo: 'page',
+    chaveDeRotulo: 'comments',
+    termos: 'comentarios responder ocultar moderar instagram',
+    href: '/comentarios',
+  },
+  {
+    id: 'insights',
+    tipo: 'page',
+    chaveDeRotulo: 'insights',
+    termos: 'insights metricas alcance visualizacoes seguidores engajamento desempenho',
+    href: '/insights',
+  },
+  {
     id: 'maquina',
     tipo: 'page',
     chaveDeRotulo: 'maquina',

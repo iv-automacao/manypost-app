@@ -33,6 +33,7 @@ export * from './application/use-cases/plan-policy';
 export * from './application/use-cases/auth';
 export * from './application/use-cases/oauth';
 export * from './application/use-cases/channels';
+export * from './application/use-cases/engagement';
 export * from './application/use-cases/media';
 export * from './application/use-cases/publishing';
 export * from './application/use-cases/webhooks';

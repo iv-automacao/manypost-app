@@ -68,7 +68,7 @@ export function ChannelIdentity({ channel }: { channel: ChannelOption }) {
     <div className="flex min-w-0 items-center gap-2">
       <Avatar>
         {channel.avatarUrl ? <AvatarImage src={channel.avatarUrl} alt="" /> : null}
-        <AvatarFallback>{label.replace('@', '').slice(0, 2)}</AvatarFallback>
+        <AvatarFallback>{label.replace('@', '').slice(0, 2).toUpperCase()}</AvatarFallback>
       </Avatar>
       <span className="truncate text-compact font-medium text-ink">{label}</span>
     </div>

@@ -19,6 +19,8 @@ import {
   type Period,
   captionPreview,
   formatMetric,
+  hasNegativeTotal,
+  mediaKindKey,
   reachBars,
 } from './logic';
 import {
@@ -105,6 +107,7 @@ function AccountBlock({ data }: { data: AccountInsights }) {
               </dd>
             </div>
           </dl>
+          {hasNegativeTotal(data.totals) ? <p className="text-meta text-graphite">{t('netNote')}</p> : null}
         </Card>
 
         <Card className="flex min-w-0 flex-col gap-3 p-5">
@@ -193,9 +196,7 @@ function PerPostTable({ channelId }: { channelId: string }) {
                               <span className="truncate">{captionPreview(media.caption, 60) || te('noCaption')}</span>
                             )}
                             <span className="text-meta text-graphite">
-                              {te.has(`mediaType.${media.productType ?? media.mediaType}`)
-                                ? te(`mediaType.${media.productType ?? media.mediaType}`)
-                                : media.mediaType}
+                              {te.has(`mediaType.${mediaKindKey(media)}`) ? te(`mediaType.${mediaKindKey(media)}`) : media.mediaType}
                               {unavailableReason ? ` · ${t('unavailable')}: ${unavailableReason}` : ''}
                             </span>
                           </div>

@@ -78,3 +78,18 @@ export function reachBars(points: Array<{ date: string; value: number }>) {
     pct: max === 0 || p.value === 0 ? 0 : Math.max(2, Math.round((p.value / max) * 100)),
   }));
 }
+
+/** chave de tradução do tipo do post: reels/story pelo productType; carrossel vem como FEED, então o resto usa o mediaType */
+export function mediaKindKey(media: { mediaType: string; productType?: string }): string {
+  return media.productType === 'REELS' || media.productType === 'STORY' ? media.productType : media.mediaType;
+}
+
+/** a Meta devolve totais líquidos no período (curtida/salvamento desfeito desconta) — pode dar negativo */
+export function hasNegativeTotal(totals: Record<string, number | null>): boolean {
+  return Object.values(totals).some((v) => typeof v === 'number' && v < 0);
+}
+
+/** comentários que a rede conta no post mas não devolveu na listagem */
+export function hiddenComments(counted: number | undefined, returned: number): number {
+  return Math.max(0, (counted ?? 0) - returned);
+}

@@ -1865,7 +1865,8 @@
     "unhidden": "Comentário visível de novo.",
     "refresh": "Atualizar",
     "publicNote": "A resposta aparece publicamente no post, assinada pela conta.",
-    "anonymous": "Usuário"
+    "anonymous": "Usuário",
+    "notReturned": "{count, plural, one {O Instagram conta # comentário neste post, mas não devolveu o conteúdo para o manypost.} other {O Instagram conta # comentários neste post, mas não devolveu o conteúdo para o manypost.}}"
   },
   "insightsPage": {
     "title": "Insights",
@@ -1895,6 +1896,7 @@
       "saves": "Salvamentos",
       "saved": "Salvamentos"
     },
-    "metricMissing": "Métrica indisponível"
+    "metricMissing": "Métrica indisponível",
+    "netNote": "Valores negativos são líquidos: a Meta desconta no período curtidas e salvamentos desfeitos."
   }
 }

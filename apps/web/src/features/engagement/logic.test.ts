@@ -4,6 +4,9 @@ import {
   REPLY_MAX,
   captionPreview,
   eligibleChannels,
+  hasNegativeTotal,
+  hiddenComments,
+  mediaKindKey,
   formatMetric,
   needsReconnect,
   replyState,
@@ -103,4 +106,28 @@ describe('reachBars', () => {
 test('ordem dos totais da conta segue a da API', () => {
   expect(ACCOUNT_METRIC_KEYS[0]).toBe('reach');
   expect(ACCOUNT_METRIC_KEYS).toContain('saves');
+});
+
+describe('mediaKindKey', () => {
+  test('reels e story pelo productType; o resto pelo mediaType (carrossel vem como FEED)', () => {
+    expect(mediaKindKey({ mediaType: 'VIDEO', productType: 'REELS' })).toBe('REELS');
+    expect(mediaKindKey({ mediaType: 'CAROUSEL_ALBUM', productType: 'FEED' })).toBe('CAROUSEL_ALBUM');
+    expect(mediaKindKey({ mediaType: 'IMAGE' })).toBe('IMAGE');
+  });
+});
+
+describe('hasNegativeTotal', () => {
+  test('a Meta devolve totais líquidos (salvamento desfeito desconta)', () => {
+    expect(hasNegativeTotal({ saves: -3, reach: 10, views: null })).toBe(true);
+    expect(hasNegativeTotal({ saves: 0, views: null })).toBe(false);
+  });
+});
+
+describe('hiddenComments', () => {
+  test('quantos a rede conta mas não entregou', () => {
+    expect(hiddenComments(5, 0)).toBe(5);
+    expect(hiddenComments(5, 5)).toBe(0);
+    expect(hiddenComments(undefined, 0)).toBe(0);
+    expect(hiddenComments(2, 3)).toBe(0);
+  });
 });

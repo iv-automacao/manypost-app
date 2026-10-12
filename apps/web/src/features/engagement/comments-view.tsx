@@ -15,7 +15,7 @@ import type { components } from '@/lib/api/schema';
 import { relativeTime } from '@/lib/datetime';
 import { cn } from '@/lib/utils';
 import { useComments, useRecentMedia, useReplyToComment, useSetCommentHidden } from './hooks';
-import { REPLY_MAX, captionPreview, replyState } from './logic';
+import { REPLY_MAX, captionPreview, hiddenComments, mediaKindKey, replyState } from './logic';
 import {
   ChannelIdentity,
   ChannelSelect,
@@ -90,9 +90,7 @@ function PostList({
                   {captionPreview(m.caption, 70) || te('noCaption')}
                 </span>
                 <span className="text-meta text-graphite">
-                  {te.has(`mediaType.${m.productType ?? m.mediaType}`)
-                    ? te(`mediaType.${m.productType ?? m.mediaType}`)
-                    : m.mediaType}
+                  {te.has(`mediaType.${mediaKindKey(m)}`) ? te(`mediaType.${mediaKindKey(m)}`) : m.mediaType}
                   {m.timestamp ? ` · ${relativeTime(m.timestamp, locale)}` : ''}
                   {typeof m.commentsCount === 'number' ? ` · ${t('commentsCount', { count: m.commentsCount })}` : ''}
                 </span>
@@ -296,6 +294,8 @@ function CommentsPanel({ channelId, media }: { channelId: string; media: Media |
   }
 
   const items = comments.data?.pages.flatMap((p) => p.items) ?? [];
+  // a rede conta comentários que não devolve na listagem — diz isso em vez de "sem comentários"
+  const missing = comments.hasNextPage ? 0 : hiddenComments(media.commentsCount, items.length);
 
   return (
     <Card className="flex min-w-0 flex-col gap-4 p-5">
@@ -333,7 +333,9 @@ function CommentsPanel({ channelId, media }: { channelId: string; media: Media |
       ) : comments.isError ? (
         <EngagementError error={comments.error} onRetry={() => void comments.refetch()} />
       ) : items.length === 0 ? (
-        <p className="text-compact text-graphite">{t('noComments')}</p>
+        <p className="text-compact text-graphite">
+          {missing > 0 ? t('notReturned', { count: missing }) : t('noComments')}
+        </p>
       ) : (
         <ul className="flex flex-col divide-y divide-line">
           {items.map((c) => (
@@ -341,6 +343,10 @@ function CommentsPanel({ channelId, media }: { channelId: string; media: Media |
           ))}
         </ul>
       )}
+
+      {items.length > 0 && missing > 0 ? (
+        <p className="text-meta text-graphite">{t('notReturned', { count: missing })}</p>
+      ) : null}
 
       {comments.hasNextPage ? (
         <Button

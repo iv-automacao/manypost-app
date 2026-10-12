@@ -323,3 +323,34 @@ describe('instagram-standalone: regras e erros', () => {
     expect(p.capabilities.media.images.maxCount).toBe(10);
   });
 });
+
+describe('engajamento (add-instagram-engagement)', () => {
+  test('declara os escopos de comentário e de métricas do Instagram Login', () => {
+    expect(p.engagementScopes).toEqual({
+      comments: 'instagram_business_manage_comments',
+      insights: 'instagram_business_manage_insights',
+    });
+  });
+
+  test('fala com graph.instagram.com endereçando a conta pelo userId do canal', async () => {
+    const ctx = route([
+      ['/17841/media', () => jsonResponse({ data: [{ id: '9', media_type: 'IMAGE', timestamp: 't' }] })],
+      ['/9/comments', () => jsonResponse({ data: [{ id: 'c1', text: 'oi', timestamp: 't', from: { id: '17841' } }] })],
+      ['/c1/replies', () => jsonResponse({ id: 'r1' })],
+    ]);
+    const media = await p.listRecentMedia!(ctx, token, CHANNEL, { limit: 12 });
+    expect(media.items[0]?.id).toBe('9');
+    const comments = await p.listComments!(ctx, token, CHANNEL, '9', { limit: 50 });
+    expect(comments.items[0]?.fromOwner).toBe(true);
+    expect(await p.replyToComment!(ctx, token, CHANNEL, 'c1', 'olá')).toEqual({ id: 'r1' });
+    for (const call of ctx.calls) {
+      expect(call.url.startsWith('https://graph.instagram.com/v21.0/')).toBe(true);
+    }
+  });
+
+  test('canal antigo sem userId cai em /me', async () => {
+    const ctx = route([['/me/media', () => jsonResponse({ data: [] })]]);
+    await p.listRecentMedia!(ctx, token, {}, { limit: 5 });
+    expect(ctx.calls[0]!.url).toContain('/v21.0/me/media');
+  });
+});

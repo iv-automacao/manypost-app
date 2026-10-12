@@ -11,6 +11,7 @@ import {
   validateInstagramMedia,
   type IgPublishTarget,
 } from '../shared/instagram-graph';
+import { makeInstagramEngagement, type IgEngagementAccount } from '../shared/instagram-engagement';
 import { metaFetch } from '../shared/meta-graph';
 
 // Derived from Postiz (AGPL-3.0): libraries/nestjs-libraries/src/integrations/social/instagram.standalone.provider.ts
@@ -40,6 +41,7 @@ const SCOPES = [
 ];
 
 const graph = makeInstagramGraph(API_BASE);
+const engagement = makeInstagramEngagement(API_BASE);
 
 const settingsSchema = z.object({
   postType: z
@@ -114,6 +116,12 @@ const targetFrom = (rawSettings: unknown, accessToken: string): IgPublishTarget 
   };
 };
 
+/** conta dona da mídia e do comentário: a própria conta conectada (userId do canal; `me` como fallback) */
+const accountFrom = (rawSettings: unknown, accessToken: string): IgEngagementAccount => {
+  const { userId, username } = (rawSettings ?? {}) as ChannelSettings;
+  return { userId, username, accessToken };
+};
+
 export const instagramStandaloneProvider: ChannelProvider = {
   id: 'instagram-standalone',
   name: 'Instagram',
@@ -130,7 +138,7 @@ export const instagramStandaloneProvider: ChannelProvider = {
     // réplicas de thread viram COMENTÁRIOS no post (só texto) — paridade com o comment() do Postiz
     threads: true,
     mentions: false,
-    analytics: false, // instagram_manage_insights fica p/ a fatia de analytics
+    analytics: true, // métricas da conta e por post (add-instagram-engagement)
     twoStepConnect: false,
     customInstance: false,
   },
@@ -259,4 +267,22 @@ export const instagramStandaloneProvider: ChannelProvider = {
   classifyError(status, body) {
     return classifyInstagramError(status, body);
   },
+
+  // Engajamento (add-instagram-engagement): comentários e métricas pela mesma Graph do Instagram Login
+  engagementScopes: {
+    comments: 'instagram_business_manage_comments',
+    insights: 'instagram_business_manage_insights',
+  },
+  listRecentMedia: (ctx, token, settings, page) =>
+    engagement.listRecentMedia(ctx, accountFrom(settings, token.accessToken), page),
+  listComments: (ctx, token, settings, mediaId, page) =>
+    engagement.listComments(ctx, accountFrom(settings, token.accessToken), mediaId, page),
+  replyToComment: (ctx, token, settings, commentId, message) =>
+    engagement.replyToComment(ctx, accountFrom(settings, token.accessToken), commentId, message),
+  setCommentHidden: (ctx, token, settings, commentId, hidden) =>
+    engagement.setCommentHidden(ctx, accountFrom(settings, token.accessToken), commentId, hidden),
+  fetchAccountInsights: (ctx, token, settings, range) =>
+    engagement.fetchAccountInsights(ctx, accountFrom(settings, token.accessToken), range),
+  fetchMediaInsights: (ctx, token, settings, mediaIds) =>
+    engagement.fetchMediaInsights(ctx, accountFrom(settings, token.accessToken), mediaIds),
 };

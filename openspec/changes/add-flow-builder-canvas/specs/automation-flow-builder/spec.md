@@ -2,7 +2,7 @@
 
 ### Requirement: Automation flows are stored as validated graphs
 An automation SHALL store its flow as a version 2 graph of nodes (opening, message, question,
-follow_gate, condition, link, end) and edges from a named node output to a target node. The API
+condition, link, end) and edges from a named node output to a target node. The API
 MUST reject, with 400 and nothing stored, a flow that breaks the shape rules: more than 40 nodes or
 120 edges, duplicated node or option ids, more than one edge per node output, an edge to a missing
 node or into the opening, not exactly one opening, a button title over 20 characters, more than 3
@@ -56,7 +56,7 @@ NOT modify existing automation configurations.
 
 ### Requirement: The engine walks the graph and waits only on waiting nodes
 For an open run the engine SHALL send the current node's message once, stop on nodes that wait
-(opening, message with options, question, follow_gate), and otherwise follow the node's output
+(opening, message with options, question), and otherwise follow the node's output
 (condition by comparing the recorded field, message without options by its next output, link by its
 next output or finish, end by finishing) in the same event, up to 20 nodes per event. Each
 conversation send MUST carry an idempotency key derived from the run and its node-entry cursor, and
@@ -106,28 +106,6 @@ question SHALL record a valid answer, ask again once on an invalid one and then 
 - **THEN** the message is sent again once and, on the second text, the text is recorded and the run
   follows the typed output
 
-### Requirement: Follow gate checks the follow status and does not block on unknown
-A follow_gate node SHALL send its text with one button. When the participant taps it (or types its
-title) the engine SHALL query the bridge follow status with fresh data. A follower SHALL follow the
-yes output. An unknown result (the platform does not reveal it, or the query fails) SHALL follow the
-yes output. A non-follower SHALL follow the no output when it has an edge; otherwise the request
-SHALL be repeated up to 2 times and, on the next non-follower answer, the run SHALL end as
-abandoned without a lead. The engine MUST NOT query the follow status before the participant has
-interacted in the conversation.
-
-#### Scenario: Follower
-- **WHEN** the participant taps "Já sigo" and the bridge answers `isFollower: true`
-- **THEN** the run follows the yes output
-
-#### Scenario: Unknown
-- **WHEN** the bridge answers `isFollower: null` with `unavailableReason: "consent_required"`
-- **THEN** the run follows the yes output and the log records the reason without personal data
-
-#### Scenario: Not following without a no output
-- **WHEN** the bridge answers `isFollower: false` three times in a row
-- **THEN** the request is sent again twice and then the run ends as abandoned with no
-  `lead.captured`
-
 ### Requirement: Version 1 automations and runs keep working
 The system SHALL convert a version 1 configuration to a graph on read with deterministic node and
 option ids, without rewriting it in the database. For the same participant inputs, the converted
@@ -151,14 +129,16 @@ The app SHALL edit flows on a canvas with these capabilities:
 - Text and options are edited inside each balloon.
 - A settings menu per balloon holds format, field and typed-text behavior.
 - Dropping an edge on empty space opens a next-step menu.
-- A block dock lists the blocks.
+- A block dock lists the blocks, including a "Pedir para seguir" shortcut that creates a link
+  balloon pointing to the channel account's profile. It never checks whether the participant
+  follows and never blocks the flow.
 - The selected balloon offers duplicate, test from here and delete.
 - The canvas offers auto-layout, zoom, fit, undo and redo.
 - A live problem count is shown.
 - Leaving with unsaved changes asks for confirmation.
 
 The opening SHALL NOT be deletable. A conversation simulator SHALL run the flow locally, without
-sending anything, including simulated follow results. Below 768 px wide the canvas MUST be
+sending anything, Below 768 px wide the canvas MUST be
 read-only. The web logic MUST produce the same problems and messages as the server for the shared
 fixtures.
 
@@ -166,10 +146,15 @@ fixtures.
 - **WHEN** a member drags the output of a button to empty space and picks "Pergunta"
 - **THEN** a question balloon is created at that point already connected to that button
 
-#### Scenario: Simulate a follow gate
-- **WHEN** a member simulates the flow and chooses "simular: não segue" on a follow gate whose no
-  output is connected
-- **THEN** the simulator shows the messages of the no path and no request reaches the bridge
+#### Scenario: Follow request after the data
+- **WHEN** a member adds "Pedir para seguir" after the WhatsApp link and simulates the flow
+- **THEN** the simulator shows the follow message with a button to the account profile after the
+  WhatsApp message, and the run completes with the lead without waiting for any answer
+
+#### Scenario: Simulate a branch
+- **WHEN** a member simulates the flow and taps the second button of a message
+- **THEN** the simulator shows only the messages of that button's path and nothing reaches the
+  bridge
 
 #### Scenario: Parity with the server
 - **WHEN** the shared flow fixtures run in the web tests and in the core tests

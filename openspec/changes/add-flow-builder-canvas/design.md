@@ -238,7 +238,7 @@ No nó atual:
 
 - **Rotas:** `/automacoes/nova` e `/automacoes/[id]` passam a abrir o editor canvas em tela cheia,
   com `apps/web/src/features/automation/flow/`. A lista e `/leads` não mudam. O formulário v1 sai
-  do código (`builder-view.tsx`); `conversation-preview.tsx` é reaproveitada nas bolhas do simulador.
+  do código (`builder-view.tsx` e `conversation-preview.tsx`); o simulador desenha as próprias bolhas, tocáveis.
 - **Dependências:** `@xyflow/react` 12 e `@dagrejs/dagre` (os dois MIT), com versão exata no
   `package.json`.
 - **Balões:** nós customizados, com edição de texto e opções no próprio balão.
@@ -306,13 +306,14 @@ edição), e logs só com ids, status e nó.
 
 ## Migration Plan
 
-1. **Migration `0012_flow-builder`:**
-   - cria `automation_triggers`;
-   - acrescenta `node_id`, `cursor` e `sent_cursor` em `automation_runs`;
-   - `INSERT ... SELECT` de um gatilho `comment` por automação v1 não apagada, a partir de
-     `config->'trigger'` e `config->'publicReplies'`. É idempotente por `NOT EXISTS`.
+1. **Migrations:**
+   - `0012_flow-builder` (gerada pelo drizzle-kit): cria `automation_triggers` e acrescenta
+     `node_id`, `cursor` e `sent_cursor` em `automation_runs`.
+   - `0013_flow-builder-backfill` (`drizzle-kit generate --custom`): `INSERT ... SELECT` de um
+     gatilho `comment` por automação v1 não apagada, a partir de `config->'trigger'` e
+     `config->'publicReplies'`. É idempotente por `NOT EXISTS`.
 
-   É aplicada no boot (`DB_MIGRATE=auto`). Gerar com drizzle-kit e conferir com
+   As duas são aplicadas no boot (`DB_MIGRATE=auto`) e conferidas com
    `bun run --cwd packages/db check`.
 2. Deploy pelo Iago no Easypanel. A automação ativa continua v1 no banco e roda pelo motor novo,
    convertida na leitura.

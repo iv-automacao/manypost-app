@@ -21,7 +21,7 @@
 ## 4. Banco
 
 - [ ] 4.1 Schema `automation_triggers` e colunas `node_id`, `cursor`, `sent_cursor` em `automation_runs`
-- [ ] 4.2 Gerar `0012_flow-builder` com drizzle-kit, acrescentar o backfill idempotente (`INSERT ... SELECT ... WHERE NOT EXISTS`) e rodar `bun run db:check`
+- [ ] 4.2 Gerar `0012_flow-builder` com drizzle-kit e `0013_flow-builder-backfill` com `--custom` (`INSERT ... SELECT ... WHERE NOT EXISTS`); rodar `bun run db:check`
 - [ ] 4.3 Port e repo: CRUD de gatilhos por automação (substituir na mesma transação do update), `listTriggerable` por gatilho; testes de integração (org, backfill rodado duas vezes, cascade)
 
 ## 5. Motor (test-first)
@@ -68,7 +68,7 @@
   - selo de problemas com foco.
 - [ ] 7.4 Simulador (painel, "Testar daqui") e barra superior (Salvar, Ativar com confirmação, aviso ao salvar automação Ativa)
 - [ ] 7.5 Somente leitura abaixo de 768 px; i18n; import dinâmico do editor; CSS do React Flow sem sombra; `bun run check:brand`
-- [ ] 7.6 Remover o formulário v1 (`builder-view.tsx`) e os testes dele que não valem mais; `conversation-preview.tsx` é reaproveitada nas bolhas do simulador
+- [ ] 7.6 Remover o formulário v1 (`builder-view.tsx`, `conversation-preview.tsx`) e os testes dele que não valem mais
 - [ ] 7.7 `bun run check` e `bun run build:web`; montar no navegador um fluxo com ramificação, condição e pedir para seguir no fim, e simular
 
 ## 8. E2E e operação

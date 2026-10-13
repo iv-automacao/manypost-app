@@ -21,8 +21,10 @@ MUST be scoped by organization, and an automation or channel of another organiza
 ### Requirement: Flow problems block test and active status
 The system SHALL compute flow problems: unreachable node, required output without an edge, a cycle
 without any node that waits for the participant, a condition on a field no node records, and no
-reachable end or link. A flow with problems MAY be saved while the automation is draft or paused.
-The API MUST reject saving or changing status to test or active while any problem exists, with 400
+reachable end or link; these are errors. An opening in button mode SHALL produce a warning, because
+Instagram refuses buttons in a private reply to non-followers; warnings MUST NOT block anything. A
+new opening SHALL default to text mode. A flow with errors MAY be saved while the automation is draft or paused.
+The API MUST reject saving or changing status to test or active while any error exists, with 400
 `automation.flow_invalid` and the problem list. The editor SHALL show the same problems live and
 focus the node when a problem is selected.
 
@@ -31,6 +33,10 @@ focus the node when a problem is selected.
 - **WHEN** a member tries to activate the automation
 - **THEN** the API answers 400 `automation.flow_invalid` with a `wait_free_cycle` problem and the
   status is unchanged
+
+#### Scenario: Opening with a button
+- **WHEN** a member activates a valid flow whose opening is in button mode
+- **THEN** the status changes and the response lists an `opening_button` warning
 
 #### Scenario: Draft with an unconnected button
 - **WHEN** a member saves a draft whose message has a button without an edge

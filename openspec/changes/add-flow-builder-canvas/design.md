@@ -46,7 +46,7 @@ FlowEdge = { id, source: nodeId, sourceHandle: string, target: nodeId }
 
 | `type` | `data` | saídas (`sourceHandle`) | espera resposta? |
 |---|---|---|---|
-| `opening` | `text` (≤600), `mode: button\|text`, `buttonTitle` (≤20), `disclosure: bool` | `next` | sim |
+| `opening` | `text` (≤600), `mode: text\|button` (padrão `text`), `buttonTitle` (≤20), `disclosure: bool` | `next` | sim |
 | `message` | `text` (≤600), `format: none\|buttons\|quick`, `options: [{id, title ≤20}]` (none: 0; buttons: 1..3; quick: 1..13), `saveTo?: field`, `onTyped: reask\|branch` | id de cada opção, `typed`; ou `next` se `none` | sim, exceto `none` |
 | `question` | `text` (≤600), `field`, `validate: name\|phone\|email\|free` | `next` | sim |
 | `condition` | `field`, `op: equals\|contains\|filled\|empty`, `value?` (≤60) | `yes`, `no` | não |
@@ -68,6 +68,13 @@ Os limites vão para `AUTOMATION_LIMITS` (`maxNodes: 40`, `maxEdges: 120`). O te
 caracteres: a Meta aceita 640 com botões, e a sobra cobre o aviso de mensagem automática e a dica
 do modo texto.
 
+**Abertura em texto por padrão.** O Instagram recusa botão, cartão e anexo na resposta privada para
+quem não segue a conta, e a recusa gasta a única resposta privada do comentário (documentação da
+Zernio, "Send private reply"). Por isso uma `opening` nova nasce com `mode: text`: a mensagem pede
+para a pessoa responder, e a resposta abre a conversa para os botões seguintes. O modo `button`
+continua disponível, com um aviso fixo no balão ("quem não segue a conta não recebe") e um
+problema de nível aviso que não bloqueia.
+
 **Pedir para seguir não é um tipo de nó.** É um atalho do dock que cria um `link` com alvo `url`
 apontando para o perfil da conta do canal (`https://instagram.com/<username>`), botão "Seguir" e um
 texto sugerido. Não trava o fluxo, não consulta a Zernio e pode ficar em qualquer lugar. O uso
@@ -82,7 +89,8 @@ Por que em `config` e não em tabelas de nós: o grafo é sempre lido e gravado 
 ### 2. Validação de fluxo (`validateFlow`) é lógica pura em `core`
 
 `packages/core/src/domain/automation/flow-validate.ts` devolve `FlowProblem[]`
-(`{ code, nodeId?, edgeId?, handle? }`). Os textos são da web, por i18n do `code`.
+(`{ code, severity: error|warning, nodeId?, edgeId?, handle? }`). Os textos são da web, por i18n do
+`code`. Só `error` bloqueia; `warning` aparece no selo e no balão.
 
 | `code` | regra |
 |---|---|
@@ -91,6 +99,7 @@ Por que em `config` e não em tabelas de nós: o grafo é sempre lido e gravado 
 | `wait_free_cycle` | ciclo sem nenhum nó que espera resposta (detectado por DFS no subgrafo dos nós que não esperam) |
 | `unknown_field` | `condition.field` que nenhum nó grava (`question.field` / `message.saveTo`) |
 | `no_finish` | nenhum `end` nem `link` alcançável |
+| `opening_button` (warning) | `opening` em modo `button`: quem não segue a conta não recebe |
 
 As saídas obrigatórias são:
 
@@ -105,7 +114,7 @@ As saídas opcionais e o que acontece quando ficam sem ligação:
 - **`message.typed`:** segue pela primeira opção.
 - **`link.next`:** encerra como fim.
 
-Na API, os problemas não impedem salvar em `DRAFT`/`PAUSED`. Impedem salvar ou mudar o status para
+Na API, os problemas de nível `error` não impedem salvar em `DRAFT`/`PAUSED`. Impedem salvar ou mudar o status para
 `TEST`/`ACTIVE`, e nesse caso a resposta é 400 `automation.flow_invalid` com a lista. A web repete a
 validação para mostrar ao vivo (ver a decisão 8).
 
@@ -132,7 +141,8 @@ Colunas: `id`, `org_id`, `automation_id` (fk, cascade), `channel_id`, `kind` (`t
 
 `packages/core/src/domain/automation/flow-from-v1.ts` monta o grafo assim:
 
-- `opening` → nó `opening`, levando `mode`, `buttonTitle` e `disclosure` da v1.
+- `opening` → nó `opening`, levando `mode`, `buttonTitle` e `disclosure` da v1 (a conversão preserva
+  o modo; o editor mostra o aviso do modo botão).
 - Pergunta `i`:
   - **`choice`:** nó `message` `q{i}`, com `format = buttons` até 3 opções e `quick` acima disso,
     `options[j].id = o{j}`, `saveTo = field` e `onTyped = reask`. Todas as opções ligam ao próximo.

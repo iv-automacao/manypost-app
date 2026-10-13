@@ -11,15 +11,22 @@ modelo do ManyChat:
 
 O formulário não comporta ramificação, e o motor só conhece "passo i de n".
 
-Esta é a **entrega 1 de 3**, aprovada no brainstorming de 12–13/10/2026:
+Esta é a **entrega 1 de 5**. O roteiro foi refeito em 13/10/2026, depois de um inventário da API
+da Zernio e do ManyChat:
 
-1. **Esta mudança:** canvas, motor em grafo, blocos básicos, condição, pedir para seguir (atalho)
-   e gatilho de comentário. O gatilho fica separado do fluxo.
-2. **Gatilhos novos:** palavra-chave no direct, resposta a story e fluxo reutilizável.
-3. **Blocos novos:** espera (janela de 24 h), imagem/vídeo e ações internas (etiqueta, avisar a
-   equipe, CRM no meio do fluxo).
+1. **Esta mudança:** canvas, motor em grafo, blocos básicos, condição, pedir para seguir (atalho),
+   gatilho de comentário e abertura em texto por padrão. O gatilho fica separado do fluxo.
+2. **Entradas:** palavra-chave no direct, primeira mensagem, resposta padrão, resposta e menção em
+   story, link ig.me/QR com origem, anúncio para o direct, perguntas frequentes, menu fixo,
+   comentários de anúncio e de live, iniciar outro fluxo.
+3. **Contatos e ações:** contatos com tags e campos, condição por tag, webhook/n8n, avisar a
+   equipe, passar para humano.
+4. **Tempo e conteúdo:** espera, "se não responder em X", randomizador, digitando, imagem, vídeo,
+   áudio, PDF, cartões e reação.
+5. **Gestão:** métricas por balão e por post, rascunho × publicado, modelos e pastas,
+   broadcast/sequência dentro de 24 h.
 
-As entregas 2 e 3 têm mudanças próprias.
+As entregas 2 a 5 têm mudanças próprias.
 
 ## What Changes
 
@@ -81,9 +88,10 @@ As entregas 2 e 3 têm mudanças próprias.
 
 ## Non-goals
 
-- Gatilhos de DM, story e fluxo reutilizável (entrega 2).
-- Espera/atraso, mídia e ações internas (entrega 3). Os blocos aparecem acinzentados no dock.
-- Rascunho separado de versão publicada: salvar vale na hora.
+- Gatilhos de DM, story, link, anúncio e fluxo reutilizável (entrega 2).
+- Contatos, tags e ações internas (entrega 3).
+- Espera, mídia, cartões e randomizador (entrega 4). Os blocos aparecem acinzentados no dock.
+- Rascunho separado de versão publicada (entrega 5): até lá, salvar vale na hora.
 - Mais de um gatilho por fluxo na interface. A tabela já aceita N.
 - Editar no celular.
 - Canvas colaborativo em tempo real.

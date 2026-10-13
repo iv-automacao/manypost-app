@@ -10,6 +10,27 @@
 > **Como manter:** ao fechar uma fatia, adicione a onda nova **no topo** e atualize o STATUS.
 > Cada entrada é auto-contida: o que mudou, onde no código, e a prova de que funciona.
 
+## Onda 47 — 2026-10-13 — abertura com resposta rápida
+
+- **O que mudou:** a abertura ganhou o modo `quick` (mudança `add-opening-quick-reply`). A resposta
+  privada leva o texto, a dica "Responda esta mensagem para continuar." e uma resposta rápida com o
+  título configurado. Tocar ou digitar seguem pela saída `next`. Não gera o aviso `opening_button`.
+  Uma abertura nova continua nascendo em `text` até o modo ser conferido em produção.
+- **Por quê:** no teste de 13/10 na @invistaseguros.br, os botões postback das mensagens seguintes
+  apareceram mas não davam para tocar para quem não segue a conta; as respostas rápidas funcionaram.
+  O Iago pediu o mesmo na abertura, como no ManyChat. A Zernio lista a recusa a não seguidores só
+  para botões, cartões e anexos; respostas rápidas não aparecem em Solicitações, mas o texto chega.
+- **Onde:** `packages/contracts/src/automation-flow.ts` (`FlowOpeningModes`),
+  `packages/core/src/domain/automation/flow-step.ts`, `apps/web/src/features/automation/flow/`
+  (`logic.ts`, `node-settings.tsx`, `nodes.tsx`), `apps/web/src/messages/pt-BR.json` e o snapshot
+  OpenAPI do web.
+- **Provas:** testes novos no core (mensagem da abertura `quick`, texto digitado avança, sem aviso)
+  e na web (paridade do vocabulário, simulador mostra a sugestão e o toque avança). `bun run check`:
+  1823 testes passando; as 2 falhas conhecidas de `catalog.test.ts` (caminho local com espaço)
+  seguem; typecheck, typecheck:web, fronteiras, ai-providers, brand e `spec:validate` verdes.
+- **Falta:** deploy pelo Iago e o teste em produção com a @vantage.ia (não seguidor) para confirmar
+  que a Meta aceita a resposta rápida na resposta privada.
+
 ## Onda 46 — 2026-10-13 — construtor de fluxo em canvas (entrega 1 de 5)
 
 - **O que mudou:** o formulário linear da automação virou um canvas de balões conectados, com o

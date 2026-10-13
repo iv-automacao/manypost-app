@@ -767,7 +767,8 @@
                               "type": "string",
                               "enum": [
                                 "text",
-                                "button"
+                                "button",
+                                "quick"
                               ],
                               "default": "text"
                             },
@@ -1433,7 +1434,8 @@
                           "type": "string",
                           "enum": [
                             "text",
-                            "button"
+                            "button",
+                            "quick"
                           ],
                           "default": "text"
                         },

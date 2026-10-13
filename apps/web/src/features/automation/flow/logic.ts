@@ -9,7 +9,8 @@ import { LIMITS, type TextValidation, fieldFromPrompt, normalize, renderTemplate
 
 export const FLOW_NODE_TYPES = ['opening', 'message', 'question', 'condition', 'link', 'end'] as const;
 export type FlowNodeType = (typeof FLOW_NODE_TYPES)[number];
-export const OPENING_MODES = ['text', 'button'] as const;
+export const OPENING_MODES = ['text', 'button', 'quick'] as const;
+export type OpeningMode = (typeof OPENING_MODES)[number];
 export const MESSAGE_FORMATS = ['none', 'buttons', 'quick'] as const;
 export const ON_TYPED_MODES = ['reask', 'branch'] as const;
 export const CONDITION_OPS = ['equals', 'contains', 'filled', 'empty'] as const;
@@ -99,7 +100,7 @@ export function normalizeFlow(raw: { nodes?: unknown[]; edges?: unknown[] }): Fl
           type: 'opening',
           data: {
             text: str(d.text),
-            mode: (d.mode as 'text' | 'button') ?? 'text',
+            mode: (OPENING_MODES as readonly unknown[]).includes(d.mode) ? (d.mode as OpeningMode) : 'text',
             buttonTitle: str(d.buttonTitle, 'Quero!'),
             disclosure: d.disclosure === undefined ? true : Boolean(d.disclosure),
           },
@@ -359,10 +360,11 @@ export function messageFor(n: FlowNode, ctx: Ctx): SimMessage | null {
   switch (n.type) {
     case 'opening': {
       const parts = [r(n.data.text)];
-      if (n.data.mode === 'text') parts.push(OPENING_TEXT_HINT);
+      if (n.data.mode !== 'button') parts.push(OPENING_TEXT_HINT);
       if (n.data.disclosure) parts.push(OPENING_DISCLOSURE);
       const text = parts.join('\n\n');
-      return n.data.mode === 'button' ? { text, buttons: [n.data.buttonTitle] } : { text };
+      if (n.data.mode === 'button') return { text, buttons: [n.data.buttonTitle] };
+      return n.data.mode === 'quick' ? { text, quick: [n.data.buttonTitle] } : { text };
     }
     case 'message': {
       const text = r(n.data.text);
@@ -507,7 +509,7 @@ export function startSim(flow: Flow, opts: { username?: string | null; startAt?:
 export function tapForTitle(flow: Flow, nodeId: string | null, title: string): string | null {
   const n = nodeById(flow, nodeId);
   if (!n) return null;
-  if (n.type === 'opening') return n.data.mode === 'button' && n.data.buttonTitle === title ? 'next' : null;
+  if (n.type === 'opening') return n.data.mode !== 'text' && n.data.buttonTitle === title ? 'next' : null;
   if (n.type === 'message') return n.data.options.find((o) => o.title === title)?.id ?? null;
   return null;
 }
@@ -516,7 +518,9 @@ export function sendSim(s: SimState, input: SimInput): SimState {
   if (s.status !== 'waiting') return s;
   const n = nodeById(s.flow, s.nodeId);
   if (!n) return { ...s, status: 'abandoned' };
-  const shown = input.text ?? (n.type === 'message' ? n.data.options.find((o) => o.id === input.tap)?.title : undefined) ?? '';
+  const tapped =
+    n.type === 'message' ? n.data.options.find((o) => o.id === input.tap)?.title : n.type === 'opening' && input.tap ? n.data.buttonTitle : undefined;
+  const shown = input.text ?? tapped ?? '';
   const withUser: SimState = { ...s, transcript: [...s.transcript, { from: 'user', msg: { text: shown } }] };
   const d = decideInput(s.flow, n, { handle: input.tap ?? null, text: input.text ?? '' }, s.reasks);
   if (d.kind === 'ignore') return withUser;

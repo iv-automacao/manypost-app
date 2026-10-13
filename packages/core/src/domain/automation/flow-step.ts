@@ -48,12 +48,13 @@ export function messageFor(node: FlowNode, ctx: StepContext): DirectMessage | nu
   switch (node.type) {
     case 'opening': {
       const parts = [r(node.data.text)];
-      if (node.data.mode === 'text') parts.push(OPENING_TEXT_HINT);
+      if (node.data.mode !== 'button') parts.push(OPENING_TEXT_HINT);
       if (node.data.disclosure) parts.push(OPENING_DISCLOSURE);
       const text = parts.join('\n\n');
-      return node.data.mode === 'button'
-        ? { text, buttons: [{ title: node.data.buttonTitle, payload: encodePayloadV2(ctx.runId, node.id, 'next') }] }
-        : { text };
+      const tap = [{ title: node.data.buttonTitle, payload: encodePayloadV2(ctx.runId, node.id, 'next') }];
+      if (node.data.mode === 'button') return { text, buttons: tap };
+      // a sugestão não aparece em Solicitações; a dica continua para quem precisa digitar
+      return node.data.mode === 'quick' ? { text, quickReplies: tap } : { text };
     }
     case 'message': {
       const text = r(node.data.text);

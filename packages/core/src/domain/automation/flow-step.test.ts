@@ -59,6 +59,16 @@ describe('messageFor', () => {
     expect(messageFor(button, ctx)).toEqual({ text: 'Oi', buttons: [{ title: 'Quero!', payload: 'mp2:run-1:opening:next' }] });
   });
 
+  test('abertura em resposta rápida leva a dica e uma sugestão com o payload de next, sem botões', () => {
+    const quick = { ...node('opening'), data: { text: 'Oi', mode: 'quick', buttonTitle: 'Quero ver as opções', disclosure: false } } as FlowNode;
+    expect(messageFor(quick, ctx)).toEqual({
+      text: 'Oi\n\nResponda esta mensagem para continuar.',
+      quickReplies: [{ title: 'Quero ver as opções', payload: 'mp2:run-1:opening:next' }],
+    });
+    // quem está em Solicitações não vê a sugestão e digita: segue igual
+    expect(decideInput(FLOW, quick, { handle: null, text: 'oi' }, 0)).toEqual({ kind: 'advance', handle: 'next' });
+  });
+
   test('mensagem com botões renderiza campos; quick vira quickReplies; none só texto', () => {
     expect(messageFor(node('plano'), ctx)).toEqual({
       text: 'Qual plano, Ana?',

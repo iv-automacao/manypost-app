@@ -7571,7 +7571,7 @@ export type components = {
                          * @default text
                          * @enum {string}
                          */
-                        mode: "text" | "button";
+                        mode: "text" | "button" | "quick";
                         /** @default Quero! */
                         buttonTitle: string;
                         /** @default true */
@@ -7726,7 +7726,7 @@ export type components = {
                      * @default text
                      * @enum {string}
                      */
-                    mode: "text" | "button";
+                    mode: "text" | "button" | "quick";
                     /** @default Quero! */
                     buttonTitle: string;
                     /** @default true */

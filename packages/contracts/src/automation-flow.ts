@@ -20,7 +20,7 @@ const Position = z.object({ x: coord, y: coord });
 
 export const FlowNodeTypes = ['opening', 'message', 'question', 'condition', 'link', 'end'] as const;
 export type FlowNodeType = (typeof FlowNodeTypes)[number];
-export const FlowOpeningModes = ['text', 'button'] as const;
+export const FlowOpeningModes = ['text', 'button', 'quick'] as const;
 export const FlowMessageFormats = ['none', 'buttons', 'quick'] as const;
 export const FlowOnTypedModes = ['reask', 'branch'] as const;
 export const FlowConditionOps = ['equals', 'contains', 'filled', 'empty'] as const;
@@ -43,7 +43,11 @@ const OpeningNode = z.object({
   position: Position,
   data: z.object({
     text: text(L.messageText),
-    /** `text` = pede para responder (chega a quem não segue); `button` = um botão (recusado a não seguidores) */
+    /**
+     * `text` = pede para responder (chega a quem não segue); `button` = um botão (recusado a não
+     * seguidores); `quick` = pede para responder + uma resposta rápida (não aparece em Solicitações,
+     * mas o texto chega)
+     */
     mode: z.enum(FlowOpeningModes).default('text'),
     buttonTitle: buttonTitle.default('Quero!'),
     /** acrescenta "Mensagem automática." (transparência exigida pela política da Meta) */

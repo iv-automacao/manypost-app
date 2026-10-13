@@ -175,6 +175,18 @@ export interface MediaInsights {
   unavailableReason?: string;
 }
 
+/**
+ * Ponte de comentários (change add-zernio-comment-bridge): fala com a rede por um intermediário
+ * autorizado no lugar dos métodos de comentário do provider. Quem a constrói já fechou sobre a
+ * credencial e a conta — por isso não recebe ctx nem token. Falhas são `ProviderFailure`.
+ */
+export interface CommentTransport {
+  readonly id: string;
+  listComments(mediaId: string, page: { cursor?: string; limit: number }): Promise<EngagementPage<EngagementComment>>;
+  replyToComment(mediaId: string, commentId: string, message: string): Promise<{ id: string }>;
+  setCommentHidden(mediaId: string, commentId: string, hidden: boolean): Promise<void>;
+}
+
 /** Contexto injetado — providers nunca usam fetch global nem leem env (SPEC_INTEGRATIONS §2). */
 export interface ProviderContext {
   fetch: typeof fetch;

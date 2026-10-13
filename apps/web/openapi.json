@@ -4613,6 +4613,11 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 2200
+                  },
+                  "mediaId": {
+                    "type": "string",
+                    "pattern": "^\\d{1,32}$",
+                    "description": "post do comentário (exigido quando há ponte)"
                   }
                 },
                 "required": [
@@ -4754,6 +4759,11 @@
                 "properties": {
                   "hidden": {
                     "type": "boolean"
+                  },
+                  "mediaId": {
+                    "type": "string",
+                    "pattern": "^\\d{1,32}$",
+                    "description": "post do comentário (exigido quando há ponte)"
                   }
                 },
                 "required": [

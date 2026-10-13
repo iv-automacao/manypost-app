@@ -84,8 +84,9 @@ import {
   makeVerifyApiKey,
   makeVerifyOAuthAccessToken,
   type BillingDeps,
+  type ChannelRecord,
 } from '@manypost/core';
-import { providerRegistry } from '@manypost/providers';
+import { makeZernioBridge, providerRegistry } from '@manypost/providers';
 import { createPublishingRuntime } from '@manypost/queue';
 import { makeStripeGateway, type StripeGateway } from './infra/billing/stripe.gateway';
 import { makeConfiguredAiProviders } from './infra/ai/provider-composition';
@@ -179,6 +180,21 @@ export async function buildContainer(env: Env) {
   // secrets de app por provider (SPEC_INTEGRATIONS §2): env → ctx.secrets;
   // provider indisponível quando faltam os requiredSecrets dele
   const providerSecrets = providerSecretsFromEnv(env);
+  // ponte de comentários pela Zernio (add-zernio-comment-bridge): só com chave + allowlist de orgs
+  const zernioOrgs = new Set(
+    (env.ZERNIO_ORG_IDS ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+  const zernio =
+    env.ZERNIO_API_KEY && zernioOrgs.size > 0
+      ? makeZernioBridge({
+          apiKey: env.ZERNIO_API_KEY,
+          fetch: globalThis.fetch,
+          log: (level, msg, data) => log(level === 'debug' ? 'info' : level, msg, { ...data }),
+        })
+      : null;
 
   // métricas Prometheus (SPEC_INFRA §4): o sink alimenta publish/recover; a apps/api expõe /metrics
   const metrics = createPrometheusMetrics();
@@ -365,6 +381,19 @@ export async function buildContainer(env: Env) {
           },
         };
       },
+      ...(zernio
+        ? {
+            commentTransportFor: async (row: ChannelRecord) => {
+              if (!zernioOrgs.has(row.orgId)) return null;
+              if (row.provider !== 'instagram-standalone' && row.provider !== 'instagram') return null;
+              const userId = (row.settings as { userId?: unknown } | null)?.userId;
+              return zernio.forAccount({
+                platformUserId: typeof userId === 'string' && userId ? userId : row.externalId,
+                ...(row.username ? { username: row.username } : {}),
+              });
+            },
+          }
+        : {}),
     }),
     channels: {
       connect: makeConnectChannel({ channels: repos.channels, crypto, plan }),

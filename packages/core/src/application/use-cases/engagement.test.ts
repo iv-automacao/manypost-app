@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { ChannelProvider, ProviderContext } from '@manypost/contracts';
+import type { ChannelProvider, CommentTransport, ProviderContext } from '@manypost/contracts';
 import { DomainError } from '../../domain/shared/result';
 import type { ChannelRecord } from '../ports/publishing';
 import { makeEngagement, type EngagementDeps } from './engagement';
@@ -39,8 +39,11 @@ const ctx: ProviderContext = {
 /** sobrescritas do provider falso — `undefined` remove o método (provider sem a capacidade) */
 type ProviderOverrides = { [K in keyof ChannelProvider]?: ChannelProvider[K] | undefined };
 
-function harness(opts: { canais?: ChannelRecord[]; provider?: ProviderOverrides } = {}) {
+function harness(
+  opts: { canais?: ChannelRecord[]; provider?: ProviderOverrides; ponte?: CommentTransport | null } = {},
+) {
   const chamadas: string[] = [];
+  const consultasPonte: string[] = [];
   const decifrados: string[] = [];
   const auditoria: Array<Record<string, unknown>> = [];
   const provider = {
@@ -102,8 +105,16 @@ function harness(opts: { canais?: ChannelRecord[]; provider?: ProviderOverrides 
     },
     providerFor: (id) => (id === provider.id ? { provider, ctx } : null),
     now: () => new Date('2026-10-12T12:00:00Z'),
+    ...(opts.ponte !== undefined
+      ? {
+          commentTransportFor: async (row: ChannelRecord) => {
+            consultasPonte.push(`${row.orgId}:${row.id}`);
+            return opts.ponte ?? null;
+          },
+        }
+      : {}),
   };
-  return { eng: makeEngagement(deps), chamadas, decifrados, auditoria };
+  return { eng: makeEngagement(deps), chamadas, decifrados, auditoria, consultasPonte };
 }
 
 const ALVO = { orgId: 'org-1', channelId: 'ch-1' };
@@ -299,5 +310,119 @@ describe('métricas', () => {
       { media: { id: '9', mediaType: 'IMAGE', timestamp: 't' }, metrics: { reach: 5 } },
     ]);
     expect(h.chamadas).toEqual(['media:TOKEN-PLANO:17841:12', 'media-insights:9']);
+  });
+});
+
+describe('ponte de comentários (add-zernio-comment-bridge)', () => {
+  function ponteFalsa(chamadas: string[], falha?: unknown): CommentTransport {
+    return {
+      id: 'zernio',
+      async listComments(mediaId, page) {
+        if (falha) throw falha;
+        chamadas.push(`ponte:list:${mediaId}:${page.limit}`);
+        return { items: [{ id: '5', text: 'oi', timestamp: 't', hidden: false, fromOwner: false, replies: [] }] };
+      },
+      async replyToComment(mediaId, commentId, message) {
+        if (falha) throw falha;
+        chamadas.push(`ponte:reply:${mediaId}:${commentId}:${message}`);
+        return { id: 'zr1' };
+      },
+      async setCommentHidden(mediaId, commentId, hidden) {
+        if (falha) throw falha;
+        chamadas.push(`ponte:hide:${mediaId}:${commentId}:${hidden}`);
+      },
+    };
+  }
+
+  test('lista pela ponte, sem chamar o provider nem decifrar o token', async () => {
+    const via: string[] = [];
+    const h = harness({ ponte: ponteFalsa(via) });
+    const page = await h.eng.listComments({ ...ALVO, mediaId: '1801' });
+    expect(page.items[0]?.id).toBe('5');
+    expect(via).toEqual(['ponte:list:1801:50']);
+    expect(h.chamadas).toEqual([]);
+    expect(h.decifrados).toEqual([]);
+  });
+
+  test('ponte dispensa o escopo do token próprio', async () => {
+    const via: string[] = [];
+    const h = harness({ ponte: ponteFalsa(via), canais: [canal({ scopes: [] })] });
+    await h.eng.listComments({ ...ALVO, mediaId: '1801' });
+    expect(via.length).toBe(1);
+  });
+
+  test('sem ponte para o canal = caminho direto', async () => {
+    const h = harness({ ponte: null });
+    await h.eng.listComments({ ...ALVO, mediaId: '1801' });
+    expect(h.chamadas).toEqual(['comments:1801']);
+    expect(h.consultasPonte).toEqual(['org-1:ch-1']);
+  });
+
+  test('canal de outra organização nunca consulta a ponte', async () => {
+    const via: string[] = [];
+    const h = harness({ ponte: ponteFalsa(via) });
+    const err = await h.eng.listComments({ orgId: 'org-2', channelId: 'ch-1', mediaId: '1801' }).catch((e) => e);
+    expect((err as DomainError).code).toBe('common.not_found');
+    expect(h.consultasPonte).toEqual([]);
+  });
+
+  test('canal parado nunca consulta a ponte', async () => {
+    const h = harness({ ponte: ponteFalsa([]), canais: [canal({ status: 'REFRESH_REQUIRED' })] });
+    const err = await h.eng.listComments({ ...ALVO, mediaId: '1801' }).catch((e) => e);
+    expect((err as DomainError).code).toBe('channel.refresh_required');
+    expect(h.consultasPonte).toEqual([]);
+  });
+
+  test('resposta pela ponte exige mediaId (400 sem rede) e é auditada', async () => {
+    const via: string[] = [];
+    const h = harness({ ponte: ponteFalsa(via) });
+    const err = await h.eng.reply({ ...ALVO, commentId: '501', message: 'oi', actor: ATOR }).catch((e) => e);
+    expect((err as DomainError).code).toBe('validation.invalid_request');
+    expect(via).toEqual([]);
+
+    const out = await h.eng.reply({ ...ALVO, mediaId: '1801', commentId: '501', message: ' oi ', actor: ATOR });
+    expect(out).toEqual({ id: 'zr1' });
+    expect(via).toEqual(['ponte:reply:1801:501:oi']);
+    expect(h.auditoria[0]).toMatchObject({ action: 'comment.replied', detail: { commentId: '501', replyId: 'zr1' } });
+  });
+
+  test('ocultar pela ponte exige mediaId e é auditado', async () => {
+    const via: string[] = [];
+    const h = harness({ ponte: ponteFalsa(via) });
+    const err = await h.eng.setHidden({ ...ALVO, commentId: '501', hidden: true, actor: ATOR }).catch((e) => e);
+    expect((err as DomainError).code).toBe('validation.invalid_request');
+    await h.eng.setHidden({ ...ALVO, mediaId: '1801', commentId: '501', hidden: true, actor: ATOR });
+    expect(via).toEqual(['ponte:hide:1801:501:true']);
+    expect(h.auditoria[0]).toMatchObject({ action: 'comment.hidden' });
+  });
+
+  test('caminho direto continua aceitando escrita sem mediaId', async () => {
+    const h = harness({ ponte: null });
+    await h.eng.reply({ ...ALVO, commentId: '501', message: 'oi', actor: ATOR });
+    expect(h.chamadas).toEqual(['reply:501:oi']);
+  });
+
+  test('chave da ponte recusada vira provider_rejected, nunca refresh_required', async () => {
+    const falha = { status: 401, body: '{"error":{"message":"Unauthorized"}}', errorClass: 'permanent' };
+    const h = harness({ ponte: ponteFalsa([], falha) });
+    const err = await h.eng.listComments({ ...ALVO, mediaId: '1801' }).catch((e) => e);
+    expect((err as DomainError).code).toBe('channel.provider_rejected');
+    expect((err as DomainError).message).toBe('Unauthorized');
+  });
+
+  test('limite da ponte vira provider_failed', async () => {
+    const falha = { status: 429, body: '{}', errorClass: 'transient' };
+    const h = harness({ ponte: ponteFalsa([], falha) });
+    const err = await h.eng.listComments({ ...ALVO, mediaId: '1801' }).catch((e) => e);
+    expect((err as DomainError).code).toBe('channel.provider_failed');
+  });
+
+  test('transporte caído na escrita pela ponte = incerto', async () => {
+    const h = harness({ ponte: ponteFalsa([], new TypeError('fetch failed')) });
+    const err = await h.eng
+      .reply({ ...ALVO, mediaId: '1801', commentId: '501', message: 'oi', actor: ATOR })
+      .catch((e) => e);
+    expect((err as DomainError).code).toBe('channel.provider_failed');
+    expect((err as DomainError).detail).toEqual({ uncertain: true });
   });
 });

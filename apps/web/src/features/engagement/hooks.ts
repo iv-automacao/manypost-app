@@ -64,7 +64,7 @@ export function useReplyToComment(channelId: string | undefined, mediaId: string
         await api.POST('/v1/channels/{id}/comments/{commentId}/replies', {
           params: { path: { id: channelId!, commentId: input.commentId } },
           headers: { 'Idempotency-Key': input.idempotencyKey },
-          body: { message: input.message },
+          body: { message: input.message, ...(mediaId ? { mediaId } : {}) },
         }),
       ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [COMMENTS, channelId, 'comments', mediaId] }),
@@ -78,7 +78,7 @@ export function useSetCommentHidden(channelId: string | undefined, mediaId: stri
       unwrap(
         await api.POST('/v1/channels/{id}/comments/{commentId}/visibility', {
           params: { path: { id: channelId!, commentId: input.commentId } },
-          body: { hidden: input.hidden },
+          body: { hidden: input.hidden, ...(mediaId ? { mediaId } : {}) },
         }),
       );
     },

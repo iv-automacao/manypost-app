@@ -104,6 +104,10 @@ const EnvSchema = z
     // "Facebook Login" no painel da Meta — a MESMA app serve os dois providers
     FACEBOOK_APP_ID: z.string().optional(),
     FACEBOOK_APP_SECRET: z.string().optional(),
+    // Ponte de comentários pela Zernio (add-zernio-comment-bridge): chave da conta Zernio que já tem
+    // o Instagram conectado + ids das organizações autorizadas (vírgula). Só liga com as duas.
+    ZERNIO_API_KEY: z.string().optional(),
+    ZERNIO_ORG_IDS: z.string().optional(),
     // Streaming — publicam no chat ao vivo, não em feed.
     TWITCH_CLIENT_ID: z.string().optional(),
     TWITCH_CLIENT_SECRET: z.string().optional(),

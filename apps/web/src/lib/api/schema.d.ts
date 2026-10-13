@@ -891,6 +891,8 @@ export type paths = {
                 content: {
                     "application/json": {
                         message: string;
+                        /** @description post do comentário (exigido quando há ponte) */
+                        mediaId?: string;
                     };
                 };
             };
@@ -1001,6 +1003,8 @@ export type paths = {
                 content: {
                     "application/json": {
                         hidden: boolean;
+                        /** @description post do comentário (exigido quando há ponte) */
+                        mediaId?: string;
                     };
                 };
             };

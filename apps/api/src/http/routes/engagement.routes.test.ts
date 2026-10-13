@@ -149,6 +149,19 @@ describe('rotas de engajamento', () => {
     expect(chamadas[0]?.input).toMatchObject({ commentId: '55', hidden: true });
   });
 
+  it('mediaId opcional nas escritas: repassado quando vem, 400 quando não é numérico', async () => {
+    const { app, chamadas } = makeApp();
+    const ok = await app.request(`/${CH}/comments/1789/replies`, post({ message: 'Olá', mediaId: '1801' }));
+    expect(ok.status).toBe(201);
+    expect(chamadas[0]?.input).toMatchObject({ mediaId: '1801', commentId: '1789' });
+    const vis = await app.request(`/${CH}/comments/55/visibility`, post({ hidden: false, mediaId: '1801' }));
+    expect(vis.status).toBe(204);
+    expect(chamadas[1]?.input).toMatchObject({ mediaId: '1801', hidden: false });
+    const bad = await app.request(`/${CH}/comments/55/visibility`, post({ hidden: true, mediaId: '../me' }));
+    expect(bad.status).toBe(400);
+    expect(chamadas).toHaveLength(2);
+  });
+
   it('insights da conta: dias padrão 28 e números nulos preservados', async () => {
     const { app, chamadas } = makeApp();
     const res = await app.request(`/${CH}/insights`, { headers: AUTH });

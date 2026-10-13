@@ -33,8 +33,11 @@ const InsightsQuery = z.object({
     .openapi({ description: 'janela até agora, em dias (a Graph aceita no máximo 30)' }),
 });
 
-const ReplyBody = z.object({ message: z.string().min(1).max(2200) });
-const VisibilityBody = z.object({ hidden: z.boolean() });
+// `mediaId` = post do comentário; exigido quando o canal usa a ponte de comentários
+// (add-zernio-comment-bridge), cuja API endereça o comentário pelo post
+const MediaRef = ExternalId.optional().openapi({ description: 'post do comentário (exigido quando há ponte)' });
+const ReplyBody = z.object({ message: z.string().min(1).max(2200), mediaId: MediaRef });
+const VisibilityBody = z.object({ hidden: z.boolean(), mediaId: MediaRef });
 
 const MetricValues = z
   .record(z.number().nullable())
@@ -157,8 +160,14 @@ export function engagementRoutes(ctn: Container) {
   });
   app.post('/:id/comments/:commentId/replies', idempotency(ctn.runtime.idempotency), async (c) => {
     const { id, commentId } = CommentParams.parse(c.req.param());
-    const { message } = ReplyBody.parse(await c.req.json());
-    const out = await ctn.engagement.reply({ ...target(c, id), commentId, message, actor: actorOf(c) });
+    const { message, mediaId } = ReplyBody.parse(await c.req.json());
+    const out = await ctn.engagement.reply({
+      ...target(c, id),
+      ...(mediaId ? { mediaId } : {}),
+      commentId,
+      message,
+      actor: actorOf(c),
+    });
     return c.json(out, 201);
   });
 
@@ -173,8 +182,14 @@ export function engagementRoutes(ctn: Container) {
   });
   app.post('/:id/comments/:commentId/visibility', idempotency(ctn.runtime.idempotency), async (c) => {
     const { id, commentId } = CommentParams.parse(c.req.param());
-    const { hidden } = VisibilityBody.parse(await c.req.json());
-    await ctn.engagement.setHidden({ ...target(c, id), commentId, hidden, actor: actorOf(c) });
+    const { hidden, mediaId } = VisibilityBody.parse(await c.req.json());
+    await ctn.engagement.setHidden({
+      ...target(c, id),
+      ...(mediaId ? { mediaId } : {}),
+      commentId,
+      hidden,
+      actor: actorOf(c),
+    });
     return c.body(null, 204);
   });
 

@@ -14,3 +14,6 @@ coverage/
 .vscode/
 .claude/settings.local.json
 /.local/coolify-manypost/
+
+# mockups do brainstorming (superpowers)
+.superpowers/

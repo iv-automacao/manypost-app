@@ -5,6 +5,7 @@ import {
   normalizeText,
   renderTemplate,
   validateAnswer,
+  whatsappDigits,
 } from './automation-logic';
 import { targetOf } from './flow-graph';
 
@@ -38,7 +39,7 @@ export function linkUrl(node: FlowNodeOf<'link'>, ctx: StepContext): string {
   const t = node.data.target;
   if (t.kind === 'url') return t.url;
   const msg = renderTemplate(t.message, ctx.answers, ctx.username).trim();
-  return `https://wa.me/${t.phone}${msg ? `?text=${encodeURIComponent(msg)}` : ''}`;
+  return `https://wa.me/${whatsappDigits(t.phone)}${msg ? `?text=${encodeURIComponent(msg)}` : ''}`;
 }
 
 /** o que o nó envia ao entrar nele; `null` = nada (condição, fim sem texto) */

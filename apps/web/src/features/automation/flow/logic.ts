@@ -341,11 +341,17 @@ interface Ctx {
   username: string | null;
 }
 
+/** espelho de `whatsappDigits` do core: sem DDI (10 ou 11 dígitos) ganha 55 */
+function whatsappDigits(phone: string): string {
+  const d = phone.replace(/\D/g, '');
+  return d.length === 10 || d.length === 11 ? `55${d}` : d;
+}
+
 function linkUrl(n: NodeOf<'link'>, ctx: Ctx): string {
   const t = n.data.target;
   if (t.kind === 'url') return t.url;
   const msg = renderTemplate(t.message, ctx.answers, ctx.username).trim();
-  return `https://wa.me/${t.phone}${msg ? `?text=${encodeURIComponent(msg)}` : ''}`;
+  return `https://wa.me/${whatsappDigits(t.phone)}${msg ? `?text=${encodeURIComponent(msg)}` : ''}`;
 }
 
 export function messageFor(n: FlowNode, ctx: Ctx): SimMessage | null {

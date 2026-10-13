@@ -311,7 +311,20 @@ function LinkView({ id, data, selected }: P<'link'>) {
       ) : null}
       {target.kind === 'whatsapp' ? (
         <>
-          <InlineInput value={target.phone} placeholder={t('placeholder.phone')} maxLength={15} onChange={(v) => setTarget({ ...target, phone: v.replace(/\D/g, '') }, true)} />
+          <div className="nodrag flex items-center gap-1">
+            <span className="shrink-0 text-compact text-graphite">+55</span>
+            <div className="min-w-0 flex-1">
+              <InlineInput
+                value={/^55\d{10,11}$/.test(target.phone) ? target.phone.slice(2) : target.phone}
+                placeholder={t('placeholder.phone')}
+                maxLength={11}
+                onChange={(v) => {
+                  const typed = v.replace(/\D/g, '');
+                  setTarget({ ...target, phone: typed ? `55${typed}` : '' }, true);
+                }}
+              />
+            </div>
+          </div>
           <InlineInput value={target.message} placeholder={t('placeholder.waMessage')} maxLength={LIMITS.whatsappMessage} onChange={(v) => setTarget({ ...target, message: v }, true)} />
         </>
       ) : (

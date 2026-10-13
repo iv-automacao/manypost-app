@@ -1,0 +1,22 @@
+{
+  "name": "WhatsApp salvo só com DDD + número ganha 55 no link",
+  "flow": {
+    "version": 2,
+    "nodes": [
+      { "id": "opening", "type": "opening", "position": { "x": 0, "y": 0 }, "data": { "text": "Olá!" } },
+      { "id": "wa", "type": "link", "position": { "x": 0, "y": 160 }, "data": { "text": "Fale com a gente", "buttonTitle": "WhatsApp", "target": { "kind": "whatsapp", "phone": "92999990000", "message": "Oi" } } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "opening", "sourceHandle": "next", "target": "wa" }
+    ]
+  },
+  "inputs": [{ "text": "oi" }],
+  "expect": {
+    "messages": [
+      { "text": "Olá!\n\nResponda esta mensagem para continuar.\n\nMensagem automática." },
+      { "text": "Fale com a gente", "buttons": ["WhatsApp"], "urls": ["https://wa.me/5592999990000?text=Oi"] }
+    ],
+    "status": "completed",
+    "answers": {}
+  }
+}

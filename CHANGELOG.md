@@ -158,6 +158,7 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
 
 ### Fixed
 
+- Link do WhatsApp das automações usa +55 por padrão; números salvos sem DDI deixam de abrir em outro país.
 - **Máquina de conteúdo: correções de três revisões adversariais.** Posse da etapa com token (uma
   execução que perdeu a peça para uma decisão humana não grava mais por cima); espera de
   retentativa gravada na trava (job duplicado não fura o intervalo) e respeito ao `retryable` do

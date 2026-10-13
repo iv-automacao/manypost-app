@@ -11,6 +11,7 @@ import {
   promptMessage,
   renderTemplate,
   validateAnswer,
+  whatsappDigits,
   whatsappUrl,
 } from './automation-logic';
 
@@ -131,4 +132,12 @@ describe('mensagens', () => {
   test('campo sem resposta vira vazio', () => {
     expect(renderTemplate('Oi {nome}{x}', {}, null)).toBe('Oi ');
   });
+});
+
+describe('whatsappDigits', () => {
+  test('11 dígitos (DDD + celular) ganha 55', () => expect(whatsappDigits('92999990000')).toBe('5592999990000'));
+  test('10 dígitos (DDD + fixo) ganha 55', () => expect(whatsappDigits('9233334444')).toBe('559233334444'));
+  test('13 dígitos com 55 ficam iguais', () => expect(whatsappDigits('5592999990000')).toBe('5592999990000'));
+  test('12 dígitos ficam iguais', () => expect(whatsappDigits('559233334444')).toBe('559233334444'));
+  test('ignora formatação', () => expect(whatsappDigits('(92) 99999-0000')).toBe('5592999990000'));
 });

@@ -2,7 +2,10 @@ import { z } from '@hono/zod-openapi';
 import {
   AutomationRunStatuses,
   AutomationStatuses,
-  CommentAutomationConfigSchema,
+  CommentTriggerConfigSchema,
+  FlowProblemCodes,
+  FlowTriggerInputSchema,
+  FlowV2Schema,
 } from '@manypost/contracts';
 import type { Context } from 'hono';
 import type { Container } from '../../container';
@@ -17,17 +20,21 @@ import { AUTH_SECURITY, createApp, errorResponses, jsonBody, jsonResponse } from
  */
 
 const IdParam = z.object({ id: z.string().uuid() });
-const Config = CommentAutomationConfigSchema.openapi?.('CommentAutomationConfig') ?? CommentAutomationConfigSchema;
+const Flow = FlowV2Schema.openapi?.('AutomationFlow') ?? FlowV2Schema;
+const TriggerInput = FlowTriggerInputSchema.openapi?.('AutomationTriggerInput') ?? FlowTriggerInputSchema;
+const Triggers = z.array(TriggerInput).max(1);
 
 const CreateBody = z.object({
   channelId: z.string().uuid(),
   name: z.string().min(1).max(80),
-  config: Config,
+  flow: Flow,
+  triggers: Triggers.optional(),
   testUsernames: z.array(z.string().max(31)).max(10).optional(),
 });
 const UpdateBody = z.object({
   name: z.string().min(1).max(80).optional(),
-  config: Config.optional(),
+  flow: Flow.optional(),
+  triggers: Triggers.optional(),
   testUsernames: z.array(z.string().max(31)).max(10).optional(),
 });
 const StatusBody = z.object({ status: z.enum(AutomationStatuses) });
@@ -45,9 +52,23 @@ const Automation = z
     name: z.string(),
     status: z.enum(AutomationStatuses),
     // schema sem nome aqui: `.nullable()` sobre o componente nomeado o tornaria anulável também no corpo
-    config: CommentAutomationConfigSchema.nullable().openapi({
-      description: '`null` = configuração gravada não passa mais na validação',
-    }),
+    flow: FlowV2Schema.nullable().openapi({ description: '`null` = configuração gravada não passa mais na validação' }),
+    triggers: z.array(
+      z.object({
+        id: z.string().nullable(),
+        kind: z.literal('comment'),
+        config: CommentTriggerConfigSchema,
+        position: z.object({ x: z.number(), y: z.number() }).nullable(),
+      }),
+    ),
+    problems: z.array(
+      z.object({
+        code: z.enum(FlowProblemCodes),
+        severity: z.enum(['error', 'warning']),
+        nodeId: z.string().optional(),
+        handle: z.string().optional(),
+      }),
+    ),
     testUsernames: z.array(z.string()),
     createdBy: z.string().nullable(),
     createdAt: z.string(),
@@ -104,7 +125,9 @@ export function automationRoutes(ctn: Container) {
     channelId: a.channelId,
     name: a.name,
     status: a.status,
-    config: a.config,
+    flow: a.flow,
+    triggers: a.triggers,
+    problems: a.problems,
     testUsernames: a.testUsernames,
     createdBy: a.createdBy,
     createdAt: a.createdAt.toISOString(),
@@ -142,7 +165,8 @@ export function automationRoutes(ctn: Container) {
       actor: actorOf(c),
       channelId: b.channelId,
       name: b.name,
-      config: b.config,
+      flow: b.flow,
+      ...(b.triggers ? { triggers: b.triggers } : {}),
       ...(b.testUsernames ? { testUsernames: b.testUsernames } : {}),
     });
     return c.json(out(a), 201);
@@ -211,7 +235,7 @@ export function automationRoutes(ctn: Container) {
     path: '/{id}',
     tags: ['automations'],
     security: AUTH_SECURITY,
-    summary: 'Edita nome, configuração ou contas de teste',
+    summary: 'Edita nome, fluxo, gatilho ou contas de teste',
     request: { params: IdParam, ...jsonBody(UpdateBody) },
     responses: { 200: jsonResponse('automação', Automation), ...ERRORS },
   });
@@ -223,7 +247,8 @@ export function automationRoutes(ctn: Container) {
       id,
       actor: actorOf(c),
       ...(b.name !== undefined ? { name: b.name } : {}),
-      ...(b.config !== undefined ? { config: b.config } : {}),
+      ...(b.flow !== undefined ? { flow: b.flow } : {}),
+      ...(b.triggers !== undefined ? { triggers: b.triggers } : {}),
       ...(b.testUsernames ? { testUsernames: b.testUsernames } : {}),
     });
     return c.json(out(a));

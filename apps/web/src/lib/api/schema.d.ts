@@ -1382,7 +1382,8 @@ export type paths = {
                         /** Format: uuid */
                         channelId: string;
                         name: string;
-                        config: components["schemas"]["CommentAutomationConfig"];
+                        flow: components["schemas"]["AutomationFlow"];
+                        triggers?: components["schemas"]["AutomationTriggerInput"][];
                         testUsernames?: string[];
                     };
                 };
@@ -1453,7 +1454,7 @@ export type paths = {
             parameters: {
                 query?: {
                     automationId?: string;
-                    status?: "OPEN" | "COMPLETED" | "FAILED" | "UNCERTAIN" | "SKIPPED";
+                    status?: "OPEN" | "COMPLETED" | "FAILED" | "UNCERTAIN" | "SKIPPED" | "ABANDONED";
                     cursor?: string;
                 };
                 header?: never;
@@ -1647,7 +1648,7 @@ export type paths = {
         };
         options?: never;
         head?: never;
-        /** Edita nome, configuração ou contas de teste */
+        /** Edita nome, fluxo, gatilho ou contas de teste */
         patch: {
             parameters: {
                 query?: never;
@@ -1661,7 +1662,8 @@ export type paths = {
                 content: {
                     "application/json": {
                         name?: string;
-                        config?: components["schemas"]["CommentAutomationConfig"];
+                        flow?: components["schemas"]["AutomationFlow"];
+                        triggers?: components["schemas"]["AutomationTriggerInput"][];
                         testUsernames?: string[];
                     };
                 };
@@ -7552,118 +7554,302 @@ export type components = {
             /** @enum {string} */
             status: "DRAFT" | "TEST" | "ACTIVE" | "PAUSED";
             /** @description `null` = configuração gravada não passa mais na validação */
-            config: {
-                /**
-                 * @default 1
-                 * @enum {number}
-                 */
-                version: 1;
-                trigger: {
+            flow: {
+                /** @enum {number} */
+                version: 2;
+                nodes: ({
+                    id: string;
+                    /** @enum {string} */
+                    type: "opening";
+                    position: {
+                        x: number;
+                        y: number;
+                    };
+                    data: {
+                        text: string;
+                        /**
+                         * @default text
+                         * @enum {string}
+                         */
+                        mode: "text" | "button";
+                        /** @default Quero! */
+                        buttonTitle: string;
+                        /** @default true */
+                        disclosure: boolean;
+                    };
+                } | {
+                    id: string;
+                    /** @enum {string} */
+                    type: "message";
+                    position: {
+                        x: number;
+                        y: number;
+                    };
+                    data: {
+                        text: string;
+                        /**
+                         * @default buttons
+                         * @enum {string}
+                         */
+                        format: "none" | "buttons" | "quick";
+                        /** @default [] */
+                        options: {
+                            id: string;
+                            title: string;
+                        }[];
+                        saveTo?: string;
+                        /**
+                         * @default reask
+                         * @enum {string}
+                         */
+                        onTyped: "reask" | "branch";
+                    };
+                } | {
+                    id: string;
+                    /** @enum {string} */
+                    type: "question";
+                    position: {
+                        x: number;
+                        y: number;
+                    };
+                    data: {
+                        text: string;
+                        field: string;
+                        /** @enum {string} */
+                        validate: "name" | "phone" | "email" | "free";
+                    };
+                } | {
+                    id: string;
+                    /** @enum {string} */
+                    type: "condition";
+                    position: {
+                        x: number;
+                        y: number;
+                    };
+                    data: {
+                        field: string;
+                        /** @enum {string} */
+                        op: "equals" | "contains" | "filled" | "empty";
+                        /** @default  */
+                        value: string;
+                    };
+                } | {
+                    id: string;
+                    /** @enum {string} */
+                    type: "link";
+                    position: {
+                        x: number;
+                        y: number;
+                    };
+                    data: {
+                        text: string;
+                        /** @default Abrir */
+                        buttonTitle: string;
+                        target: {
+                            /** @enum {string} */
+                            kind: "whatsapp";
+                            phone: string;
+                            /** @default  */
+                            message: string;
+                        } | {
+                            /** @enum {string} */
+                            kind: "url";
+                            /** Format: uri */
+                            url: string;
+                        };
+                    };
+                } | {
+                    id: string;
+                    /** @enum {string} */
+                    type: "end";
+                    position: {
+                        x: number;
+                        y: number;
+                    };
+                    data: {
+                        /** @default  */
+                        text: string;
+                    };
+                })[];
+                /** @default [] */
+                edges: {
+                    id: string;
+                    source: string;
+                    sourceHandle: string;
+                    target: string;
+                }[];
+            } | null;
+            triggers: {
+                id: string | null;
+                /** @enum {string} */
+                kind: "comment";
+                config: {
                     /** @default [] */
                     mediaIds: string[];
                     /** @default [] */
                     keywords: string[];
+                    /** @default [] */
+                    publicReplies: string[];
                 };
-                /** @default [] */
-                publicReplies: string[];
-                opening: {
-                    text: string;
-                    /**
-                     * @default button
-                     * @enum {string}
-                     */
-                    mode: "button" | "text";
-                    /** @default Quero! */
-                    buttonTitle: string;
-                };
-                /** @default [] */
-                questions: ({
-                    /** @enum {string} */
-                    kind: "choice";
-                    field: string;
-                    prompt: string;
-                    options: {
-                        title: string;
-                    }[];
-                } | {
-                    /** @enum {string} */
-                    kind: "text";
-                    field: string;
-                    prompt: string;
-                    /** @enum {string} */
-                    validate: "name" | "phone" | "email" | "free";
-                })[];
-                finish: {
-                    text: string;
-                    whatsapp?: {
-                        phone: string;
-                        /** @default  */
-                        message: string;
-                        /** @default Falar no WhatsApp */
-                        buttonTitle: string;
-                    };
-                };
-                /** @default true */
-                disclosure: boolean;
-            } | null;
+                position: {
+                    x: number;
+                    y: number;
+                } | null;
+            }[];
+            problems: {
+                /** @enum {string} */
+                code: "unreachable" | "missing_edge" | "wait_free_cycle" | "unknown_field" | "no_finish" | "opening_button";
+                /** @enum {string} */
+                severity: "error" | "warning";
+                nodeId?: string;
+                handle?: string;
+            }[];
             testUsernames: string[];
             createdBy: string | null;
             createdAt: string;
             updatedAt: string;
         };
-        CommentAutomationConfig: {
-            /**
-             * @default 1
-             * @enum {number}
-             */
-            version: 1;
-            trigger: {
+        AutomationFlow: {
+            /** @enum {number} */
+            version: 2;
+            nodes: ({
+                id: string;
+                /** @enum {string} */
+                type: "opening";
+                position: {
+                    x: number;
+                    y: number;
+                };
+                data: {
+                    text: string;
+                    /**
+                     * @default text
+                     * @enum {string}
+                     */
+                    mode: "text" | "button";
+                    /** @default Quero! */
+                    buttonTitle: string;
+                    /** @default true */
+                    disclosure: boolean;
+                };
+            } | {
+                id: string;
+                /** @enum {string} */
+                type: "message";
+                position: {
+                    x: number;
+                    y: number;
+                };
+                data: {
+                    text: string;
+                    /**
+                     * @default buttons
+                     * @enum {string}
+                     */
+                    format: "none" | "buttons" | "quick";
+                    /** @default [] */
+                    options: {
+                        id: string;
+                        title: string;
+                    }[];
+                    saveTo?: string;
+                    /**
+                     * @default reask
+                     * @enum {string}
+                     */
+                    onTyped: "reask" | "branch";
+                };
+            } | {
+                id: string;
+                /** @enum {string} */
+                type: "question";
+                position: {
+                    x: number;
+                    y: number;
+                };
+                data: {
+                    text: string;
+                    field: string;
+                    /** @enum {string} */
+                    validate: "name" | "phone" | "email" | "free";
+                };
+            } | {
+                id: string;
+                /** @enum {string} */
+                type: "condition";
+                position: {
+                    x: number;
+                    y: number;
+                };
+                data: {
+                    field: string;
+                    /** @enum {string} */
+                    op: "equals" | "contains" | "filled" | "empty";
+                    /** @default  */
+                    value: string;
+                };
+            } | {
+                id: string;
+                /** @enum {string} */
+                type: "link";
+                position: {
+                    x: number;
+                    y: number;
+                };
+                data: {
+                    text: string;
+                    /** @default Abrir */
+                    buttonTitle: string;
+                    target: {
+                        /** @enum {string} */
+                        kind: "whatsapp";
+                        phone: string;
+                        /** @default  */
+                        message: string;
+                    } | {
+                        /** @enum {string} */
+                        kind: "url";
+                        /** Format: uri */
+                        url: string;
+                    };
+                };
+            } | {
+                id: string;
+                /** @enum {string} */
+                type: "end";
+                position: {
+                    x: number;
+                    y: number;
+                };
+                data: {
+                    /** @default  */
+                    text: string;
+                };
+            })[];
+            /** @default [] */
+            edges: {
+                id: string;
+                source: string;
+                sourceHandle: string;
+                target: string;
+            }[];
+        };
+        AutomationTriggerInput: {
+            /** @enum {string} */
+            kind: "comment";
+            config: {
                 /** @default [] */
                 mediaIds: string[];
                 /** @default [] */
                 keywords: string[];
+                /** @default [] */
+                publicReplies: string[];
             };
-            /** @default [] */
-            publicReplies: string[];
-            opening: {
-                text: string;
-                /**
-                 * @default button
-                 * @enum {string}
-                 */
-                mode: "button" | "text";
-                /** @default Quero! */
-                buttonTitle: string;
-            };
-            /** @default [] */
-            questions: ({
-                /** @enum {string} */
-                kind: "choice";
-                field: string;
-                prompt: string;
-                options: {
-                    title: string;
-                }[];
-            } | {
-                /** @enum {string} */
-                kind: "text";
-                field: string;
-                prompt: string;
-                /** @enum {string} */
-                validate: "name" | "phone" | "email" | "free";
-            })[];
-            finish: {
-                text: string;
-                whatsapp?: {
-                    phone: string;
-                    /** @default  */
-                    message: string;
-                    /** @default Falar no WhatsApp */
-                    buttonTitle: string;
-                };
-            };
-            /** @default true */
-            disclosure: boolean;
+            /** @default null */
+            position: {
+                x: number;
+                y: number;
+            } | null;
         };
         AutomationLead: {
             id: string;
@@ -7675,7 +7861,7 @@ export type components = {
             commentText: string;
             participantUsername: string | null;
             /** @enum {string} */
-            status: "OPEN" | "COMPLETED" | "FAILED" | "UNCERTAIN" | "SKIPPED";
+            status: "OPEN" | "COMPLETED" | "FAILED" | "UNCERTAIN" | "SKIPPED" | "ABANDONED";
             step: number;
             answers: {
                 [key: string]: string;

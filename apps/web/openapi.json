@@ -707,7 +707,7 @@
               "PAUSED"
             ]
           },
-          "config": {
+          "flow": {
             "type": [
               "object",
               "null"
@@ -716,206 +716,632 @@
               "version": {
                 "type": "number",
                 "enum": [
-                  1
-                ],
-                "default": 1
-              },
-              "trigger": {
-                "type": "object",
-                "properties": {
-                  "mediaIds": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "pattern": "^\\d{1,32}$"
-                    },
-                    "maxItems": 50,
-                    "default": []
-                  },
-                  "keywords": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 60
-                    },
-                    "maxItems": 20,
-                    "default": []
-                  }
-                }
-              },
-              "publicReplies": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 300
-                },
-                "maxItems": 10,
-                "default": []
-              },
-              "opening": {
-                "type": "object",
-                "properties": {
-                  "text": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 600
-                  },
-                  "mode": {
-                    "type": "string",
-                    "enum": [
-                      "button",
-                      "text"
-                    ],
-                    "default": "button"
-                  },
-                  "buttonTitle": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 20,
-                    "default": "Quero!"
-                  }
-                },
-                "required": [
-                  "text"
+                  2
                 ]
               },
-              "questions": {
+              "nodes": {
                 "type": "array",
                 "items": {
                   "oneOf": [
                     {
                       "type": "object",
                       "properties": {
-                        "kind": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9_-]{1,24}$"
+                        },
+                        "type": {
                           "type": "string",
                           "enum": [
-                            "choice"
+                            "opening"
                           ]
                         },
-                        "field": {
-                          "type": "string",
-                          "pattern": "^[a-z][a-z0-9_]{0,31}$"
-                        },
-                        "prompt": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 600
-                        },
-                        "options": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "title": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 20
-                              }
+                        "position": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
                             },
-                            "required": [
-                              "title"
-                            ]
+                            "y": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            }
                           },
-                          "minItems": 1,
-                          "maxItems": 13
+                          "required": [
+                            "x",
+                            "y"
+                          ]
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 600
+                            },
+                            "mode": {
+                              "type": "string",
+                              "enum": [
+                                "text",
+                                "button"
+                              ],
+                              "default": "text"
+                            },
+                            "buttonTitle": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 20,
+                              "default": "Quero!"
+                            },
+                            "disclosure": {
+                              "type": "boolean",
+                              "default": true
+                            }
+                          },
+                          "required": [
+                            "text"
+                          ]
                         }
                       },
                       "required": [
-                        "kind",
-                        "field",
-                        "prompt",
-                        "options"
+                        "id",
+                        "type",
+                        "position",
+                        "data"
                       ]
                     },
                     {
                       "type": "object",
                       "properties": {
-                        "kind": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9_-]{1,24}$"
+                        },
+                        "type": {
                           "type": "string",
                           "enum": [
-                            "text"
+                            "message"
                           ]
                         },
-                        "field": {
-                          "type": "string",
-                          "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                        "position": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            },
+                            "y": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "y"
+                          ]
                         },
-                        "prompt": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 600
-                        },
-                        "validate": {
-                          "type": "string",
-                          "enum": [
-                            "name",
-                            "phone",
-                            "email",
-                            "free"
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 600
+                            },
+                            "format": {
+                              "type": "string",
+                              "enum": [
+                                "none",
+                                "buttons",
+                                "quick"
+                              ],
+                              "default": "buttons"
+                            },
+                            "options": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "pattern": "^[a-z0-9_-]{1,24}$"
+                                  },
+                                  "title": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 20
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "title"
+                                ]
+                              },
+                              "maxItems": 13,
+                              "default": []
+                            },
+                            "saveTo": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                            },
+                            "onTyped": {
+                              "type": "string",
+                              "enum": [
+                                "reask",
+                                "branch"
+                              ],
+                              "default": "reask"
+                            }
+                          },
+                          "required": [
+                            "text"
                           ]
                         }
                       },
                       "required": [
-                        "kind",
-                        "field",
-                        "prompt",
-                        "validate"
+                        "id",
+                        "type",
+                        "position",
+                        "data"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9_-]{1,24}$"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "question"
+                          ]
+                        },
+                        "position": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            },
+                            "y": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "y"
+                          ]
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 600
+                            },
+                            "field": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                            },
+                            "validate": {
+                              "type": "string",
+                              "enum": [
+                                "name",
+                                "phone",
+                                "email",
+                                "free"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "text",
+                            "field",
+                            "validate"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type",
+                        "position",
+                        "data"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9_-]{1,24}$"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "condition"
+                          ]
+                        },
+                        "position": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            },
+                            "y": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "y"
+                          ]
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "field": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                            },
+                            "op": {
+                              "type": "string",
+                              "enum": [
+                                "equals",
+                                "contains",
+                                "filled",
+                                "empty"
+                              ]
+                            },
+                            "value": {
+                              "type": "string",
+                              "maxLength": 60,
+                              "default": ""
+                            }
+                          },
+                          "required": [
+                            "field",
+                            "op"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type",
+                        "position",
+                        "data"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9_-]{1,24}$"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "link"
+                          ]
+                        },
+                        "position": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            },
+                            "y": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "y"
+                          ]
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 600
+                            },
+                            "buttonTitle": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 20,
+                              "default": "Abrir"
+                            },
+                            "target": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "whatsapp"
+                                      ]
+                                    },
+                                    "phone": {
+                                      "type": "string",
+                                      "pattern": "^\\d{10,15}$"
+                                    },
+                                    "message": {
+                                      "type": "string",
+                                      "maxLength": 500,
+                                      "default": ""
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "phone"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "url"
+                                      ]
+                                    },
+                                    "url": {
+                                      "type": "string",
+                                      "maxLength": 2000,
+                                      "format": "uri"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "url"
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "text",
+                            "target"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type",
+                        "position",
+                        "data"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9_-]{1,24}$"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "end"
+                          ]
+                        },
+                        "position": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            },
+                            "y": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "y"
+                          ]
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "text": {
+                              "type": "string",
+                              "maxLength": 600,
+                              "default": ""
+                            }
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type",
+                        "position",
+                        "data"
                       ]
                     }
                   ]
                 },
-                "maxItems": 5,
-                "default": []
+                "minItems": 1,
+                "maxItems": 40
               },
-              "finish": {
-                "type": "object",
-                "properties": {
-                  "text": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 600
-                  },
-                  "whatsapp": {
-                    "type": "object",
-                    "properties": {
-                      "phone": {
-                        "type": "string",
-                        "pattern": "^\\d{10,15}$"
-                      },
-                      "message": {
-                        "type": "string",
-                        "maxLength": 500,
-                        "default": ""
-                      },
-                      "buttonTitle": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 20,
-                        "default": "Falar no WhatsApp"
-                      }
+              "edges": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
                     },
-                    "required": [
-                      "phone"
-                    ]
-                  }
+                    "source": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    },
+                    "sourceHandle": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    },
+                    "target": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "source",
+                    "sourceHandle",
+                    "target"
+                  ]
                 },
-                "required": [
-                  "text"
-                ]
-              },
-              "disclosure": {
-                "type": "boolean",
-                "default": true
+                "maxItems": 120,
+                "default": []
               }
             },
             "required": [
-              "trigger",
-              "opening",
-              "finish"
+              "version",
+              "nodes"
             ],
             "description": "`null` = configuração gravada não passa mais na validação"
+          },
+          "triggers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "comment"
+                  ]
+                },
+                "config": {
+                  "type": "object",
+                  "properties": {
+                    "mediaIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^\\d{1,32}$"
+                      },
+                      "maxItems": 50,
+                      "default": []
+                    },
+                    "keywords": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 60
+                      },
+                      "maxItems": 20,
+                      "default": []
+                    },
+                    "publicReplies": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 300
+                      },
+                      "maxItems": 10,
+                      "default": []
+                    }
+                  }
+                },
+                "position": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "config",
+                "position"
+              ]
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "enum": [
+                    "unreachable",
+                    "missing_edge",
+                    "wait_free_cycle",
+                    "unknown_field",
+                    "no_finish",
+                    "opening_button"
+                  ]
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "error",
+                    "warning"
+                  ]
+                },
+                "nodeId": {
+                  "type": "string"
+                },
+                "handle": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "severity"
+              ]
+            }
           },
           "testUsernames": {
             "type": "array",
@@ -941,24 +1367,543 @@
           "channelId",
           "name",
           "status",
-          "config",
+          "flow",
+          "triggers",
+          "problems",
           "testUsernames",
           "createdBy",
           "createdAt",
           "updatedAt"
         ]
       },
-      "CommentAutomationConfig": {
+      "AutomationFlow": {
         "type": "object",
         "properties": {
           "version": {
             "type": "number",
             "enum": [
-              1
-            ],
-            "default": 1
+              2
+            ]
           },
-          "trigger": {
+          "nodes": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "opening"
+                      ]
+                    },
+                    "position": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "text": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 600
+                        },
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "text",
+                            "button"
+                          ],
+                          "default": "text"
+                        },
+                        "buttonTitle": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 20,
+                          "default": "Quero!"
+                        },
+                        "disclosure": {
+                          "type": "boolean",
+                          "default": true
+                        }
+                      },
+                      "required": [
+                        "text"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "position",
+                    "data"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "message"
+                      ]
+                    },
+                    "position": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "text": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 600
+                        },
+                        "format": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "buttons",
+                            "quick"
+                          ],
+                          "default": "buttons"
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "pattern": "^[a-z0-9_-]{1,24}$"
+                              },
+                              "title": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 20
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "title"
+                            ]
+                          },
+                          "maxItems": 13,
+                          "default": []
+                        },
+                        "saveTo": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                        },
+                        "onTyped": {
+                          "type": "string",
+                          "enum": [
+                            "reask",
+                            "branch"
+                          ],
+                          "default": "reask"
+                        }
+                      },
+                      "required": [
+                        "text"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "position",
+                    "data"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "question"
+                      ]
+                    },
+                    "position": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "text": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 600
+                        },
+                        "field": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                        },
+                        "validate": {
+                          "type": "string",
+                          "enum": [
+                            "name",
+                            "phone",
+                            "email",
+                            "free"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "text",
+                        "field",
+                        "validate"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "position",
+                    "data"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "condition"
+                      ]
+                    },
+                    "position": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "field": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                        },
+                        "op": {
+                          "type": "string",
+                          "enum": [
+                            "equals",
+                            "contains",
+                            "filled",
+                            "empty"
+                          ]
+                        },
+                        "value": {
+                          "type": "string",
+                          "maxLength": 60,
+                          "default": ""
+                        }
+                      },
+                      "required": [
+                        "field",
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "position",
+                    "data"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "link"
+                      ]
+                    },
+                    "position": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "text": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 600
+                        },
+                        "buttonTitle": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 20,
+                          "default": "Abrir"
+                        },
+                        "target": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "whatsapp"
+                                  ]
+                                },
+                                "phone": {
+                                  "type": "string",
+                                  "pattern": "^\\d{10,15}$"
+                                },
+                                "message": {
+                                  "type": "string",
+                                  "maxLength": 500,
+                                  "default": ""
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "phone"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "url"
+                                  ]
+                                },
+                                "url": {
+                                  "type": "string",
+                                  "maxLength": 2000,
+                                  "format": "uri"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "url"
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "text",
+                        "target"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "position",
+                    "data"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "end"
+                      ]
+                    },
+                    "position": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "text": {
+                          "type": "string",
+                          "maxLength": 600,
+                          "default": ""
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "position",
+                    "data"
+                  ]
+                }
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 40
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "source": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_-]{1,24}$"
+                },
+                "sourceHandle": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_-]{1,24}$"
+                },
+                "target": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_-]{1,24}$"
+                }
+              },
+              "required": [
+                "id",
+                "source",
+                "sourceHandle",
+                "target"
+              ]
+            },
+            "maxItems": 120,
+            "default": []
+          }
+        },
+        "required": [
+          "version",
+          "nodes"
+        ]
+      },
+      "AutomationTriggerInput": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "comment"
+            ]
+          },
+          "config": {
             "type": "object",
             "properties": {
               "mediaIds": {
@@ -979,179 +1924,46 @@
                 },
                 "maxItems": 20,
                 "default": []
+              },
+              "publicReplies": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                },
+                "maxItems": 10,
+                "default": []
               }
             }
           },
-          "publicReplies": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 300
-            },
-            "maxItems": 10,
-            "default": []
-          },
-          "opening": {
-            "type": "object",
+          "position": {
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
-              "text": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 600
+              "x": {
+                "type": "number",
+                "minimum": -100000,
+                "maximum": 100000
               },
-              "mode": {
-                "type": "string",
-                "enum": [
-                  "button",
-                  "text"
-                ],
-                "default": "button"
-              },
-              "buttonTitle": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 20,
-                "default": "Quero!"
+              "y": {
+                "type": "number",
+                "minimum": -100000,
+                "maximum": 100000
               }
             },
+            "default": null,
             "required": [
-              "text"
+              "x",
+              "y"
             ]
-          },
-          "questions": {
-            "type": "array",
-            "items": {
-              "oneOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "kind": {
-                      "type": "string",
-                      "enum": [
-                        "choice"
-                      ]
-                    },
-                    "field": {
-                      "type": "string",
-                      "pattern": "^[a-z][a-z0-9_]{0,31}$"
-                    },
-                    "prompt": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 600
-                    },
-                    "options": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "title": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 20
-                          }
-                        },
-                        "required": [
-                          "title"
-                        ]
-                      },
-                      "minItems": 1,
-                      "maxItems": 13
-                    }
-                  },
-                  "required": [
-                    "kind",
-                    "field",
-                    "prompt",
-                    "options"
-                  ]
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "kind": {
-                      "type": "string",
-                      "enum": [
-                        "text"
-                      ]
-                    },
-                    "field": {
-                      "type": "string",
-                      "pattern": "^[a-z][a-z0-9_]{0,31}$"
-                    },
-                    "prompt": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 600
-                    },
-                    "validate": {
-                      "type": "string",
-                      "enum": [
-                        "name",
-                        "phone",
-                        "email",
-                        "free"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "kind",
-                    "field",
-                    "prompt",
-                    "validate"
-                  ]
-                }
-              ]
-            },
-            "maxItems": 5,
-            "default": []
-          },
-          "finish": {
-            "type": "object",
-            "properties": {
-              "text": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 600
-              },
-              "whatsapp": {
-                "type": "object",
-                "properties": {
-                  "phone": {
-                    "type": "string",
-                    "pattern": "^\\d{10,15}$"
-                  },
-                  "message": {
-                    "type": "string",
-                    "maxLength": 500,
-                    "default": ""
-                  },
-                  "buttonTitle": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 20,
-                    "default": "Falar no WhatsApp"
-                  }
-                },
-                "required": [
-                  "phone"
-                ]
-              }
-            },
-            "required": [
-              "text"
-            ]
-          },
-          "disclosure": {
-            "type": "boolean",
-            "default": true
           }
         },
         "required": [
-          "trigger",
-          "opening",
-          "finish"
+          "kind",
+          "config"
         ]
       },
       "AutomationLead": {
@@ -1194,7 +2006,8 @@
               "COMPLETED",
               "FAILED",
               "UNCERTAIN",
-              "SKIPPED"
+              "SKIPPED",
+              "ABANDONED"
             ]
           },
           "step": {
@@ -5759,8 +6572,15 @@
                     "minLength": 1,
                     "maxLength": 80
                   },
-                  "config": {
-                    "$ref": "#/components/schemas/CommentAutomationConfig"
+                  "flow": {
+                    "$ref": "#/components/schemas/AutomationFlow"
+                  },
+                  "triggers": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/AutomationTriggerInput"
+                    },
+                    "maxItems": 1
                   },
                   "testUsernames": {
                     "type": "array",
@@ -5774,7 +6594,7 @@
                 "required": [
                   "channelId",
                   "name",
-                  "config"
+                  "flow"
                 ]
               }
             }
@@ -5863,7 +6683,8 @@
                 "COMPLETED",
                 "FAILED",
                 "UNCERTAIN",
-                "SKIPPED"
+                "SKIPPED",
+                "ABANDONED"
               ]
             },
             "required": false,
@@ -6032,7 +6853,7 @@
             "clerkAuth": []
           }
         ],
-        "summary": "Edita nome, configuração ou contas de teste",
+        "summary": "Edita nome, fluxo, gatilho ou contas de teste",
         "parameters": [
           {
             "schema": {
@@ -6056,8 +6877,15 @@
                     "minLength": 1,
                     "maxLength": 80
                   },
-                  "config": {
-                    "$ref": "#/components/schemas/CommentAutomationConfig"
+                  "flow": {
+                    "$ref": "#/components/schemas/AutomationFlow"
+                  },
+                  "triggers": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/AutomationTriggerInput"
+                    },
+                    "maxItems": 1
                   },
                   "testUsernames": {
                     "type": "array",

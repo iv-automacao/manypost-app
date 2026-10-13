@@ -10,6 +10,55 @@
 > **Como manter:** ao fechar uma fatia, adicione a onda nova **no topo** e atualize o STATUS.
 > Cada entrada é auto-contida: o que mudou, onde no código, e a prova de que funciona.
 
+## Onda 46 — 2026-10-13 — construtor de fluxo em canvas (entrega 1 de 5)
+
+- **O que mudou:** o formulário linear da automação virou um canvas de balões conectados, com o
+  motor percorrendo o fluxo como grafo. O roteiro tem 5 entregas; esta é a primeira e traz o canvas,
+  ramificação por botão, condição, link ou WhatsApp, pedir para seguir, simulador, desfazer e
+  refazer, Organizar e gatilho separado do fluxo (tabela própria). Decisões do Iago de 13/10/2026:
+  - **Seguir sem portão:** pedir para seguir é um bloco como outro, sem travar o fluxo.
+  - **Abertura em modo texto por padrão:** o Instagram recusa botões para quem não segue a conta.
+    O modo botão continua possível e gera o aviso `opening_button`, que não bloqueia.
+  - **Motor próprio:** o fluxo roda no manypost, não em workflows da Zernio.
+
+  Compatibilidade: a automação e as conversas do formato antigo seguem funcionando (a v1 é
+  convertida em memória, o payload `mp1:` continua aceito e a automação v1 sem linha de gatilho
+  cai para a configuração antiga). O motor novo renderiza `{campo}` e `{username}` em todas as
+  mensagens, não só na final. Execuções ganham o status `ABANDONED` e o erro
+  `automation.flow_invalid` (HTTP 400, `extra.problems`) bloqueia Teste/Ativa com fluxo inválido.
+- **Onde:**
+  - **Contratos:** `packages/contracts/src/automation-flow.ts` e `error-codes.ts`.
+  - **Core:** `packages/core/src/domain/automation/` (`flow-validate`, `flow-from-v1`,
+    `flow-step`) e `use-cases/comment-automation.ts`.
+  - **Banco:** migrations `0012_flow-builder` (tabela `automation_triggers`, colunas `node_id`,
+    `cursor`, `sent_cursor`) e `0013_flow-builder-backfill`.
+  - **Web:** `apps/web/src/features/automation/flow/` (lógica, histórico, canvas, simulador,
+    editor), com `@xyflow/react` e `@dagrejs/dagre`.
+  - **Fixtures:** `testdata/automation-flows/`.
+  - **Scripts:** `scripts/e2e-automation.ts` (cenário v2) e `scripts/diag-automation.ts`.
+  - **Docs:** [RUNBOOK_FLOW_BUILDER.md](RUNBOOK_FLOW_BUILDER.md).
+- **Prova:**
+  - **Equivalência:** a sequência dourada da v1 sai igual pelo grafo convertido.
+  - **Fixtures:** 15 compartilhadas entre o core e a web (paridade de validação e simulação).
+  - **Repositório:** testes de integração em Postgres real (33 em `packages/db`).
+  - **E2E** (`scripts/e2e-automation.ts`): cenário v1 intacto e cenário v2 com ramificação,
+    condição e pedir para seguir, com a Zernio falsa.
+  - **`bun run check:ci`:** 1806 passaram (eram 1705 na linha de base) e as únicas 2 falhas são as
+    já conhecidas de `catalog.test.ts` (espaço no caminho local). Typecheck, typecheck:web,
+    fronteiras, IA, marca, `db:check`, `build:web` e `spec:validate` (38 itens) verdes.
+  - **Revisão final do branch:** 4 pontos importantes corrigidos (desfazer após Delete, Salvar
+    bloqueado em Teste/Ativa com erro, aviso ao sair com edição, saída "Digitou outra coisa"
+    visível) mais os menores, com nova revisão aprovada.
+- **Pendente:**
+  - **Entregas 2 a 5** do roteiro.
+  - **Tarefa 9.3 (produção):** deploy pelo Iago e teste com o @ de teste.
+  - **Conferência no navegador:** não foi feita (login local via Clerk). Roteiro no runbook.
+  - **Conferir antes de migrar a automação ativa:** abertura e perguntas sem `{...}` literal.
+  - **Conhecido e adiado:**
+    - o tooltip do "seguir" desabilitado não aparece;
+    - voltar/avançar do navegador não passa pelo aviso de saída;
+    - o `whatsappUrl` do lead de fluxo ramificado usa o primeiro link do grafo.
+
 ## Onda 45 — 2026-10-12 — automação comentário → direct (ManyChat próprio)
 
 - **O que mudou:** fase 2 do engajamento do Instagram, com as decisões do Iago de 12/10:

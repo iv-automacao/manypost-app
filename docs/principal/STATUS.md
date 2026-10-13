@@ -10,6 +10,16 @@
 > **Como manter:** ao fechar uma fatia, atualize as seções abaixo **e** abra uma entrada nova no
 > topo do changelog. Este arquivo é sobre o presente; o changelog é sobre o passado.
 >
+> **Atualização — construtor de fluxo em canvas (2026-10-13, onda 46):** o editor de automação
+> agora é um canvas de balões (abertura, mensagem com botões, pergunta, condição, link ou WhatsApp,
+> pedir para seguir, fim), com simulador e gatilho separado do fluxo. O motor percorre o grafo; a
+> automação do formato antigo roda convertida. É a **entrega 1 de 5**. Provas: 1806 testes
+> passando, 15 fixtures compartilhadas entre core e web, sequência dourada da v1 igual no grafo
+> convertido e E2E v1 + v2. **Falta:** entregas 2 a 5, a tarefa 9.3 (deploy pelo Iago e teste em
+> produção com o @ de teste) e a conferência no navegador, que não foi feita (login via Clerk).
+> Roteiro e rollout em [RUNBOOK_FLOW_BUILDER.md](RUNBOOK_FLOW_BUILDER.md). Mudança
+> `add-flow-builder-canvas`.
+>
 > **Atualização — automação comentário → direct (2026-10-12, onda 45):** telas `/automacoes`
 > (construtor com pré-visualização) e `/leads`. A Zernio entrega comentários e mensagens por webhook
 > assinado; o motor responde em público e no direct, faz as perguntas, encerra com o botão do

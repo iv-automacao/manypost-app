@@ -57,7 +57,7 @@ export const ErrorCodes = {
   /** o serviço de arte recusou a entrada (imagem ilegível, clipe acima do limite) */
   ContentInvalidInput: 'content.invalid_input',
   // automação
-  /** o fluxo tem problemas que impedem Teste/Ativa — detail: { problems } */
+  /** o fluxo tem problemas que impedem Teste/Ativa — detail.problems no DomainError; extra.problems no corpo HTTP */
   AutomationFlowInvalid: 'automation.flow_invalid',
   // genéricos
   /** entrada fora da regra de domínio (mesmo title do 400 de validação Zod) */

@@ -8,6 +8,9 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
 
 ### Added
 
+- **Construtor de fluxo em canvas para automações do Instagram (`add-flow-builder-canvas`).** Balões
+  conectados, ramificação por botão, condição, pedir para seguir, simulador e gatilho separado do
+  fluxo. Entrega 1 de 5; runbook em `docs/principal/RUNBOOK_FLOW_BUILDER.md`.
 - **Automação comentário → direct (`add-comment-automation`).** Um ManyChat próprio no manypost.
   - **Telas:** **Automações** (lista e construtor com pré-visualização da conversa) e **Leads**.
   - **Construtor:**
@@ -215,6 +218,8 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
 
 ### Changed
 
+- **O motor da automação percorre o fluxo em grafo.** Automações e conversas do formato antigo
+  continuam funcionando.
 - **Todo log estruturado sai por um helper único por fronteira.** `packages/queue/src/log.ts`
   cobre o runtime de filas, os três adapters Redis e o boot do worker; `apps/api/src/log.ts`
   cobre migrations/boot (o banner virou linha estruturada com modo/porta/hosts),

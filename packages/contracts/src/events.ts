@@ -6,6 +6,8 @@ export const WebhookEvents = {
   ChannelRefreshRequired: 'channel.refresh_required',
   ChannelDisconnected: 'channel.disconnected',
   MentionReceived: 'mention.received', // fase 2
+  // lead completo de uma automação comentário → direct (add-comment-automation)
+  LeadCaptured: 'lead.captured',
 } as const;
 
 export type WebhookEvent = (typeof WebhookEvents)[keyof typeof WebhookEvents];

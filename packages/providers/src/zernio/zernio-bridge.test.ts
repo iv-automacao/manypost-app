@@ -202,3 +202,84 @@ describe('comentários', () => {
     expect(JSON.parse(err.body)).toEqual({ error: { message: 'Inbox addon required' } });
   });
 });
+
+describe('accountById', () => {
+  test('devolve id na rede e username da conta Instagram pelo id da Zernio', async () => {
+    const { bridge } = harness([accountsRoute]);
+    expect(await bridge.accountById('zig')).toEqual({ platformUserId: '17841', username: 'InvistaSeguros.br' });
+    expect(await bridge.accountById('zfb')).toBeNull();
+    expect(await bridge.accountById('nada')).toBeNull();
+  });
+});
+
+describe('direct (add-comment-automation)', () => {
+  const direct = async (routes: Route[]) => {
+    const h = harness([accountsRoute, ...routes]);
+    const t = await h.bridge.directFor({ platformUserId: '17841' });
+    if (!t) throw new Error('ponte não resolveu');
+    return { ...h, t };
+  };
+
+  test('resposta privada com botões postback e de link', async () => {
+    const { t, calls } = await direct([
+      (c) =>
+        c.url.pathname === '/api/v1/inbox/comments/1801/501/private-reply'
+          ? json({ status: 'ok', messageId: 'm-1' })
+          : undefined,
+    ]);
+    const out = await t.privateReply('1801', '501', {
+      text: 'Oi!',
+      buttons: [
+        { title: 'Quero!', payload: 'mp1:r:o:0' },
+        { title: 'Site', url: 'https://invista.com.br' },
+      ],
+    });
+    expect(out).toEqual({ messageId: 'm-1' });
+    expect(calls.at(-1)?.body).toEqual({
+      accountId: 'zig',
+      message: 'Oi!',
+      buttons: [
+        { type: 'postback', title: 'Quero!', payload: 'mp1:r:o:0' },
+        { type: 'url', title: 'Site', url: 'https://invista.com.br' },
+      ],
+    });
+  });
+
+  test('resposta privada já gasta → permanente com consumed', async () => {
+    const { t } = await direct([
+      () => json({ error: 'A private reply has already been sent', details: { privateReplyConsumed: true } }, 400),
+    ]);
+    const err = (await t.privateReply('1801', '501', { text: 'x' }).catch((e: unknown) => e)) as ProviderFailure & {
+      consumed?: boolean;
+    };
+    expect(err.errorClass).toBe('permanent');
+    expect(err.consumed).toBe(true);
+  });
+
+  test('502 da resposta privada → incerto', async () => {
+    const { t } = await direct([() => json({ error: 'Meta did not confirm', details: { privateReplyOutcome: 'unknown' } }, 502)]);
+    const err = (await t.privateReply('1801', '501', { text: 'x' }).catch((e: unknown) => e)) as { uncertain?: boolean };
+    expect(err.uncertain).toBe(true);
+  });
+
+  test('mensagem na conversa com Idempotency-Key e respostas rápidas', async () => {
+    const { t, calls } = await direct([
+      (c) =>
+        c.url.pathname === '/api/v1/inbox/conversations/conv-1/messages'
+          ? json({ success: true, data: { messageId: 'm-2', conversationId: 'conv-1' } })
+          : undefined,
+    ]);
+    const out = await t.sendMessage(
+      'conv-1',
+      { text: 'Qual plano?', quickReplies: [{ title: 'Saúde', payload: 'mp1:r:0:0' }] },
+      'run-1:0:0',
+    );
+    expect(out).toEqual({ messageId: 'm-2' });
+    expect(calls.at(-1)?.headers.get('idempotency-key')).toBe('run-1:0:0');
+    expect(calls.at(-1)?.body).toEqual({
+      accountId: 'zig',
+      message: 'Qual plano?',
+      quickReplies: [{ title: 'Saúde', payload: 'mp1:r:0:0' }],
+    });
+  });
+});

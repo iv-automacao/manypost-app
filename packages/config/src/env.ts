@@ -108,6 +108,9 @@ const EnvSchema = z
     // o Instagram conectado + ids das organizações autorizadas (vírgula). Só liga com as duas.
     ZERNIO_API_KEY: z.string().optional(),
     ZERNIO_ORG_IDS: z.string().optional(),
+    // segredo do webhook da Zernio (HMAC de comentários/mensagens → automação comentário → direct);
+    // sem ele a rota pública responde 404 (add-comment-automation)
+    ZERNIO_WEBHOOK_SECRET: z.string().min(32).optional(),
     // Streaming — publicam no chat ao vivo, não em feed.
     TWITCH_CLIENT_ID: z.string().optional(),
     TWITCH_CLIENT_SECRET: z.string().optional(),

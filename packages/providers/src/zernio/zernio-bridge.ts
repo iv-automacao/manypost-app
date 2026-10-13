@@ -1,5 +1,7 @@
 import type {
   CommentTransport,
+  DirectMessage,
+  DirectTransport,
   EngagementComment,
   ErrorClass,
   ProviderContext,
@@ -14,6 +16,10 @@ import type {
  * até o App Review sair. Endpoints da documentação pública (docs.zernio.com, OpenAPI v1.262):
  * `GET /v1/accounts`, `GET|POST /v1/inbox/comments/{postId}`,
  * `POST|DELETE /v1/inbox/comments/{postId}/{commentId}/hide`.
+ *
+ * Direct (change add-comment-automation): `POST /v1/inbox/comments/{postId}/{commentId}/private-reply`
+ * (uma por comentário, sem chave de idempotência) e `POST /v1/inbox/conversations/{id}/messages`
+ * (com `Idempotency-Key`, guardada 24 h pela Zernio).
  */
 
 const DEFAULT_BASE = 'https://zernio.com/api/v1';
@@ -59,12 +65,19 @@ function classify(status: number): ErrorClass {
   return 'permanent';
 }
 
-/** falha no formato que o caso de uso já sabe sanear (`error.message`) */
-async function failure(res: Response): Promise<ProviderFailure> {
+type BridgeFailure = ProviderFailure & { consumed?: boolean; uncertain?: boolean };
+
+/**
+ * falha no formato que o caso de uso já sabe sanear (`error.message`); `consumed`/`uncertain` vêm
+ * dos `details` da resposta privada (`privateReplyConsumed`, `privateReplyOutcome: "unknown"`)
+ */
+async function failure(res: Response): Promise<BridgeFailure> {
   const raw = await res.text().catch(() => '');
   let message = '';
+  let details: { privateReplyConsumed?: unknown; privateReplyOutcome?: unknown } = {};
   try {
-    const parsed = JSON.parse(raw) as { error?: unknown; message?: unknown };
+    const parsed = JSON.parse(raw) as { error?: unknown; message?: unknown; details?: typeof details };
+    if (parsed.details && typeof parsed.details === 'object') details = parsed.details;
     const e = parsed.error ?? parsed.message;
     if (typeof e === 'string') message = e;
     else if (e && typeof e === 'object' && typeof (e as { message?: unknown }).message === 'string') {
@@ -76,7 +89,25 @@ async function failure(res: Response): Promise<ProviderFailure> {
   return {
     status: res.status,
     body: JSON.stringify({ error: { message: message || `zernio respondeu ${res.status}` } }),
-    errorClass: classify(res.status),
+    errorClass: details.privateReplyConsumed === true ? 'permanent' : classify(res.status),
+    ...(details.privateReplyConsumed === true ? { consumed: true } : {}),
+    ...(details.privateReplyOutcome === 'unknown' ? { uncertain: true } : {}),
+  };
+}
+
+/** corpo de mensagem da Zernio: botões viram postback/url; respostas rápidas passam direto */
+function messageBody(accountId: string, msg: DirectMessage) {
+  return {
+    accountId,
+    message: msg.text,
+    ...(msg.buttons?.length
+      ? {
+          buttons: msg.buttons.map((b) =>
+            b.url ? { type: 'url', title: b.title, url: b.url } : { type: 'postback', title: b.title, payload: b.payload ?? '' },
+          ),
+        }
+      : {}),
+    ...(msg.quickReplies?.length ? { quickReplies: msg.quickReplies } : {}),
   };
 }
 
@@ -99,7 +130,11 @@ export function makeZernioBridge(deps: ZernioBridgeDeps) {
   const now = deps.now ?? (() => new Date());
   let cache: { at: number; accounts: ZernioAccount[] } | null = null;
 
-  async function call(method: string, path: string, init: { query?: Record<string, string>; body?: unknown } = {}) {
+  async function call(
+    method: string,
+    path: string,
+    init: { query?: Record<string, string>; body?: unknown; headers?: Record<string, string> } = {},
+  ) {
     const url = new URL(`${base}${path}`);
     for (const [k, v] of Object.entries(init.query ?? {})) url.searchParams.set(k, v);
     const res = await deps.fetch(url, {
@@ -108,6 +143,7 @@ export function makeZernioBridge(deps: ZernioBridgeDeps) {
         authorization: `Bearer ${deps.apiKey}`,
         accept: 'application/json',
         ...(init.body ? { 'content-type': 'application/json' } : {}),
+        ...init.headers,
       },
       ...(init.body ? { body: JSON.stringify(init.body) } : {}),
     });
@@ -126,7 +162,7 @@ export function makeZernioBridge(deps: ZernioBridgeDeps) {
     return accounts;
   }
 
-  function transport(accountId: string): CommentTransport {
+  function transport(accountId: string): CommentTransport & DirectTransport {
     const enc = encodeURIComponent;
     return {
       id: 'zernio',
@@ -157,12 +193,52 @@ export function makeZernioBridge(deps: ZernioBridgeDeps) {
         if (hidden) await call('POST', path, { body: { accountId } });
         else await call('DELETE', path, { query: { accountId } });
       },
+      async privateReply(mediaId, commentId, msg) {
+        const out = (await call('POST', `/inbox/comments/${enc(mediaId)}/${enc(commentId)}/private-reply`, {
+          body: messageBody(accountId, msg),
+        })) as { messageId?: string };
+        return { messageId: out.messageId ?? null };
+      },
+      async sendMessage(conversationId, msg, idempotencyKey) {
+        const out = (await call('POST', `/inbox/conversations/${enc(conversationId)}/messages`, {
+          body: messageBody(accountId, msg),
+          headers: { 'idempotency-key': idempotencyKey },
+        })) as { data?: { messageId?: string } };
+        return { messageId: out.data?.messageId ?? null };
+      },
     };
+  }
+
+  /** id da conta na Zernio para a conta do canal, ou `null` (chave não enxerga / Zernio falhou) */
+  async function resolve(ref: ZernioAccountRef): Promise<string | null> {
+    let accounts: ZernioAccount[];
+    try {
+      accounts = await instagramAccounts();
+    } catch (e) {
+      const status = typeof (e as ProviderFailure)?.status === 'number' ? (e as ProviderFailure).status : null;
+      deps.log('warn', 'zernio.accounts.failed', { status });
+      return null;
+    }
+    const active = accounts.filter((a) => a.isActive !== false);
+    const byId = ref.platformUserId ? active.find((a) => a.platformUserId === ref.platformUserId) : undefined;
+    const uname = ref.username?.toLowerCase();
+    const found = byId ?? (uname ? active.find((a) => a.username?.toLowerCase() === uname) : undefined);
+    return found?._id ?? null;
   }
 
   return {
     /** ponte para a conta, ou `null` quando a chave não enxerga a conta (ou a Zernio falhou) */
     async forAccount(ref: ZernioAccountRef): Promise<CommentTransport | null> {
+      const id = await resolve(ref);
+      return id ? transport(id) : null;
+    },
+    /** envio no direct (resposta privada + mensagem na conversa) para a conta do canal */
+    async directFor(ref: ZernioAccountRef): Promise<DirectTransport | null> {
+      const id = await resolve(ref);
+      return id ? transport(id) : null;
+    },
+    /** conta Instagram de um evento do webhook (`account.accountId`) → identidade na rede */
+    async accountById(zernioAccountId: string): Promise<{ platformUserId: string | null; username: string | null } | null> {
       let accounts: ZernioAccount[];
       try {
         accounts = await instagramAccounts();
@@ -171,11 +247,8 @@ export function makeZernioBridge(deps: ZernioBridgeDeps) {
         deps.log('warn', 'zernio.accounts.failed', { status });
         return null;
       }
-      const active = accounts.filter((a) => a.isActive !== false);
-      const byId = ref.platformUserId ? active.find((a) => a.platformUserId === ref.platformUserId) : undefined;
-      const uname = ref.username?.toLowerCase();
-      const found = byId ?? (uname ? active.find((a) => a.username?.toLowerCase() === uname) : undefined);
-      return found ? transport(found._id) : null;
+      const a = accounts.find((x) => x._id === zernioAccountId);
+      return a ? { platformUserId: a.platformUserId ?? null, username: a.username ?? null } : null;
     },
   };
 }

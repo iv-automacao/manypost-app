@@ -78,6 +78,13 @@
       "when": 1790694720855,
       "tag": "0010_content-reels-video",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791851044778,
+      "tag": "0011_comment-automation",
+      "breakpoints": true
     }
   ]
 }

@@ -14,7 +14,9 @@
 > agora é um canvas de balões (abertura, mensagem com botões, pergunta, condição, link ou WhatsApp,
 > pedir para seguir, fim), com simulador e gatilho separado do fluxo. O motor percorre o grafo; a
 > automação do formato antigo roda convertida. É a **entrega 1 de 5**. Provas: 1806 testes
-> passando, 15 fixtures compartilhadas entre core e web, sequência dourada da v1 igual no grafo
+> passando (localmente `check:ci` tem 2 falhas conhecidas em `catalog.test.ts`, por o caminho local ter
+> espaços; no CI passam, e os demais passos — typecheck, typecheck:web, fronteiras, ai-providers,
+> brand, `db:check`, `build:web`, `spec:validate` — estão verdes), 15 fixtures compartilhadas entre core e web, sequência dourada da v1 igual no grafo
 > convertido e E2E v1 + v2. **Falta:** entregas 2 a 5, a tarefa 9.3 (deploy pelo Iago e teste em
 > produção com o @ de teste) e a conferência no navegador, que não foi feita (login via Clerk).
 > Roteiro e rollout em [RUNBOOK_FLOW_BUILDER.md](RUNBOOK_FLOW_BUILDER.md). Mudança

@@ -69,7 +69,7 @@
 - [x] 7.4 Simulador (painel, "Testar daqui") e barra superior (Salvar, Ativar com confirmação, aviso ao salvar automação Ativa)
 - [x] 7.5 Somente leitura abaixo de 768 px; i18n; import dinâmico do editor; CSS do React Flow sem sombra; `bun run check:brand`
 - [x] 7.6 Remover o formulário v1 (`builder-view.tsx`, `conversation-preview.tsx`) e os testes dele que não valem mais
-- [ ] 7.7 `bun run check` e `bun run build:web` (a montagem no navegador virou o roteiro "Conferência no navegador" do runbook, a cargo do Iago: o login local é via Clerk)
+- [ ] 7.7 `bun run check` e `bun run build:web`; montar no navegador um fluxo com ramificação, condição e pedir para seguir no fim, e simular (roteiro do Iago no RUNBOOK_FLOW_BUILDER)
 
 ## 8. E2E e operação
 

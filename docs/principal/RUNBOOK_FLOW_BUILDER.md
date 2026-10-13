@@ -5,7 +5,14 @@
 Entrega 1 de 5. Mudança OpenSpec: `openspec/changes/add-flow-builder-canvas/`.
 
 ## Antes do deploy
-- `bun run check:ci` verde na `maquina`.
+- CI verde na `maquina` (ou, localmente, só as 2 falhas conhecidas de
+  `apps/web/src/features/search/catalog.test.ts`: o caminho local tem espaços, e no CI, sem espaços,
+  elas passam). Todos os outros passos têm de estar verdes: typecheck, typecheck:web, fronteiras,
+  ai-providers, brand, `db:check`, `build:web` e `spec:validate`.
+- Conferir os textos da abertura e das perguntas da automação ativa: não pode haver `{...}`
+  literal. Logo após o deploy a automação ativa já roda no motor novo, que renderiza `{campo}` e
+  `{username}` em todas as mensagens (a v1 só fazia isso na final); um `{x}` literal sumiria ou
+  seria trocado.
 - Nenhuma automação ou workflow da Zernio ativo na conta (eles respondem antes do manypost).
 - Conferir a conferência no navegador (seção abaixo). Ela não foi feita pelo autor: o login local
   é via Clerk (serviço externo) e não deu para automatizar.
@@ -25,16 +32,15 @@ Entrega 1 de 5. Mudança OpenSpec: `openspec/changes/add-flow-builder-canvas/`.
    seguir, fim). Conferir o lead em /leads e o `lead.captured` no n8n.
 
 ## Migrar a automação ativa
-1. Antes de abrir no canvas, conferir os textos da abertura e das perguntas da automação ativa:
-   não pode haver `{...}` literal. O motor novo renderiza `{campo}` e `{username}` em todas as
-   mensagens (a v1 só fazia isso na mensagem final), então um `{x}` literal sumiria ou seria
-   trocado.
-2. Abrir a automação ativa no canvas. Ela aparece convertida, com o aviso de abertura em botão.
-3. Trocar a abertura para "Pedir para responder" (quem não segue a conta passa a receber).
-4. Salvar. A partir daqui ela é v2.
+1. Abrir a automação ativa no canvas. Ela aparece convertida, com o aviso de abertura em botão.
+2. Trocar a abertura para "Pedir para responder" (quem não segue a conta passa a receber).
+3. Salvar. A partir daqui ela é v2.
 
 ## Voltar atrás
-- Antes do passo "Migrar a automação ativa": voltar o deploy anterior no Easypanel é seguro.
+- Voltar o deploy anterior só é seguro enquanto a automação **ativa** não foi salva no canvas
+  (passo "Migrar a automação ativa"). Antes de voltar, pausar ou apagar as automações de teste
+  criadas no canvas: o código antigo ignora uma automação v2 (falha no parse da config antiga e ela
+  é pulada, sem erro e sem disparar), mas ela aparece como "configuração inválida" na lista antiga.
   Conversas que começaram no código novo e estavam no meio podem repetir uma pergunta.
 - Depois: não voltar o deploy (o código antigo não lê v2). Pausar a automação, corrigir e
   publicar de novo.

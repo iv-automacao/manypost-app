@@ -92,7 +92,10 @@ export function triggerFromV1(cfg: CommentAutomationConfig): CommentTriggerConfi
 export function nodeForV1Step(flow: FlowV2, step: number): string {
   if (step < 0) return 'opening';
   const id = `q${step}`;
-  return flow.nodes.some((n) => n.id === id) ? id : 'finish';
+  if (flow.nodes.some((n) => n.id === id)) return id;
+  // pergunta apagada no canvas (existe uma posterior): devolve o id inexistente e o motor abandona a execução
+  const later = flow.nodes.some((n) => /^q\d+$/.test(n.id) && Number(n.id.slice(1)) > step);
+  return later ? id : 'finish';
 }
 
 /** botão `mp1:<run>:<passo>:<opção>` → (nó, saída) do grafo convertido */

@@ -353,6 +353,9 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
     const ctx = () => ({ runId: run.id, answers: run.answers, username: run.participantUsername });
 
     if (run.status === 'OPEN') {
+      // execução criada pelo motor v1 reentregue pelo comentário também ganha o nó equivalente
+      run = await adoptLegacyRun(run, flow);
+
       // 1. resposta pública (não crítica: falhou, segue)
       if (run.publicReply === 'PENDING') {
         const reply = publicReplies.length
@@ -530,6 +533,13 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
       return 'abandoned';
     }
 
+    // a mensagem do nó atual ainda não saiu (retentativa): a pessoa não está respondendo a ela
+    if (run.sentCursor < run.cursor) {
+      run = await patch(run, base);
+      await drive(bound, automation, loaded, publicReplies, run);
+      return 'duplicate';
+    }
+
     const tap =
       v2 && v2.runId === run.id
         ? { nodeId: v2.nodeId, handle: v2.handle }
@@ -556,8 +566,8 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
         ? await patch(run, { ...base, answers, nodeId: to, cursor: run.cursor + 1, reasks: 0 })
         : await patch(run, { ...base, answers, status: 'ABANDONED', lastError: `saída sem ligação: ${node.id}.${d.handle}` });
     }
-    await drive(bound, automation, loaded, publicReplies, run);
-    return 'advanced';
+    run = await drive(bound, automation, loaded, publicReplies, run);
+    return run.status === 'ABANDONED' ? 'abandoned' : 'advanced';
   }
 
   return {

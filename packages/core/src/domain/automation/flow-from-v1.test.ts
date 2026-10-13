@@ -58,6 +58,10 @@ describe('flowFromV1', () => {
     expect(triggerFromV1(V1)).toEqual({ mediaIds: ['1801'], keywords: ['plano'], publicReplies: ['Resposta pública'] });
     const f = flowFromV1(V1);
     expect([-1, 0, 2, 3].map((s) => nodeForV1Step(f, s))).toEqual(['opening', 'q0', 'q2', 'finish']);
+    // pergunta do meio apagada: não pula para o fim
+    const sem = { ...f, nodes: f.nodes.filter((n) => n.id !== 'q1') };
+    expect(nodeForV1Step(sem, 1)).toBe('q1');
+    expect(nodeForV1Step(sem, 3)).toBe('finish');
     expect(tapFromV1(-1, 0)).toEqual({ nodeId: 'opening', handle: 'next' });
     expect(tapFromV1(1, 3)).toEqual({ nodeId: 'q1', handle: 'o3' });
   });

@@ -733,3 +733,48 @@ describe('fluxo v2', () => {
     expect(h.sent.filter((s) => s.op === 'send').length).toBeLessThanOrEqual(21);
   });
 });
+
+describe('retentativa e reentrega (resumabilidade)', () => {
+  test('v1: re-ask cujo envio falhou não aceita o mesmo texto na retentativa', async () => {
+    const h = harness({ sendErrors: [undefined, undefined, { status: 503, body: '{}', errorClass: 'transient' }] });
+    await h.seedAutomation();
+    await h.deliver(h.comment());
+    await h.deliver(tocar(h, 'Quero!'));
+    await h.deliver(tocar(h, 'Vida'));
+    const ev = await h.engine.ingest({ eventId: 'z-ns', eventType: 'message', payload: h.message({ text: 'não sei' }) });
+    const id = (ev as { id: string }).id;
+    await expect(h.engine.process(id)).rejects.toThrow();
+    await h.engine.process(id);
+    expect(h.sent.filter((s) => s.msg?.text === 'Seu WhatsApp?')).toHaveLength(2);
+    expect(h.runs[0]!.status).toBe('OPEN');
+    expect(h.runs[0]!.answers).toEqual({ plano: 'Vida' });
+    expect(h.runs[0]).toMatchObject({ nodeId: 'q1', reasks: 1 });
+  });
+
+  test('v2: resposta que avançou e cujo envio seguinte falhou não vira resposta do nó seguinte', async () => {
+    const h = harness({ sendErrors: [undefined, { status: 503, body: '{}', errorClass: 'transient' }] });
+    await h.seedAutomation(FLOW, ['iagovieira.ia'], TRIGGER);
+    await h.deliver(h.comment({ text: 'quero o PLANO' }));
+    await h.deliver(h.message({ text: 'oi' }));
+    const ev = await h.engine.ingest({ eventId: 'z-pf', eventType: 'message', payload: h.message({ text: 'Pessoa física' }) });
+    const id = (ev as { id: string }).id;
+    await expect(h.engine.process(id)).rejects.toThrow();
+    await h.engine.process(id);
+    expect(h.sent.filter((s) => s.msg?.text === 'Seu nome?')).toHaveLength(1);
+    expect(h.runs[0]!.status).toBe('OPEN');
+    expect(h.runs[0]!.answers).toEqual({ tipo: 'Pessoa física' });
+    expect(h.runs[0]!.nodeId).toBe('nome');
+  });
+
+  test('execução v1 em andamento sobrevive à reentrega do comentário', async () => {
+    const h = harness();
+    await h.seedAutomation();
+    await h.deliver(h.comment());
+    Object.assign(h.runs[0]!, { nodeId: null, cursor: 0, sentCursor: -1, step: 0, promptSentStep: 0, conversationId: 'conv-1' });
+    const antes = h.sent.length;
+    expect(await h.deliver(h.comment())).toBe('run');
+    expect(h.runs).toHaveLength(1);
+    expect(h.runs[0]).toMatchObject({ status: 'OPEN', nodeId: 'q0' });
+    expect(h.sent.length).toBe(antes);
+  });
+});

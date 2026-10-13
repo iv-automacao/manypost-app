@@ -520,34 +520,75 @@ describe('CRUD', () => {
     return { svc, audit, mem };
   }
   const ATOR = { type: 'USER' as const, id: 'u-1' };
+  const SOLTO = { ...FLOW, edges: FLOW.edges.filter((x) => !(x.source === 'tipo' && x.sourceHandle === 'pf')) };
 
-  test('cria em rascunho com config normalizada e audita', async () => {
-    const { svc, audit } = crud();
-    const a = await svc.create({ orgId: ORG, actor: ATOR, channelId: CH, name: ' Cotação ', config: CONFIG });
-    expect(a).toMatchObject({ name: 'Cotação', status: 'DRAFT' });
-    expect(a.config?.opening.mode).toBe('button');
+  test('cria em rascunho com fluxo normalizado, gatilho e auditoria', async () => {
+    const { svc, audit, mem } = crud();
+    const a = await svc.create({ orgId: ORG, actor: ATOR, channelId: CH, name: ' Cotação ', flow: FLOW, triggers: TRIGGER });
+    expect(a).toMatchObject({ name: 'Cotação', status: 'DRAFT', problems: [] });
+    expect(a.flow?.nodes[0]).toMatchObject({ data: { mode: 'text', disclosure: true } });
+    expect(a.triggers).toEqual([{ id: expect.any(String), kind: 'comment', config: { mediaIds: [], keywords: ['plano'], publicReplies: [] }, position: null }]);
+    expect(mem.triggers).toHaveLength(1);
     expect(audit[0]).toMatchObject({ action: 'automation.created', targetId: a.id });
+  });
+
+  test('automação v1 é lida como grafo, com o gatilho da config', async () => {
+    const { svc, mem } = crud();
+    const raw = await mem.repo.create({ orgId: ORG, channelId: CH, name: 'v1', status: 'ACTIVE', config: CONFIG, testUsernames: [], createdBy: null });
+    const v = await svc.get(ORG, raw.id);
+    expect(v.flow?.nodes.map((n) => n.id)).toEqual(['opening', 'q0', 'q1', 'finish', 'end']);
+    expect(v.triggers).toEqual([{ id: null, kind: 'comment', config: { mediaIds: [], keywords: ['cotação'], publicReplies: ['Te chamei no direct!'] }, position: null }]);
+    expect(v.problems.map((p) => p.code)).toEqual(['opening_button']);
   });
 
   test('canal de outra org → not_found; canal que não é Instagram → capability.disabled', async () => {
     const { svc } = crud([canal(), canal({ id: 'ch-x', provider: 'linkedin' })]);
-    const e1 = await svc.create({ orgId: 'org-2', actor: ATOR, channelId: CH, name: 'x', config: CONFIG }).catch((e) => e);
+    const e1 = await svc.create({ orgId: 'org-2', actor: ATOR, channelId: CH, name: 'x', flow: FLOW }).catch((e) => e);
     expect((e1 as DomainError).code).toBe('common.not_found');
-    const e2 = await svc.create({ orgId: ORG, actor: ATOR, channelId: 'ch-x', name: 'x', config: CONFIG }).catch((e) => e);
+    const e2 = await svc.create({ orgId: ORG, actor: ATOR, channelId: 'ch-x', name: 'x', flow: FLOW }).catch((e) => e);
     expect((e2 as DomainError).code).toBe('capability.disabled');
   });
 
-  test('config inválida → 400 com os campos', async () => {
+  test('fluxo fora do formato → validation.invalid_request com os campos', async () => {
     const { svc } = crud();
-    const bad = { ...CONFIG, opening: { text: 'x', buttonTitle: 'um título grande demais aqui' } };
-    const e = await svc.create({ orgId: ORG, actor: ATOR, channelId: CH, name: 'x', config: bad }).catch((err) => err);
+    const bad = { ...FLOW, nodes: [{ ...FLOW.nodes[0], data: { text: 'x', buttonTitle: 'um título grande demais aqui' } }] };
+    const e = await svc.create({ orgId: ORG, actor: ATOR, channelId: CH, name: 'x', flow: bad }).catch((err) => err);
     expect((e as DomainError).code).toBe('validation.invalid_request');
-    expect(JSON.stringify((e as DomainError).detail)).toContain('opening.buttonTitle');
+    expect(JSON.stringify((e as DomainError).detail)).toContain('buttonTitle');
+  });
+
+  test('rascunho salva com problema; Teste/Ativa com problema → automation.flow_invalid', async () => {
+    const { svc } = crud();
+    const a = await svc.create({ orgId: ORG, actor: ATOR, channelId: CH, name: 'x', flow: SOLTO, triggers: TRIGGER, testUsernames: ['iagovieira.ia'] });
+    expect(a.problems).toContainEqual({ code: 'missing_edge', severity: 'error', nodeId: 'tipo', handle: 'pf' });
+    const e = await svc.setStatus({ orgId: ORG, id: a.id, actor: ATOR, status: 'TEST' }).catch((err) => err);
+    expect((e as DomainError).code).toBe('automation.flow_invalid');
+    expect((e as DomainError).detail?.problems).toBeArray();
+    await svc.update({ orgId: ORG, id: a.id, actor: ATOR, flow: FLOW });
+    expect((await svc.setStatus({ orgId: ORG, id: a.id, actor: ATOR, status: 'TEST' })).status).toBe('TEST');
+    const e2 = await svc.update({ orgId: ORG, id: a.id, actor: ATOR, flow: SOLTO }).catch((err) => err);
+    expect((e2 as DomainError).code).toBe('automation.flow_invalid');
+  });
+
+  test('Teste/Ativa exigem gatilho', async () => {
+    const { svc } = crud();
+    const a = await svc.create({ orgId: ORG, actor: ATOR, channelId: CH, name: 'x', flow: FLOW, testUsernames: ['iagovieira.ia'] });
+    const e = await svc.setStatus({ orgId: ORG, id: a.id, actor: ATOR, status: 'TEST' }).catch((err) => err);
+    expect((e as DomainError).code).toBe('validation.invalid_request');
+  });
+
+  test('aviso não bloqueia ativação', async () => {
+    const { svc } = crud();
+    const comBotao = { ...FLOW, nodes: [{ ...FLOW.nodes[0], data: { text: 'Oi!', mode: 'button' } }, ...FLOW.nodes.slice(1)] };
+    const a = await svc.create({ orgId: ORG, actor: ATOR, channelId: CH, name: 'x', flow: comBotao, triggers: TRIGGER });
+    const v = await svc.setStatus({ orgId: ORG, id: a.id, actor: ATOR, status: 'ACTIVE' });
+    expect(v.status).toBe('ACTIVE');
+    expect(v.problems).toEqual([{ code: 'opening_button', severity: 'warning', nodeId: 'opening' }]);
   });
 
   test('modo teste exige conta de teste; usernames normalizados', async () => {
     const { svc } = crud();
-    const a = await svc.create({ orgId: ORG, actor: ATOR, channelId: CH, name: 'x', config: CONFIG });
+    const a = await svc.create({ orgId: ORG, actor: ATOR, channelId: CH, name: 'x', flow: FLOW, triggers: TRIGGER });
     const e = await svc.setStatus({ orgId: ORG, id: a.id, actor: ATOR, status: 'TEST' }).catch((err) => err);
     expect((e as DomainError).code).toBe('validation.invalid_request');
     await svc.update({ orgId: ORG, id: a.id, actor: ATOR, testUsernames: ['@IagoVieira.IA'] });
@@ -557,11 +598,10 @@ describe('CRUD', () => {
 
   test('automação de outra org não é lida nem alterada', async () => {
     const { svc } = crud();
-    const a = await svc.create({ orgId: ORG, actor: ATOR, channelId: CH, name: 'x', config: CONFIG });
+    const a = await svc.create({ orgId: ORG, actor: ATOR, channelId: CH, name: 'x', flow: FLOW });
     expect(((await svc.get('org-2', a.id).catch((e) => e)) as DomainError).code).toBe('common.not_found');
-    expect(((await svc.remove({ orgId: 'org-2', id: a.id, actor: ATOR }).catch((e) => e)) as DomainError).code).toBe(
-      'common.not_found',
-    );
+    expect(((await svc.update({ orgId: 'org-2', id: a.id, actor: ATOR, name: 'y' }).catch((e) => e)) as DomainError).code).toBe('common.not_found');
+    expect(((await svc.remove({ orgId: 'org-2', id: a.id, actor: ATOR }).catch((e) => e)) as DomainError).code).toBe('common.not_found');
   });
 });
 

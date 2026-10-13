@@ -7,6 +7,7 @@ import type {
   CommentTriggerConfig,
   DirectMessage,
   DirectTransport,
+  FlowProblem,
   FlowV2,
   InboundCommentEvent,
   InboundMessageEvent,
@@ -14,11 +15,13 @@ import type {
 } from '@manypost/contracts';
 import {
   AnyAutomationConfigSchema,
-  CommentAutomationConfigSchema,
   CommentTriggerConfigSchema,
   ErrorCodes,
+  FlowTriggerInputSchema,
+  FlowV2Schema,
   WebhookEvents,
 } from '@manypost/contracts';
+import { z } from 'zod';
 import { decodePayload, matchesCommentTrigger } from '../../domain/automation/automation-logic';
 import { flowFromV1, nodeForV1Step, tapFromV1, triggerFromV1 } from '../../domain/automation/flow-from-v1';
 import { nodeById, openingOf, targetOf, waits } from '../../domain/automation/flow-graph';
@@ -30,6 +33,7 @@ import {
   leadWhatsappUrl,
   messageFor,
 } from '../../domain/automation/flow-step';
+import { hasErrors, validateFlow } from '../../domain/automation/flow-validate';
 import { DomainError } from '../../domain/shared/result';
 import type { AuditLogRepository } from '../ports/approvals';
 import type {
@@ -38,6 +42,7 @@ import type {
   AutomationRepository,
   AutomationRunPatch,
   AutomationRunRecord,
+  AutomationTriggerInput,
   AutomationTriggerRecord,
 } from '../ports/automation';
 import type { EventPublisher } from '../ports/events';
@@ -58,181 +63,6 @@ export const AUTOMATION_EVENT_QUEUE = 'automation-event';
 export const AUTOMATION_PROVIDERS = ['instagram-standalone', 'instagram'] as const;
 /** a resposta privada vale 7 dias; depois disso a execução aberta não é mais retomada */
 const RUN_WINDOW_MS = 7 * 86_400_000;
-
-// ---------------------------------------------------------------- CRUD
-
-export interface AutomationActor {
-  type: ActorType;
-  id: string | null;
-  ip?: string | null;
-}
-
-export interface AutomationsDeps {
-  repo: AutomationRepository;
-  channels: Pick<ChannelRepository, 'findMany'>;
-  audit: AuditLogRepository;
-}
-
-export interface AutomationView extends Omit<AutomationRecord, 'config'> {
-  config: CommentAutomationConfig | null;
-}
-
-const invalid = (message: string, detail?: Record<string, unknown>) =>
-  new DomainError(ErrorCodes.ValidationInvalidRequest, message, detail);
-
-function parseConfig(raw: unknown): CommentAutomationConfig {
-  const r = CommentAutomationConfigSchema.safeParse(raw);
-  if (!r.success) {
-    throw invalid('configuração da automação inválida', {
-      issues: r.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
-    });
-  }
-  return r.data;
-}
-
-const tryConfig = (raw: unknown): CommentAutomationConfig | null => {
-  const r = CommentAutomationConfigSchema.safeParse(raw);
-  return r.success ? r.data : null;
-};
-
-/** `@Fulano.X` → `fulano.x`; formato de username do Instagram */
-function normalizeUsernames(list: string[]): string[] {
-  const out = [...new Set(list.map((u) => u.trim().replace(/^@/, '').toLowerCase()).filter(Boolean))];
-  if (out.length > 10) throw invalid('no máximo 10 contas de teste');
-  const bad = out.find((u) => !/^[a-z0-9._]{1,30}$/.test(u));
-  if (bad) throw invalid(`username de teste inválido: ${bad}`);
-  return out;
-}
-
-function cleanName(name: string): string {
-  const n = name.trim();
-  if (n.length < 1 || n.length > 80) throw invalid('dê um nome de 1 a 80 caracteres');
-  return n;
-}
-
-const view = (a: AutomationRecord): AutomationView => ({ ...a, config: tryConfig(a.config) });
-
-export const makeAutomations = (deps: AutomationsDeps) => {
-  async function mustGet(orgId: string, id: string) {
-    const a = await deps.repo.get(orgId, id);
-    if (!a) throw new DomainError(ErrorCodes.NotFound, 'automação não encontrada');
-    return a;
-  }
-
-  function assertTestable(status: AutomationStatus, testUsernames: string[]) {
-    if (status === 'TEST' && testUsernames.length === 0) {
-      throw invalid('o modo teste precisa de pelo menos uma conta de teste');
-    }
-  }
-
-  const audit = (orgId: string, actor: AutomationActor, action: string, id: string, detail?: Record<string, unknown>) =>
-    deps.audit
-      .append({
-        orgId,
-        actorType: actor.type,
-        actorId: actor.id,
-        action,
-        targetType: 'automation',
-        targetId: id,
-        ...(detail ? { detail } : {}),
-        ip: actor.ip ?? null,
-      })
-      .catch(() => {});
-
-  return {
-    async list(orgId: string, filter?: { channelId?: string }) {
-      return (await deps.repo.list(orgId, filter)).map(view);
-    },
-
-    async get(orgId: string, id: string) {
-      return view(await mustGet(orgId, id));
-    },
-
-    async create(input: {
-      orgId: string;
-      actor: AutomationActor;
-      channelId: string;
-      name: string;
-      config: unknown;
-      testUsernames?: string[];
-      status?: AutomationStatus;
-    }) {
-      const [channel] = await deps.channels.findMany(input.orgId, [input.channelId]);
-      if (!channel) throw new DomainError(ErrorCodes.NotFound, 'canal não encontrado');
-      if (!(AUTOMATION_PROVIDERS as readonly string[]).includes(channel.provider)) {
-        throw new DomainError(ErrorCodes.CapabilityDisabled, 'automação de comentários só existe para o Instagram');
-      }
-      const config = parseConfig(input.config);
-      const testUsernames = normalizeUsernames(input.testUsernames ?? []);
-      const status = input.status ?? 'DRAFT';
-      assertTestable(status, testUsernames);
-      const a = await deps.repo.create({
-        orgId: input.orgId,
-        channelId: channel.id,
-        name: cleanName(input.name),
-        status,
-        config,
-        testUsernames,
-        createdBy: input.actor.type === 'USER' ? input.actor.id : null,
-      });
-      await audit(input.orgId, input.actor, 'automation.created', a.id, { status });
-      return view(a);
-    },
-
-    async update(input: {
-      orgId: string;
-      id: string;
-      actor: AutomationActor;
-      name?: string;
-      config?: unknown;
-      testUsernames?: string[];
-    }) {
-      const current = await mustGet(input.orgId, input.id);
-      const testUsernames = input.testUsernames ? normalizeUsernames(input.testUsernames) : current.testUsernames;
-      assertTestable(current.status, testUsernames);
-      const a = await deps.repo.update(input.orgId, input.id, {
-        ...(input.name !== undefined ? { name: cleanName(input.name) } : {}),
-        ...(input.config !== undefined ? { config: parseConfig(input.config) } : {}),
-        ...(input.testUsernames ? { testUsernames } : {}),
-      });
-      if (!a) throw new DomainError(ErrorCodes.NotFound, 'automação não encontrada');
-      await audit(input.orgId, input.actor, 'automation.updated', a.id);
-      return view(a);
-    },
-
-    async setStatus(input: { orgId: string; id: string; actor: AutomationActor; status: AutomationStatus }) {
-      const current = await mustGet(input.orgId, input.id);
-      assertTestable(input.status, current.testUsernames);
-      if (input.status === 'ACTIVE' || input.status === 'TEST') parseConfig(current.config);
-      const a = await deps.repo.update(input.orgId, input.id, { status: input.status });
-      if (!a) throw new DomainError(ErrorCodes.NotFound, 'automação não encontrada');
-      await audit(input.orgId, input.actor, 'automation.status', a.id, { from: current.status, to: input.status });
-      return view(a);
-    },
-
-    async remove(input: { orgId: string; id: string; actor: AutomationActor }) {
-      if (!(await deps.repo.softDelete(input.orgId, input.id))) {
-        throw new DomainError(ErrorCodes.NotFound, 'automação não encontrada');
-      }
-      await audit(input.orgId, input.actor, 'automation.deleted', input.id);
-    },
-
-    /** execuções como leads, com o nome da automação */
-    async leads(
-      orgId: string,
-      filter: { automationId?: string; status?: AutomationRunStatus; cursor?: string; limit: number },
-    ) {
-      const [page, automations] = await Promise.all([deps.repo.listRuns(orgId, filter), deps.repo.list(orgId)]);
-      const names = new Map(automations.map((a) => [a.id, a.name]));
-      return {
-        items: page.items.map((r) => ({ ...r, automationName: names.get(r.automationId) ?? null })),
-        ...(page.nextCursor ? { nextCursor: page.nextCursor } : {}),
-      };
-    },
-  };
-};
-
-export type Automations = ReturnType<typeof makeAutomations>;
 
 // ---------------------------------------------------------------- fluxo carregado
 
@@ -262,6 +92,274 @@ export function commentTriggerOf(
   }
   return loaded.legacy ? triggerFromV1(loaded.legacy) : null;
 }
+
+// ---------------------------------------------------------------- CRUD
+
+export interface AutomationActor {
+  type: ActorType;
+  id: string | null;
+  ip?: string | null;
+}
+
+export interface AutomationsDeps {
+  repo: AutomationRepository;
+  channels: Pick<ChannelRepository, 'findMany'>;
+  audit: AuditLogRepository;
+}
+
+export interface AutomationTriggerView {
+  /** `null` = gatilho ainda dentro da config v1 (sem linha na tabela) */
+  id: string | null;
+  kind: 'comment';
+  config: CommentTriggerConfig;
+  position: { x: number; y: number } | null;
+}
+
+export interface AutomationView extends Omit<AutomationRecord, 'config'> {
+  /** grafo v2 (v1 convertida na leitura); `null` = config gravada não passa mais na validação */
+  flow: FlowV2 | null;
+  triggers: AutomationTriggerView[];
+  problems: FlowProblem[];
+}
+
+const invalid = (message: string, detail?: Record<string, unknown>) =>
+  new DomainError(ErrorCodes.ValidationInvalidRequest, message, detail);
+
+const issuesOf = (e: { issues: Array<{ path: PropertyKey[]; message: string }> }) =>
+  e.issues.map((i) => ({ path: i.path.map(String).join('.'), message: i.message }));
+
+function parseFlow(raw: unknown): FlowV2 {
+  const r = FlowV2Schema.safeParse(raw);
+  if (!r.success) throw invalid('fluxo da automação inválido', { issues: issuesOf(r.error) });
+  return r.data;
+}
+
+function parseTriggers(raw: unknown[]): AutomationTriggerInput[] {
+  const r = z.array(FlowTriggerInputSchema).max(1, 'por enquanto, um gatilho por fluxo').safeParse(raw);
+  if (!r.success) throw invalid('gatilho inválido', { issues: issuesOf(r.error) });
+  return r.data.map((t) => ({ kind: t.kind, config: t.config, position: t.position }));
+}
+
+const flowInvalid = (problems: FlowProblem[]) =>
+  new DomainError(ErrorCodes.AutomationFlowInvalid, 'o fluxo tem problemas que impedem testar ou ativar', { problems });
+
+/** `@Fulano.X` → `fulano.x`; formato de username do Instagram */
+function normalizeUsernames(list: string[]): string[] {
+  const out = [...new Set(list.map((u) => u.trim().replace(/^@/, '').toLowerCase()).filter(Boolean))];
+  if (out.length > 10) throw invalid('no máximo 10 contas de teste');
+  const bad = out.find((u) => !/^[a-z0-9._]{1,30}$/.test(u));
+  if (bad) throw invalid(`username de teste inválido: ${bad}`);
+  return out;
+}
+
+function cleanName(name: string): string {
+  const n = name.trim();
+  if (n.length < 1 || n.length > 80) throw invalid('dê um nome de 1 a 80 caracteres');
+  return n;
+}
+
+function triggerViews(a: AutomationRecord, rows: AutomationTriggerRecord[], loaded: LoadedFlow | null): AutomationTriggerView[] {
+  const mine = rows.filter((t) => t.automationId === a.id && t.kind === 'comment');
+  if (mine.length) {
+    return mine.flatMap((t) => {
+      const p = CommentTriggerConfigSchema.safeParse(t.config);
+      return p.success ? [{ id: t.id, kind: 'comment' as const, config: p.data, position: t.position }] : [];
+    });
+  }
+  return loaded?.legacy ? [{ id: null, kind: 'comment', config: triggerFromV1(loaded.legacy), position: null }] : [];
+}
+
+function view(a: AutomationRecord, rows: AutomationTriggerRecord[]): AutomationView {
+  const { config, ...rest } = a;
+  const loaded = loadFlow(config);
+  return {
+    ...rest,
+    flow: loaded?.flow ?? null,
+    triggers: triggerViews(a, rows, loaded),
+    problems: loaded ? validateFlow(loaded.flow) : [],
+  };
+}
+
+export const makeAutomations = (deps: AutomationsDeps) => {
+  async function mustGet(orgId: string, id: string) {
+    const a = await deps.repo.get(orgId, id);
+    if (!a) throw new DomainError(ErrorCodes.NotFound, 'automação não encontrada');
+    return a;
+  }
+
+  async function viewOf(a: AutomationRecord) {
+    return view(a, await deps.repo.listTriggers([a.id]));
+  }
+
+  function assertTestable(status: AutomationStatus, testUsernames: string[]) {
+    if (status === 'TEST' && testUsernames.length === 0) {
+      throw invalid('o modo teste precisa de pelo menos uma conta de teste');
+    }
+  }
+
+  /** Teste/Ativa: fluxo sem erro e com gatilho (avisos não bloqueiam) */
+  function assertRunnable(v: AutomationView) {
+    if (!v.flow) throw invalid('configuração da automação inválida');
+    if (hasErrors(v.problems)) throw flowInvalid(v.problems);
+    if (v.triggers.length === 0) throw invalid('a automação precisa de um gatilho para testar ou ativar');
+  }
+
+  const audit = (orgId: string, actor: AutomationActor, action: string, id: string, detail?: Record<string, unknown>) =>
+    deps.audit
+      .append({
+        orgId,
+        actorType: actor.type,
+        actorId: actor.id,
+        action,
+        targetType: 'automation',
+        targetId: id,
+        ...(detail ? { detail } : {}),
+        ip: actor.ip ?? null,
+      })
+      .catch(() => {});
+
+  return {
+    async list(orgId: string, filter?: { channelId?: string }) {
+      const items = await deps.repo.list(orgId, filter);
+      const rows = await deps.repo.listTriggers(items.map((a) => a.id));
+      return items.map((a) => view(a, rows));
+    },
+
+    async get(orgId: string, id: string) {
+      return viewOf(await mustGet(orgId, id));
+    },
+
+    async create(input: {
+      orgId: string;
+      actor: AutomationActor;
+      channelId: string;
+      name: string;
+      flow: unknown;
+      triggers?: unknown[];
+      testUsernames?: string[];
+      status?: AutomationStatus;
+    }) {
+      const [channel] = await deps.channels.findMany(input.orgId, [input.channelId]);
+      if (!channel) throw new DomainError(ErrorCodes.NotFound, 'canal não encontrado');
+      if (!(AUTOMATION_PROVIDERS as readonly string[]).includes(channel.provider)) {
+        throw new DomainError(ErrorCodes.CapabilityDisabled, 'automação de comentários só existe para o Instagram');
+      }
+      const flow = parseFlow(input.flow);
+      const triggers = parseTriggers(input.triggers ?? []);
+      const testUsernames = normalizeUsernames(input.testUsernames ?? []);
+      const status = input.status ?? 'DRAFT';
+      assertTestable(status, testUsernames);
+      // nascer em Teste/Ativa só com fluxo que roda — conferido antes de gravar
+      if (status === 'TEST' || status === 'ACTIVE') {
+        const at = new Date();
+        const draft: AutomationRecord = {
+          id: 'novo',
+          orgId: input.orgId,
+          channelId: channel.id,
+          name: 'novo',
+          status,
+          config: flow,
+          testUsernames,
+          createdBy: null,
+          createdAt: at,
+          updatedAt: at,
+        };
+        const rows = triggers.map((t, i) => ({
+          ...t,
+          id: `novo-${i}`,
+          orgId: input.orgId,
+          automationId: 'novo',
+          channelId: channel.id,
+          createdAt: at,
+        }));
+        assertRunnable(view(draft, rows));
+      }
+      const a = await deps.repo.create({
+        orgId: input.orgId,
+        channelId: channel.id,
+        name: cleanName(input.name),
+        status,
+        config: flow,
+        testUsernames,
+        createdBy: input.actor.type === 'USER' ? input.actor.id : null,
+        triggers,
+      });
+      await audit(input.orgId, input.actor, 'automation.created', a.id, { status });
+      return viewOf(a);
+    },
+
+    async update(input: {
+      orgId: string;
+      id: string;
+      actor: AutomationActor;
+      name?: string;
+      flow?: unknown;
+      triggers?: unknown[];
+      testUsernames?: string[];
+    }) {
+      const current = await mustGet(input.orgId, input.id);
+      const testUsernames = input.testUsernames ? normalizeUsernames(input.testUsernames) : current.testUsernames;
+      assertTestable(current.status, testUsernames);
+      const flow = input.flow !== undefined ? parseFlow(input.flow) : undefined;
+      const triggers = input.triggers !== undefined ? parseTriggers(input.triggers) : undefined;
+
+      // em Teste/Ativa, o que vai ser gravado já tem de rodar
+      if (current.status === 'TEST' || current.status === 'ACTIVE') {
+        const draft: AutomationRecord = { ...current, ...(flow ? { config: flow } : {}) };
+        const rows = triggers
+          ? triggers.map((t, i) => ({ ...t, id: `novo-${i}`, orgId: current.orgId, automationId: current.id, channelId: current.channelId, createdAt: new Date() }))
+          : await deps.repo.listTriggers([current.id]);
+        assertRunnable(view(draft, rows));
+      }
+
+      const a = await deps.repo.update(
+        input.orgId,
+        input.id,
+        {
+          ...(input.name !== undefined ? { name: cleanName(input.name) } : {}),
+          ...(flow ? { config: flow } : {}),
+          ...(input.testUsernames ? { testUsernames } : {}),
+        },
+        triggers,
+      );
+      if (!a) throw new DomainError(ErrorCodes.NotFound, 'automação não encontrada');
+      await audit(input.orgId, input.actor, 'automation.updated', a.id);
+      return viewOf(a);
+    },
+
+    async setStatus(input: { orgId: string; id: string; actor: AutomationActor; status: AutomationStatus }) {
+      const current = await mustGet(input.orgId, input.id);
+      assertTestable(input.status, current.testUsernames);
+      if (input.status === 'ACTIVE' || input.status === 'TEST') assertRunnable(await viewOf(current));
+      const a = await deps.repo.update(input.orgId, input.id, { status: input.status });
+      if (!a) throw new DomainError(ErrorCodes.NotFound, 'automação não encontrada');
+      await audit(input.orgId, input.actor, 'automation.status', a.id, { from: current.status, to: input.status });
+      return viewOf(a);
+    },
+
+    async remove(input: { orgId: string; id: string; actor: AutomationActor }) {
+      if (!(await deps.repo.softDelete(input.orgId, input.id))) {
+        throw new DomainError(ErrorCodes.NotFound, 'automação não encontrada');
+      }
+      await audit(input.orgId, input.actor, 'automation.deleted', input.id);
+    },
+
+    /** execuções como leads, com o nome da automação */
+    async leads(
+      orgId: string,
+      filter: { automationId?: string; status?: AutomationRunStatus; cursor?: string; limit: number },
+    ) {
+      const [page, automations] = await Promise.all([deps.repo.listRuns(orgId, filter), deps.repo.list(orgId)]);
+      const names = new Map(automations.map((a) => [a.id, a.name]));
+      return {
+        items: page.items.map((r) => ({ ...r, automationName: names.get(r.automationId) ?? null })),
+        ...(page.nextCursor ? { nextCursor: page.nextCursor } : {}),
+      };
+    },
+  };
+};
+
+export type Automations = ReturnType<typeof makeAutomations>;
 
 // ---------------------------------------------------------------- motor
 

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useApiErrorMessage } from '@/lib/api/errors';
 import { relativeTime } from '@/lib/datetime';
+import { answerOrder } from './flow/canvas-logic';
 import { useAutomations, useLeads } from './hooks';
 import { RUN_STATUSES, type RunStatus, answerEntries, runStatusVariant } from './logic';
 
@@ -37,7 +38,7 @@ export function LeadsView() {
   };
   const order = (id: string) => {
     const a = automations.data?.items.find((x) => x.id === id);
-    return a?.flow?.nodes.flatMap((n) => (n.type === 'question' ? [n.data.field] : [])) ?? [];
+    return a?.flow ? answerOrder(a.flow.nodes) : [];
   };
   const items = leads.data?.pages.flatMap((p) => p.items) ?? [];
 

@@ -31,7 +31,17 @@ describe('histórico do editor', () => {
     for (let i = 1; i <= 60; i++) h = historySet(h, i, false);
     expect(h.past).toHaveLength(50);
     expect(h.saved).toBe(0);
-    h = historyMarkSaved(h);
+    h = historyMarkSaved(h, 60);
     expect(h.saved).toBe(60);
+  });
+
+  test('markSaved grava o enviado: edição durante o envio segue pendente', () => {
+    let h = historyInit(0);
+    h = historySet(h, 1, false);
+    const sent = h.present;
+    h = historySet(h, 2, true);
+    h = historyMarkSaved(h, sent);
+    expect(h.saved).toBe(1);
+    expect(h.present).toBe(2);
   });
 });

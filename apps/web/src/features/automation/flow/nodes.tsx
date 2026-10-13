@@ -213,7 +213,8 @@ function MessageView({ id, data, selected }: P<'message'>) {
               {t('addOption')}
             </button>
           ) : null}
-          {n.data.onTyped === 'branch' ? <OutputRow handleId="typed" label={t('output.typed')} /> : null}
+          {/* sempre visível: uma ligação `typed` existente continua valendo mesmo em "pedir de novo" */}
+          <OutputRow handleId="typed" label={t('output.typed')} />
         </div>
       )}
       {n.data.saveTo ? <p className="text-meta text-graphite">{t('savesTo', { field: n.data.saveTo })}</p> : null}

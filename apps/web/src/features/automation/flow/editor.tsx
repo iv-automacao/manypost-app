@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import { LayoutGrid, Maximize, Minus, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { dragMerge, offsetFree, shouldOpenNextStepMenu } from './canvas-logic';
+import { applyDeletion, dragMerge, offsetFree, shouldOpenNextStepMenu } from './canvas-logic';
 import { Dock, DRAG_MIME } from './dock';
 import { autoLayout } from './layout';
 import {
@@ -32,7 +32,6 @@ import {
   duplicateNode,
   fieldsWritten,
   moveNode,
-  removeEdge,
   removeNode,
   removeOption,
   updateNodeData,
@@ -198,7 +197,6 @@ function Canvas({ doc, onChange, onSeal, readOnly, channelId, username, problems
       let moved = false;
       let dragging = false;
       let ended = false;
-      let removed = false;
       let measuresChanged = false;
       for (const c of changes) {
         if (c.type === 'dimensions' && c.dimensions) {
@@ -225,15 +223,10 @@ function Canvas({ doc, onChange, onSeal, readOnly, channelId, username, problems
             if (draggingRef.current.delete(c.id)) measuresChanged = true;
           }
         }
-        if (c.type === 'remove' && c.id !== TRIGGER_NODE_ID) {
-          flow = removeNode(flow, c.id);
-          moved = true;
-          removed = true;
-          measuredRef.current.delete(c.id);
-        }
+        // `remove` é ignorado: a exclusão pelo teclado passa toda por `onDelete` (um passo só no histórico)
       }
       if (measuresChanged) setTick((n) => n + 1);
-      if (moved) emit({ ...cur, flow, triggerPosition }, { merge: dragMerge({ dragging, ended, removed }) });
+      if (moved) emit({ ...cur, flow, triggerPosition }, { merge: dragMerge({ dragging, ended, removed: false }) });
       if (ended) onSeal();
     },
     [emit, onSeal],
@@ -241,15 +234,24 @@ function Canvas({ doc, onChange, onSeal, readOnly, channelId, username, problems
 
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
-      let flow = docRef.current.flow;
+      // `remove` é ignorado aqui também: ver `onDelete`
       for (const c of changes) {
         if (c.type === 'select') setSelectedEdge((s) => (c.selected ? c.id : s === c.id ? null : s));
-        if (c.type === 'remove' && c.id !== 'e-trigger') {
-          flow = removeEdge(flow, c.id);
-          setSelectedEdge((s) => (s === c.id ? null : s));
-        }
       }
-      if (flow !== docRef.current.flow) setFlow(flow);
+    },
+    [],
+  );
+
+  // exclusão pelo teclado: nós + ligações num único documento novo = 1 passo de desfazer (as ligações voltam junto)
+  const onDelete = useCallback(
+    ({ nodes: gone, edges: goneEdges }: { nodes: Node[]; edges: Edge[] }) => {
+      const nodeIds = gone.map((n) => n.id).filter((id) => id !== TRIGGER_NODE_ID);
+      const edgeIds = goneEdges.map((e) => e.id).filter((id) => id !== 'e-trigger');
+      if (!nodeIds.length && !edgeIds.length) return;
+      for (const id of nodeIds) measuredRef.current.delete(id);
+      setFlow(applyDeletion(docRef.current.flow, nodeIds, edgeIds, ['opening']));
+      setSelected((s) => (s && nodeIds.includes(s) ? null : s));
+      setSelectedEdge((s) => (s && edgeIds.includes(s) ? null : s));
     },
     [setFlow],
   );
@@ -284,6 +286,8 @@ function Canvas({ doc, onChange, onSeal, readOnly, channelId, username, problems
 
   const insert = useCallback(
     (kind: BlockKind, at: Position, from?: { nodeId: string; handle: string }) => {
+      // sem o @ do canal o link de perfil sairia vazio
+      if (kind === 'follow' && !username) return;
       const cur = docRef.current.flow;
       const taken = [...cur.nodes.map((n) => n.position), docRef.current.triggerPosition];
       const node = createNode(kind, from ? at : offsetFree(at, taken), cur, texts, username);
@@ -363,6 +367,7 @@ function Canvas({ doc, onChange, onSeal, readOnly, channelId, username, problems
           nodeTypes={NODE_TYPES}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onDelete={onDelete}
           onConnect={onConnect}
           onConnectEnd={onConnectEnd}
           isValidConnection={(c) => c.target !== 'opening' && c.target !== TRIGGER_NODE_ID && c.source !== c.target}
@@ -392,9 +397,10 @@ function Canvas({ doc, onChange, onSeal, readOnly, channelId, username, problems
             ) : null}
           </Panel>
         </ReactFlow>
-        {!readOnly ? <Dock onAdd={(k) => insert(k, center())} /> : null}
+        {!readOnly ? <Dock followDisabled={!username} onAdd={(k) => insert(k, center())} /> : null}
         {menu ? (
           <NextStepMenu
+            followDisabled={!username}
             x={menu.x}
             y={menu.y}
             onClose={() => setMenu(null)}
@@ -411,7 +417,7 @@ function Canvas({ doc, onChange, onSeal, readOnly, channelId, username, problems
           trigger={doc.trigger}
           testUsernames={doc.testUsernames}
           onTrigger={(trigger, opts) => emit({ ...docRef.current, trigger }, opts)}
-          onTestUsernames={(testUsernames) => emit({ ...docRef.current, testUsernames })}
+          onTestUsernames={(testUsernames, opts) => emit({ ...docRef.current, testUsernames }, opts)}
           onSeal={onSeal}
         />
       </div>

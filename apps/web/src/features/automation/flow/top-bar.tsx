@@ -23,6 +23,7 @@ import { useApiErrorMessage } from '@/lib/api/errors';
 import { cn } from '@/lib/utils';
 import { useDeleteAutomation, useSetAutomationStatus } from '../hooks';
 import { LIMITS, type Status, statusVariant } from '../logic';
+import { saveBlockedByErrors } from './canvas-logic';
 import type { Flow, Problem, ShapeIssue } from './logic';
 
 export function TopBar({
@@ -81,6 +82,8 @@ export function TopBar({
       onError: (e) => toast.error(errorMessage(e)),
     });
   const blocked = !id || dirty || errors > 0;
+  // em teste/ativa a API recusa fluxo com erro (`automation.flow_invalid`): nem tenta
+  const saveBlocked = saveBlockedByErrors(status, errors);
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -140,9 +143,12 @@ export function TopBar({
           {tf('simulate')}
         </Button>
         {!readOnly ? (
-          <Button size="sm" variant={dirty ? 'primary' : 'outline'} disabled={!dirty || shape.length > 0 || !name.trim()} isLoading={saving} onClick={onSave}>
-            {tf('save')}
-          </Button>
+          <>
+            {saveBlocked && dirty ? <span className="text-meta text-state-failed">{tf('saveBlockedActive')}</span> : null}
+            <Button size="sm" variant={dirty ? 'primary' : 'outline'} disabled={!dirty || shape.length > 0 || !name.trim() || saveBlocked} isLoading={saving} onClick={onSave}>
+              {tf('save')}
+            </Button>
+          </>
         ) : null}
         {id && !readOnly ? (
           <>
@@ -155,7 +161,7 @@ export function TopBar({
             {status !== 'ACTIVE' ? (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button size="sm" disabled={blocked}>
+                  <Button size="sm" disabled={blocked} isLoading={setStatus.isPending && setStatus.variables === 'ACTIVE'}>
                     <Play aria-hidden />
                     {t('actionActivate')}
                   </Button>

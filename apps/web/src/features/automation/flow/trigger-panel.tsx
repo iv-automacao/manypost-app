@@ -92,7 +92,7 @@ export function TriggerPanel({
   trigger: TriggerConfig;
   testUsernames: string[];
   onTrigger: (t: TriggerConfig, opts?: { merge?: boolean }) => void;
-  onTestUsernames: (list: string[]) => void;
+  onTestUsernames: (list: string[], opts?: { merge?: boolean }) => void;
   onSeal: () => void;
 }) {
   const t = useTranslations('automation.flow');
@@ -109,7 +109,17 @@ export function TriggerPanel({
     if (focused.current !== 'testers') setTesters(testKey);
   }, [testKey]);
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet
+      open={open}
+      onOpenChange={(v) => {
+        // fechar (Esc, clique fora) sela o passo aberto pela digitação
+        if (!v) {
+          focused.current = null;
+          onSeal();
+        }
+        onOpenChange(v);
+      }}
+    >
       <SheetContent className="flex w-full flex-col gap-6 overflow-y-auto sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>{t('trigger.title')}</SheetTitle>
@@ -134,10 +144,13 @@ export function TriggerPanel({
           <Input
             value={keywords}
             onFocus={() => (focused.current = 'keywords')}
-            onChange={(e) => setKeywords(e.target.value)}
+            onChange={(e) => {
+              // o texto cru fica no estado local; o documento recebe a lista já separada a cada tecla
+              setKeywords(e.target.value);
+              onTrigger({ ...trigger, keywords: splitKeywords(e.target.value) }, { merge: true });
+            }}
             onBlur={() => {
               focused.current = null;
-              onTrigger({ ...trigger, keywords: splitKeywords(keywords) });
               onSeal();
             }}
           />
@@ -173,10 +186,12 @@ export function TriggerPanel({
           <Input
             value={testers}
             onFocus={() => (focused.current = 'testers')}
-            onChange={(e) => setTesters(e.target.value)}
+            onChange={(e) => {
+              setTesters(e.target.value);
+              onTestUsernames(splitUsernames(e.target.value), { merge: true });
+            }}
             onBlur={() => {
               focused.current = null;
-              onTestUsernames(splitUsernames(testers));
               onSeal();
             }}
           />

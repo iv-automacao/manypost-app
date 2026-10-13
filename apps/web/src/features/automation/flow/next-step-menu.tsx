@@ -20,7 +20,7 @@ export const SOON: Array<{ key: 'delay' | 'media' | 'action'; icon: LucideIcon }
   { key: 'action', icon: Zap },
 ];
 
-export function NextStepMenu({ x, y, onPick, onClose }: { x: number; y: number; onPick: (k: BlockKind) => void; onClose: () => void }) {
+export function NextStepMenu({ x, y, onPick, onClose, followDisabled }: { x: number; y: number; followDisabled: boolean; onPick: (k: BlockKind) => void; onClose: () => void }) {
   const t = useTranslations('automation.flow');
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -34,18 +34,24 @@ export function NextStepMenu({ x, y, onPick, onClose }: { x: number; y: number; 
       <button type="button" aria-label={t('close')} className="fixed inset-0 z-40 cursor-pointer" onClick={onClose} />
       <div role="menu" aria-label={t('nextStep')} className="fixed z-50 flex w-56 flex-col gap-1 rounded-control border border-line-strong bg-surface p-2" style={{ left, top }}>
         <p className="px-2 py-1 text-meta font-medium text-graphite">{t('nextStep')}</p>
-        {BLOCKS.map((b) => (
-          <button
-            key={b.kind}
-            type="button"
-            role="menuitem"
-            onClick={() => onPick(b.kind)}
-            className="flex cursor-pointer items-center gap-2 rounded-compact px-2 py-1.5 text-left text-compact text-ink transition-colors duration-200 hover:bg-surface-2"
-          >
-            <b.icon className="size-4 text-accent" aria-hidden />
-            {t(`block.${b.kind}`)}
-          </button>
-        ))}
+        {BLOCKS.map((b) => {
+          const off = b.kind === 'follow' && followDisabled;
+          return (
+            <button
+              key={b.kind}
+              type="button"
+              role="menuitem"
+              disabled={off}
+              title={off ? t('followNeedsAccount') : undefined}
+              onClick={() => onPick(b.kind)}
+              className="flex cursor-pointer items-center gap-2 rounded-compact px-2 py-1.5 text-left text-compact text-ink transition-colors duration-200 hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-mist disabled:hover:bg-transparent"
+            >
+              <b.icon className={off ? 'size-4 text-mist' : 'size-4 text-accent'} aria-hidden />
+              {t(`block.${b.kind}`)}
+              {off ? <span className="ml-auto text-meta">{t('followNeedsAccount')}</span> : null}
+            </button>
+          );
+        })}
         {SOON.map((s) => (
           <span key={s.key} className="flex items-center gap-2 px-2 py-1.5 text-compact text-mist" aria-disabled>
             <s.icon className="size-4" aria-hidden />

@@ -13,6 +13,7 @@ import { ChannelSelect, NoEligibleChannel, useEngagementChannel } from '@/featur
 import { useApiErrorMessage } from '@/lib/api/errors';
 import { useAutomation, useCreateAutomation, useUpdateAutomation } from '../hooks';
 import type { Status } from '../logic';
+import { isInternalNavigation } from './canvas-logic';
 import { FlowEditor, useNodeTexts, type EditorDoc } from './editor';
 import { useFlowHistory } from './history';
 import {
@@ -81,13 +82,29 @@ export function AutomationEditorPage({ id }: { id?: string }) {
         channelId={channelId}
         status={id ? (automation.data!.status as Status) : 'DRAFT'}
         initial={initial}
+        invalidStored={Boolean(id) && automation.data!.flow == null}
         texts={texts}
       />
     </div>
   );
 }
 
-function EditorShell({ id, channelId, status, initial, texts }: { id?: string; channelId: string; status: Status; initial: EditorDoc; texts: NodeTexts }) {
+function EditorShell({
+  id,
+  channelId,
+  status,
+  initial,
+  invalidStored,
+  texts,
+}: {
+  id?: string;
+  channelId: string;
+  status: Status;
+  initial: EditorDoc;
+  /** o fluxo guardado não passou no parse: o editor abre vazio e o primeiro salvar o substitui */
+  invalidStored: boolean;
+  texts: NodeTexts;
+}) {
   const t = useTranslations('automation');
   const tf = useTranslations('automation.flow');
   const router = useRouter();
@@ -106,12 +123,13 @@ function EditorShell({ id, channelId, status, initial, texts }: { id?: string; c
   );
   const [sim, setSim] = useState<{ startAt: string | null; n: number } | null>(null);
   const [focus, setFocus] = useState<{ id: string; n: number } | null>(null);
+  const [storedInvalid, setStoredInvalid] = useState(invalidStored);
 
   // desfazer/refazer fora de campos de texto (os campos têm o próprio desfazer)
   const { undo, redo } = history;
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest('input, textarea, [contenteditable="true"]')) return;
+      if (e.target instanceof Element && e.target.closest('input, textarea, [contenteditable="true"]')) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         if (e.shiftKey) redo();
@@ -125,12 +143,36 @@ function EditorShell({ id, channelId, status, initial, texts }: { id?: string; c
   // aviso do navegador ao fechar a aba com alterações
   useEffect(() => {
     if (!history.dirty) return;
-    const h = (e: BeforeUnloadEvent) => e.preventDefault();
+    const h = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
     window.addEventListener('beforeunload', h);
     return () => window.removeEventListener('beforeunload', h);
   }, [history.dirty]);
 
+  // com alterações, qualquer link interno (menu lateral, logo, voltar) pergunta antes de sair; fase de captura para
+  // rodar antes do roteador do Next e poder cancelar a navegação
+  useEffect(() => {
+    if (!history.dirty) return;
+    const click = (e: MouseEvent) => {
+      if (e.defaultPrevented || !(e.target instanceof Element)) return;
+      const a = e.target.closest('a[href]');
+      if (!(a instanceof HTMLAnchorElement)) return;
+      if (!isInternalNavigation({ href: a.href, target: a.target, download: a.hasAttribute('download') }, e, window.location.href)) return;
+      if (!window.confirm(tf('leaveDescription'))) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    document.addEventListener('click', click, true);
+    return () => document.removeEventListener('click', click, true);
+  }, [history.dirty, tf]);
+
   const save = () => {
+    // o fluxo guardado era inválido: salvar o substitui, então a primeira vez pede confirmação explícita
+    if (storedInvalid && !window.confirm(tf('invalidStoredFlowConfirm'))) return;
+    const sent = doc;
     const body = {
       name: doc.name.trim(),
       flow: doc.flow,
@@ -138,12 +180,13 @@ function EditorShell({ id, channelId, status, initial, texts }: { id?: string; c
       testUsernames: doc.testUsernames,
     };
     const onError = (e: unknown) => toast.error(errorMessage(e));
-    if (status === 'ACTIVE') toast.message(tf('activeSaveWarning'));
     if (id) {
       update.mutate(body, {
         onSuccess: () => {
-          history.markSaved();
+          history.markSaved(sent);
+          setStoredInvalid(false);
           toast.success(tf('saved'));
+          if (status === 'ACTIVE') toast.message(tf('activeSaveWarning'));
         },
         onError,
       });
@@ -152,7 +195,7 @@ function EditorShell({ id, channelId, status, initial, texts }: { id?: string; c
         { channelId, ...body },
         {
           onSuccess: (a) => {
-            history.markSaved();
+            history.markSaved(sent);
             toast.success(t('created'));
             router.replace(`/automacoes/${(a as { id: string }).id}`);
           },
@@ -166,12 +209,7 @@ function EditorShell({ id, channelId, status, initial, texts }: { id?: string; c
     <div className="flex h-[calc(100dvh-8rem)] min-h-[560px] flex-col gap-3">
       <div className="flex items-center gap-2">
         <Button asChild variant="ghost" size="sm">
-          <Link
-            href="/automacoes"
-            onClick={(e) => {
-              if (history.dirty && !window.confirm(tf('leaveDescription'))) e.preventDefault();
-            }}
-          >
+          <Link href="/automacoes">
             <ArrowLeft aria-hidden />
             {t('back')}
           </Link>
@@ -197,6 +235,11 @@ function EditorShell({ id, channelId, status, initial, texts }: { id?: string; c
         onFocus={(nodeId) => setFocus((f) => ({ id: nodeId, n: (f?.n ?? 0) + 1 }))}
         readOnly={readOnly}
       />
+      {storedInvalid ? (
+        <p role="alert" className="rounded-control bg-state-review-tint px-3 py-2 text-meta text-state-review">
+          {tf('invalidStoredFlow')}
+        </p>
+      ) : null}
       {readOnly ? <p className="rounded-control bg-surface-2 px-3 py-2 text-meta text-graphite">{tf('readOnly')}</p> : null}
       <div className="relative flex min-h-0 flex-1 overflow-hidden rounded-card border border-line">
         <div className="min-w-0 flex-1">

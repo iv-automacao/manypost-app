@@ -35,7 +35,8 @@ export function historyRedo<T>(h: History<T>): History<T> {
   return { ...h, past: [...h.past, h.present], present: h.future[0]!, future: h.future.slice(1), merging: false };
 }
 
-export const historyMarkSaved = <T>(h: History<T>): History<T> => ({ ...h, saved: h.present, merging: false });
+/** `saved` é o que foi enviado à API, não o presente: edições feitas durante o envio continuam pendentes */
+export const historyMarkSaved = <T>(h: History<T>, sent: T): History<T> => ({ ...h, saved: sent });
 
 export function useFlowHistory<T>(initial: T) {
   const [h, setH] = useState(() => historyInit(initial));
@@ -43,7 +44,7 @@ export function useFlowHistory<T>(initial: T) {
   const seal = useCallback(() => setH(historySeal), []);
   const undo = useCallback(() => setH(historyUndo), []);
   const redo = useCallback(() => setH(historyRedo), []);
-  const markSaved = useCallback(() => setH(historyMarkSaved), []);
+  const markSaved = useCallback((sent: T) => setH((s) => historyMarkSaved(s, sent)), []);
   const dirty = h.present !== h.saved && JSON.stringify(h.present) !== JSON.stringify(h.saved);
   return {
     present: h.present,

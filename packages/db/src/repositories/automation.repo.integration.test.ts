@@ -110,4 +110,53 @@ describe('automação com PostgreSQL real', () => {
     expect(await repo().softDelete(outra.orgId, s.automation.id)).toBe(false);
     expect((await repo().listTriggerable(s.channelId)).map((a) => a.id)).toEqual([s.automation.id]);
   });
+
+  pgTest('gatilhos gravados com a automação e substituídos no update', async () => {
+    const s = await seed(`${Date.now()}g`);
+    const trig = { kind: 'comment' as const, config: { mediaIds: [], keywords: ['plano'], publicReplies: [] }, position: { x: -240, y: 0 } };
+    const a = await repo().create({
+      orgId: s.orgId,
+      channelId: s.channelId,
+      name: 'Com gatilho',
+      status: 'DRAFT',
+      config: { version: 2 },
+      testUsernames: [],
+      createdBy: null,
+      triggers: [trig],
+    });
+    const t1 = await repo().listTriggers([a.id]);
+    expect(t1).toHaveLength(1);
+    expect(t1[0]).toMatchObject({ automationId: a.id, orgId: s.orgId, channelId: s.channelId, kind: 'comment', position: { x: -240, y: 0 } });
+    await repo().update(s.orgId, a.id, { name: 'Renomeada' }, [{ ...trig, config: { mediaIds: [], keywords: ['cotação'], publicReplies: [] } }]);
+    const t2 = await repo().listTriggers([a.id]);
+    expect(t2).toHaveLength(1);
+    expect((t2[0]!.config as { keywords: string[] }).keywords).toEqual(['cotação']);
+    // update sem lista não mexe nos gatilhos; de outra org não grava nada
+    await repo().update(s.orgId, a.id, { name: 'De novo' });
+    expect(await repo().listTriggers([a.id])).toHaveLength(1);
+    const outra = await seed(`${Date.now()}h`);
+    expect(await repo().update(outra.orgId, a.id, { name: 'x' }, [])).toBeNull();
+    expect(await repo().listTriggers([a.id])).toHaveLength(1);
+  });
+
+  pgTest('execução nasce sem nó, cursor 0 e enviado -1; o patch grava o cursor', async () => {
+    const s = await seed(`${Date.now()}i`);
+    const { run: r } = await repo().createRun(run(s, 'c-9'));
+    expect(r).toMatchObject({ nodeId: null, cursor: 0, sentCursor: -1 });
+    const u = await repo().updateRun(r.id, { nodeId: 'q0', cursor: 1, sentCursor: 1, status: 'ABANDONED' });
+    expect(u).toMatchObject({ nodeId: 'q0', cursor: 1, sentCursor: 1, status: 'ABANDONED' });
+  });
+
+  pgTest('backfill cria um gatilho por automação v1 e é idempotente', async () => {
+    const s = await seed(`${Date.now()}j`);
+    await repo().update(s.orgId, s.automation.id, {
+      config: { version: 1, trigger: { mediaIds: ['1801'], keywords: ['plano'] }, publicReplies: ['Oi'] },
+    });
+    const sql = await Bun.file(new URL('../../migrations/0013_flow-builder-backfill.sql', import.meta.url)).text();
+    await client!.unsafe(sql);
+    await client!.unsafe(sql);
+    const t = await repo().listTriggers([s.automation.id]);
+    expect(t).toHaveLength(1);
+    expect(t[0]!.config).toEqual({ mediaIds: ['1801'], keywords: ['plano'], publicReplies: ['Oi'] });
+  });
 });

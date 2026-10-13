@@ -3,11 +3,12 @@ import type {
   AutomationRecord,
   AutomationRepository,
   AutomationRunRecord,
+  AutomationTriggerRecord,
   InboundEventRecord,
 } from '@manypost/core';
 import type { AutomationRunStatus, AutomationStatus } from '@manypost/contracts';
 import type { Db } from '../index';
-import { automationRuns, commentAutomations, inboundEvents } from '../schema';
+import { automationRuns, automationTriggers, commentAutomations, inboundEvents } from '../schema';
 
 const toAutomation = (row: typeof commentAutomations.$inferSelect): AutomationRecord => ({
   id: row.id,
@@ -33,6 +34,9 @@ const toRun = (row: typeof automationRuns.$inferSelect): AutomationRunRecord => 
   participantId: row.participantId,
   participantUsername: row.participantUsername,
   conversationId: row.conversationId,
+  nodeId: row.nodeId,
+  cursor: row.cursor,
+  sentCursor: row.sentCursor,
   status: row.status as AutomationRunStatus,
   step: row.step,
   promptSentStep: row.promptSentStep,
@@ -48,18 +52,51 @@ const toRun = (row: typeof automationRuns.$inferSelect): AutomationRunRecord => 
   createdAt: row.createdAt,
 });
 
+const toTrigger = (row: typeof automationTriggers.$inferSelect): AutomationTriggerRecord => ({
+  id: row.id,
+  orgId: row.orgId,
+  automationId: row.automationId,
+  channelId: row.channelId,
+  kind: row.kind as 'comment',
+  config: row.config,
+  position: (row.position ?? null) as AutomationTriggerRecord['position'],
+  createdAt: row.createdAt,
+});
+
 export function makeAutomationRepository(db: Db): AutomationRepository {
   const alive = (orgId: string, id: string) =>
     and(eq(commentAutomations.orgId, orgId), eq(commentAutomations.id, id), isNull(commentAutomations.deletedAt));
 
   return {
-    async create(d) {
-      const [row] = await db.insert(commentAutomations).values(d).returning();
-      return toAutomation(row!);
+    async create({ triggers, ...d }) {
+      return db.transaction(async (tx) => {
+        const [row] = await tx.insert(commentAutomations).values(d).returning();
+        const a = toAutomation(row!);
+        if (triggers?.length) {
+          await tx.insert(automationTriggers).values(
+            triggers.map((t) => ({ orgId: a.orgId, automationId: a.id, channelId: a.channelId, kind: t.kind, config: t.config, position: t.position })),
+          );
+        }
+        return a;
+      });
     },
-    async update(orgId, id, patch) {
-      const [row] = await db.update(commentAutomations).set(patch).where(alive(orgId, id)).returning();
-      return row ? toAutomation(row) : null;
+    async update(orgId, id, patch, triggers) {
+      return db.transaction(async (tx) => {
+        const [row] = Object.keys(patch).length
+          ? await tx.update(commentAutomations).set(patch).where(alive(orgId, id)).returning()
+          : await tx.select().from(commentAutomations).where(alive(orgId, id));
+        if (!row) return null;
+        if (triggers) {
+          // a lista enviada substitui os gatilhos da automação, na mesma transação
+          await tx.delete(automationTriggers).where(eq(automationTriggers.automationId, id));
+          if (triggers.length) {
+            await tx.insert(automationTriggers).values(
+              triggers.map((t) => ({ orgId, automationId: id, channelId: row.channelId, kind: t.kind, config: t.config, position: t.position })),
+            );
+          }
+        }
+        return toAutomation(row);
+      });
     },
     async get(orgId, id) {
       const [row] = await db.select().from(commentAutomations).where(alive(orgId, id));
@@ -100,6 +137,15 @@ export function makeAutomationRepository(db: Db): AutomationRepository {
         )
         .orderBy(asc(commentAutomations.createdAt));
       return rows.map(toAutomation);
+    },
+    async listTriggers(automationIds) {
+      if (!automationIds.length) return [];
+      const rows = await db
+        .select()
+        .from(automationTriggers)
+        .where(inArray(automationTriggers.automationId, automationIds))
+        .orderBy(asc(automationTriggers.createdAt));
+      return rows.map(toTrigger);
     },
 
     async createRun(d) {

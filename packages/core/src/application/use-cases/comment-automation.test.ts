@@ -12,6 +12,7 @@ import type {
   AutomationRecord,
   AutomationRepository,
   AutomationRunRecord,
+  AutomationTriggerRecord,
   InboundEventRecord,
 } from '../ports/automation';
 import type { ChannelRecord } from '../ports/publishing';
@@ -35,18 +36,28 @@ const CONFIG = {
 function memRepo() {
   const automations: AutomationRecord[] = [];
   const runs: AutomationRunRecord[] = [];
+  const triggers: AutomationTriggerRecord[] = [];
   const events: Array<InboundEventRecord & { error?: string }> = [];
   let seq = 0;
   const repo: AutomationRepository = {
-    async create(d) {
+    async create({ triggers: ts, ...d }) {
       const a = { ...d, id: `auto-${++seq}`, createdAt: new Date(seq), updatedAt: new Date(seq) };
       automations.push(a);
+      for (const t of ts ?? []) {
+        triggers.push({ ...t, id: `trig-${++seq}`, orgId: a.orgId, automationId: a.id, channelId: a.channelId, createdAt: new Date(seq) });
+      }
       return a;
     },
-    async update(orgId, id, p) {
+    async update(orgId, id, p, ts) {
       const a = automations.find((x) => x.orgId === orgId && x.id === id);
       if (!a) return null;
       Object.assign(a, p);
+      if (ts) {
+        for (let i = triggers.length - 1; i >= 0; i--) if (triggers[i]!.automationId === id) triggers.splice(i, 1);
+        for (const t of ts) {
+          triggers.push({ ...t, id: `trig-${++seq}`, orgId, automationId: id, channelId: a.channelId, createdAt: new Date(seq) });
+        }
+      }
       return { ...a };
     },
     async get(orgId, id) {
@@ -65,6 +76,9 @@ function memRepo() {
     async listTriggerable(channelId) {
       return automations.filter((a) => a.channelId === channelId && (a.status === 'ACTIVE' || a.status === 'TEST'));
     },
+    async listTriggers(ids) {
+      return triggers.filter((t) => ids.includes(t.automationId));
+    },
     async createRun(d) {
       const found = runs.find((r) => r.automationId === d.automationId && r.commentId === d.commentId);
       if (found) return { run: { ...found }, created: false };
@@ -72,6 +86,9 @@ function memRepo() {
         ...d,
         id: `run-${++seq}`,
         conversationId: null,
+        nodeId: null,
+        cursor: 0,
+        sentCursor: -1,
         status: 'OPEN',
         step: -1,
         promptSentStep: -2,
@@ -130,7 +147,7 @@ function memRepo() {
       else e.error = o.error;
     },
   };
-  return { repo, automations, runs, events };
+  return { repo, automations, runs, events, triggers };
 }
 
 type Sent = { op: string; target: string; msg?: DirectMessage; key?: string; text?: string };

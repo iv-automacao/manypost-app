@@ -66,7 +66,13 @@ export const automationRuns = pgTable(
     participantUsername: text('participant_username'),
     /** id da conversa na ponte, conhecido na primeira mensagem recebida */
     conversationId: text('conversation_id'),
-    /** OPEN | COMPLETED | FAILED | UNCERTAIN | SKIPPED */
+    /** nó atual do fluxo v2 (openspec add-flow-builder-canvas, design D5) */
+    nodeId: text('node_id'),
+    /** entradas em nó: compõe a Idempotency-Key `<run>:c<cursor>:<reasks>` */
+    cursor: integer('cursor').notNull().default(0),
+    /** último cursor cuja mensagem a ponte confirmou */
+    sentCursor: integer('sent_cursor').notNull().default(-1),
+    /** OPEN | COMPLETED | FAILED | UNCERTAIN | SKIPPED | ABANDONED */
     status: text('status').notNull().default('OPEN'),
     /** -1 aguarda a abertura; 0..n-1 aguarda a pergunta i; n = fim */
     step: integer('step').notNull().default(-1),
@@ -89,6 +95,33 @@ export const automationRuns = pgTable(
     uniqueIndex('automation_runs_automation_comment_ux').on(t.automationId, t.commentId),
     index('automation_runs_channel_participant_status_ix').on(t.channelId, t.participantId, t.status),
     index('automation_runs_org_created_ix').on(t.orgId, t.createdAt),
+  ],
+);
+
+/** gatilhos de uma automação (fluxo 1 → N gatilhos); hoje só `comment` (design D3) */
+export const automationTriggers = pgTable(
+  'automation_triggers',
+  {
+    id: pk(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    automationId: uuid('automation_id')
+      .notNull()
+      .references(() => commentAutomations.id, { onDelete: 'cascade' }),
+    channelId: uuid('channel_id')
+      .notNull()
+      .references(() => channels.id),
+    /** comment (entrega 1); dm_keyword, story_reply… nas próximas */
+    kind: text('kind').notNull(),
+    config: jsonb('config').notNull(),
+    /** posição do balão ⚡ no canvas */
+    position: jsonb('position'),
+    ...timestamps,
+  },
+  (t) => [
+    index('automation_triggers_channel_kind_ix').on(t.channelId, t.kind),
+    index('automation_triggers_automation_ix').on(t.automationId),
   ],
 );
 

@@ -22,6 +22,19 @@ export interface AutomationRecord {
   updatedAt: Date;
 }
 
+export interface AutomationTriggerInput {
+  kind: 'comment';
+  config: unknown;
+  position: { x: number; y: number } | null;
+}
+export interface AutomationTriggerRecord extends AutomationTriggerInput {
+  id: string;
+  orgId: string;
+  automationId: string;
+  channelId: string;
+  createdAt: Date;
+}
+
 export type PublicReplyState = 'PENDING' | 'SENT' | 'FAILED' | 'NONE';
 export type PrivateReplyState = 'PENDING' | 'SENT' | 'FAILED' | 'UNCERTAIN';
 
@@ -36,6 +49,12 @@ export interface AutomationRunRecord {
   participantId: string;
   participantUsername: string | null;
   conversationId: string | null;
+  /** nó atual do fluxo v2; `null` = execução v1 ainda não adotada ou resposta privada pendente */
+  nodeId: string | null;
+  /** conta as entradas em nó (chave de idempotência do envio) */
+  cursor: number;
+  /** último cursor cuja mensagem foi confirmada */
+  sentCursor: number;
   status: AutomationRunStatus;
   step: number;
   promptSentStep: number;
@@ -55,6 +74,9 @@ export type AutomationRunPatch = Partial<
   Pick<
     AutomationRunRecord,
     | 'conversationId'
+    | 'nodeId'
+    | 'cursor'
+    | 'sentCursor'
     | 'status'
     | 'step'
     | 'promptSentStep'
@@ -89,17 +111,21 @@ export interface AutomationRepository {
     config: unknown;
     testUsernames: string[];
     createdBy: string | null;
+    triggers?: AutomationTriggerInput[];
   }): Promise<AutomationRecord>;
   update(
     orgId: string,
     id: string,
     patch: Partial<Pick<AutomationRecord, 'name' | 'status' | 'config' | 'testUsernames'>>,
+    triggers?: AutomationTriggerInput[],
   ): Promise<AutomationRecord | null>;
   get(orgId: string, id: string): Promise<AutomationRecord | null>;
   list(orgId: string, filter?: { channelId?: string }): Promise<AutomationRecord[]>;
   softDelete(orgId: string, id: string): Promise<boolean>;
   /** ACTIVE e TEST do canal, mais antigas primeiro (a primeira que casar vence) */
   listTriggerable(channelId: string): Promise<AutomationRecord[]>;
+  /** gatilhos das automações, mais antigos primeiro */
+  listTriggers(automationIds: string[]): Promise<AutomationTriggerRecord[]>;
 
   /** cria a execução; se já existe para (automação, comentário) devolve a existente com `created: false` */
   createRun(d: {

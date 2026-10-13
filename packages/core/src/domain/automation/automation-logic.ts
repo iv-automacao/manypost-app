@@ -11,8 +11,10 @@ import { AUTOMATION_LIMITS } from '@manypost/contracts';
  * o motor (`use-cases/comment-automation.ts`) decide quando chamar cada uma.
  */
 
-const DISCLOSURE = 'Mensagem automática.';
-const TEXT_MODE_HINT = 'Responda esta mensagem para continuar.';
+export const OPENING_DISCLOSURE = 'Mensagem automática.';
+export const OPENING_TEXT_HINT = 'Responda esta mensagem para continuar.';
+const DISCLOSURE = OPENING_DISCLOSURE;
+const TEXT_MODE_HINT = OPENING_TEXT_HINT;
 const PAYLOAD_PREFIX = 'mp1';
 
 /** minúsculas, sem acento, pontuação vira espaço, espaços colapsados */
@@ -27,11 +29,18 @@ export function normalizeText(s: string): string {
 
 /** post na lista (ou lista vazia) e palavra-chave como palavra/frase inteira (ou sem palavras) */
 export function matchesTrigger(cfg: CommentAutomationConfig, c: { mediaId: string; text: string }): boolean {
-  const { mediaIds, keywords } = cfg.trigger;
-  if (mediaIds.length > 0 && !mediaIds.includes(c.mediaId)) return false;
-  if (keywords.length === 0) return true;
+  return matchesCommentTrigger(cfg.trigger, c);
+}
+
+/** mesmo casamento, sobre o gatilho da tabela `automation_triggers` (fluxo v2) */
+export function matchesCommentTrigger(
+  t: { mediaIds: string[]; keywords: string[] },
+  c: { mediaId: string; text: string },
+): boolean {
+  if (t.mediaIds.length > 0 && !t.mediaIds.includes(c.mediaId)) return false;
+  if (t.keywords.length === 0) return true;
   const hay = ` ${normalizeText(c.text)} `;
-  return keywords.some((k) => {
+  return t.keywords.some((k) => {
     const n = normalizeText(k);
     return n.length > 0 && hay.includes(` ${n} `);
   });

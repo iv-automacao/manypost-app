@@ -13,7 +13,8 @@ import { AUTOMATION_LIMITS } from '@manypost/contracts';
  * `opening`, `q{i}`, opções `o{j}`, `finish` e, com WhatsApp, `end`.
  */
 
-const STEP_Y = 160;
+/** balões convertidos ficam lado a lado, com folga para a altura de cada um (o Organizar refina) */
+const STEP_X = 360;
 
 export function flowFromV1(cfg: CommentAutomationConfig): FlowV2 {
   const nodes: FlowNode[] = [];
@@ -37,7 +38,7 @@ export function flowFromV1(cfg: CommentAutomationConfig): FlowV2 {
   cfg.questions.forEach((q, i) => {
     const id = ids[i]!;
     const next = ids[i + 1] ?? 'finish';
-    const position = { x: 0, y: STEP_Y * (i + 1) };
+    const position = { x: STEP_X * (i + 1), y: 0 };
     if (q.kind === 'choice') {
       const options = q.options.map((o, j) => ({ id: `o${j}`, title: o.title }));
       nodes.push({
@@ -60,23 +61,23 @@ export function flowFromV1(cfg: CommentAutomationConfig): FlowV2 {
   });
   link('opening', 'next', ids[0] ?? 'finish');
 
-  const finishY = STEP_Y * (cfg.questions.length + 1);
+  const finishX = STEP_X * (cfg.questions.length + 1);
   const wa = cfg.finish.whatsapp;
   if (wa) {
     nodes.push({
       id: 'finish',
       type: 'link',
-      position: { x: 0, y: finishY },
+      position: { x: finishX, y: 0 },
       data: {
         text: cfg.finish.text,
         buttonTitle: wa.buttonTitle,
         target: { kind: 'whatsapp', phone: wa.phone, message: wa.message },
       },
     });
-    nodes.push({ id: 'end', type: 'end', position: { x: 0, y: finishY + STEP_Y }, data: { text: '' } });
+    nodes.push({ id: 'end', type: 'end', position: { x: finishX + STEP_X, y: 0 }, data: { text: '' } });
     link('finish', 'next', 'end');
   } else {
-    nodes.push({ id: 'finish', type: 'end', position: { x: 0, y: finishY }, data: { text: cfg.finish.text } });
+    nodes.push({ id: 'finish', type: 'end', position: { x: finishX, y: 0 }, data: { text: cfg.finish.text } });
   }
   return { version: 2, nodes, edges };
 }

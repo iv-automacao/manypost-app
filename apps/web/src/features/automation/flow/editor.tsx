@@ -6,7 +6,6 @@ import {
   Panel,
   ReactFlow,
   ReactFlowProvider,
-  applyNodeChanges,
   useReactFlow,
   type Connection,
   type Edge,
@@ -21,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { LayoutGrid, Maximize, Minus, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { dragMerge, offsetFree, shouldOpenNextStepMenu } from './canvas-logic';
 import { Dock, DRAG_MIME } from './dock';
 import { autoLayout } from './layout';
 import {
@@ -114,9 +114,17 @@ function Canvas({ doc, onChange, onSeal, readOnly, channelId, username, problems
   // sempre a versão mais recente do documento dentro dos callbacks do React Flow
   const docRef = useRef(doc);
   docRef.current = doc;
-  const setFlow = useCallback(
-    (flow: Flow, opts?: { merge?: boolean }) => onChange({ ...docRef.current, flow }, opts),
+  // todo envio passa por aqui: o ref já nasce atualizado, então callbacks no mesmo tick enxergam o doc novo
+  const emit = useCallback(
+    (next: EditorDoc, opts?: { merge?: boolean }) => {
+      docRef.current = next;
+      onChange(next, opts);
+    },
     [onChange],
+  );
+  const setFlow = useCallback(
+    (flow: Flow, opts?: { merge?: boolean }) => emit({ ...docRef.current, flow }, opts),
+    [emit],
   );
 
   const byNode = useMemo(() => {
@@ -151,32 +159,55 @@ function Canvas({ doc, onChange, onSeal, readOnly, channelId, username, problems
     ],
     [doc.flow.nodes, doc.trigger, doc.triggerPosition, selected, readOnly],
   );
-  // o React Flow guarda a medida de cada balão no nó; o estado local preserva `measured` entre renders
-  const [nodes, setNodes] = useState<Node[]>(derived);
-  useEffect(() => {
-    setNodes((prev) => {
-      const measured = new Map(prev.map((n) => [n.id, n.measured]));
-      return derived.map((n) => ({ ...n, measured: measured.get(n.id) }));
-    });
-  }, [derived]);
+  // medidas e estado de arraste vivem em refs e entram no mesmo render (sem useEffect): o input controlado
+  // recebe o valor novo na hora, sem pular o cursor. `tick` só força o render quando uma medida muda.
+  const measuredRef = useRef(new Map<string, { width: number; height: number }>());
+  const draggingRef = useRef(new Set<string>());
+  const [tick, setTick] = useState(0);
+  const nodes: Node[] = useMemo(
+    () =>
+      derived.map((n) => ({
+        ...n,
+        measured: measuredRef.current.get(n.id),
+        dragging: draggingRef.current.has(n.id),
+      })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [derived, tick],
+  );
+  const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const edges: Edge[] = useMemo(
     () => [
       { id: 'e-trigger', source: TRIGGER_NODE_ID, sourceHandle: 'next', target: 'opening', deletable: false, focusable: false },
-      ...doc.flow.edges.map((e) => ({ id: e.id, source: e.source, sourceHandle: e.sourceHandle, target: e.target, deletable: !readOnly })),
+      ...doc.flow.edges.map((e) => ({
+        id: e.id,
+        source: e.source,
+        sourceHandle: e.sourceHandle,
+        target: e.target,
+        deletable: !readOnly,
+        selected: selectedEdge === e.id,
+      })),
     ],
-    [doc.flow.edges, readOnly],
+    [doc.flow.edges, readOnly, selectedEdge],
   );
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      setNodes((ns) => applyNodeChanges(changes, ns));
       const cur = docRef.current;
       let flow = cur.flow;
       let triggerPosition = cur.triggerPosition;
       let moved = false;
       let dragging = false;
       let ended = false;
+      let removed = false;
+      let measuresChanged = false;
       for (const c of changes) {
+        if (c.type === 'dimensions' && c.dimensions) {
+          const old = measuredRef.current.get(c.id);
+          if (!old || old.width !== c.dimensions.width || old.height !== c.dimensions.height) {
+            measuredRef.current.set(c.id, { width: c.dimensions.width, height: c.dimensions.height });
+            measuresChanged = true;
+          }
+        }
         if (c.type === 'select') setSelected((s) => (c.selected ? c.id : s === c.id ? null : s));
         if (c.type === 'position') {
           if (c.position) {
@@ -185,23 +216,39 @@ function Canvas({ doc, onChange, onSeal, readOnly, channelId, username, problems
             if (c.id === TRIGGER_NODE_ID) triggerPosition = c.position;
             else flow = moveNode(flow, c.id, c.position);
           }
-          if (c.dragging === false) ended = true;
+          if (c.dragging === true && !draggingRef.current.has(c.id)) {
+            draggingRef.current.add(c.id);
+            measuresChanged = true;
+          }
+          if (c.dragging === false) {
+            ended = true;
+            if (draggingRef.current.delete(c.id)) measuresChanged = true;
+          }
         }
         if (c.type === 'remove' && c.id !== TRIGGER_NODE_ID) {
           flow = removeNode(flow, c.id);
           moved = true;
+          removed = true;
+          measuredRef.current.delete(c.id);
         }
       }
-      if (moved) onChange({ ...cur, flow, triggerPosition }, { merge: dragging });
+      if (measuresChanged) setTick((n) => n + 1);
+      if (moved) emit({ ...cur, flow, triggerPosition }, { merge: dragMerge({ dragging, ended, removed }) });
       if (ended) onSeal();
     },
-    [onChange, onSeal],
+    [emit, onSeal],
   );
 
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
       let flow = docRef.current.flow;
-      for (const c of changes) if (c.type === 'remove' && c.id !== 'e-trigger') flow = removeEdge(flow, c.id);
+      for (const c of changes) {
+        if (c.type === 'select') setSelectedEdge((s) => (c.selected ? c.id : s === c.id ? null : s));
+        if (c.type === 'remove' && c.id !== 'e-trigger') {
+          flow = removeEdge(flow, c.id);
+          setSelectedEdge((s) => (s === c.id ? null : s));
+        }
+      }
       if (flow !== docRef.current.flow) setFlow(flow);
     },
     [setFlow],
@@ -217,7 +264,13 @@ function Canvas({ doc, onChange, onSeal, readOnly, channelId, username, problems
 
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, state: FinalConnectionState) => {
-      if (readOnly || state.isValid || !state.fromNode || state.fromNode.id === TRIGGER_NODE_ID) return;
+      const drop = {
+        isValid: state.isValid,
+        fromNodeId: state.fromNode?.id ?? null,
+        toNode: state.toNode,
+        toHandle: state.toHandle,
+      };
+      if (!shouldOpenNextStepMenu(drop, readOnly, TRIGGER_NODE_ID) || !state.fromNode) return;
       const point = 'changedTouches' in event ? event.changedTouches[0]! : event;
       setMenu({
         x: point.clientX,
@@ -232,7 +285,8 @@ function Canvas({ doc, onChange, onSeal, readOnly, channelId, username, problems
   const insert = useCallback(
     (kind: BlockKind, at: Position, from?: { nodeId: string; handle: string }) => {
       const cur = docRef.current.flow;
-      const node = createNode(kind, at, cur, texts, username);
+      const taken = [...cur.nodes.map((n) => n.position), docRef.current.triggerPosition];
+      const node = createNode(kind, from ? at : offsetFree(at, taken), cur, texts, username);
       let flow = addNode(cur, node);
       if (from) flow = connect(flow, { source: from.nodeId, sourceHandle: from.handle, target: node.id });
       setFlow(flow);
@@ -256,7 +310,7 @@ function Canvas({ doc, onChange, onSeal, readOnly, channelId, username, problems
   const organize = () => {
     const sizes = new Map(rf.getNodes().map((n) => [n.id, { width: n.measured?.width ?? 288, height: n.measured?.height ?? 160 }]));
     const r = autoLayout(docRef.current.flow, sizes);
-    onChange({ ...docRef.current, flow: r.flow, triggerPosition: r.triggerPosition });
+    emit({ ...docRef.current, flow: r.flow, triggerPosition: r.triggerPosition });
     requestAnimationFrame(() => void rf.fitView({ duration: 300 }));
   };
 
@@ -356,8 +410,9 @@ function Canvas({ doc, onChange, onSeal, readOnly, channelId, username, problems
           channelId={channelId}
           trigger={doc.trigger}
           testUsernames={doc.testUsernames}
-          onTrigger={(trigger) => onChange({ ...docRef.current, trigger })}
-          onTestUsernames={(testUsernames) => onChange({ ...docRef.current, testUsernames })}
+          onTrigger={(trigger, opts) => emit({ ...docRef.current, trigger }, opts)}
+          onTestUsernames={(testUsernames) => emit({ ...docRef.current, testUsernames })}
+          onSeal={onSeal}
         />
       </div>
     </FlowActionsContext.Provider>

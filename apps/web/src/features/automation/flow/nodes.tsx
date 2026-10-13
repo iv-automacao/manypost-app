@@ -22,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { LIMITS } from '../logic';
 import { useFlowActions } from './actions';
-import { CONDITION_OPS, type NodeOf, type TriggerConfig } from './logic';
+import { CONDITION_OPS, TRIGGER_NODE_ID, type NodeOf, type TriggerConfig } from './logic';
 import { NodeSettings } from './node-settings';
 
 const INPUT =
@@ -109,7 +109,7 @@ function NodeShell({
         selected ? 'border-accent' : hasError ? 'border-destructive' : 'border-line-strong',
       )}
     >
-      {!a.readOnly && id !== 'trigger' ? (
+      {!a.readOnly && id !== TRIGGER_NODE_ID ? (
         <NodeToolbar isVisible={selected} position={Position.Top} className="flex gap-1 rounded-control border border-line bg-surface p-1">
           {!fixed ? <ToolbarButton label={t('duplicate')} icon={Copy} onClick={() => a.duplicate(id)} /> : null}
           <ToolbarButton label={t('testFromHere')} icon={FlaskConical} onClick={() => a.testFrom(id)} />
@@ -245,7 +245,7 @@ function ConditionView({ id, data, selected }: P<'condition'>) {
       {a.fields.length === 0 ? (
         <p className="text-meta text-graphite">{t('condition.noFields')}</p>
       ) : (
-        <div className="nodrag flex flex-col gap-2">
+        <div className="nodrag nokey flex flex-col gap-2">
           <Select value={n.data.field || undefined} onValueChange={(v) => a.update(id, { field: v })} disabled={a.readOnly}>
             <SelectTrigger aria-label={t('condition.field')}>
               <SelectValue placeholder={t('condition.field')} />
@@ -340,7 +340,7 @@ function TriggerView({ selected, data }: NodeProps<Node<{ trigger: TriggerConfig
   const a = useFlowActions();
   const tr = data.trigger;
   return (
-    <NodeShell id="trigger" selected={selected} fixed target={false} icon={Zap} title={t('node.trigger')}>
+    <NodeShell id={TRIGGER_NODE_ID} selected={selected} fixed target={false} icon={Zap} title={t('node.trigger')}>
       <p className="text-compact text-ink">
         {tr.mediaIds.length ? t('trigger.posts', { count: tr.mediaIds.length }) : t('trigger.anyPost')}
         {' · '}

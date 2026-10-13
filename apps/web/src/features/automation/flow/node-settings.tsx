@@ -29,7 +29,7 @@ export function NodeSettings({ node }: { node: NodeOf<'opening'> | NodeOf<'messa
           <Settings2 className="size-4" aria-hidden />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="flex w-80 flex-col gap-4">
+      <PopoverContent align="end" className="nokey flex w-80 flex-col gap-4">
         {node.type === 'opening' ? (
           <>
             <fieldset className="flex flex-col gap-2">

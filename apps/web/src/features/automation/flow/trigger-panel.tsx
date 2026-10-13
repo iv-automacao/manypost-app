@@ -2,7 +2,7 @@
 
 import { Check, ImageIcon, Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -84,18 +84,30 @@ export function TriggerPanel({
   testUsernames,
   onTrigger,
   onTestUsernames,
+  onSeal,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   channelId: string;
   trigger: TriggerConfig;
   testUsernames: string[];
-  onTrigger: (t: TriggerConfig) => void;
+  onTrigger: (t: TriggerConfig, opts?: { merge?: boolean }) => void;
   onTestUsernames: (list: string[]) => void;
+  onSeal: () => void;
 }) {
   const t = useTranslations('automation.flow');
   const [keywords, setKeywords] = useState(trigger.keywords.join(', '));
   const [testers, setTesters] = useState(testUsernames.map((u) => `@${u}`).join(', '));
+  // desfazer/refazer troca o gatilho por fora: o texto local acompanha, a não ser que a pessoa esteja digitando
+  const kwKey = trigger.keywords.join(', ');
+  const testKey = testUsernames.map((u) => `@${u}`).join(', ');
+  const focused = useRef<string | null>(null);
+  useEffect(() => {
+    if (focused.current !== 'keywords') setKeywords(kwKey);
+  }, [kwKey]);
+  useEffect(() => {
+    if (focused.current !== 'testers') setTesters(testKey);
+  }, [testKey]);
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="flex w-full flex-col gap-6 overflow-y-auto sm:max-w-lg">
@@ -119,7 +131,16 @@ export function TriggerPanel({
         </section>
         <Label className="flex flex-col gap-1 text-compact">
           {t('trigger.keywords')}
-          <Input value={keywords} onChange={(e) => setKeywords(e.target.value)} onBlur={() => onTrigger({ ...trigger, keywords: splitKeywords(keywords) })} />
+          <Input
+            value={keywords}
+            onFocus={() => (focused.current = 'keywords')}
+            onChange={(e) => setKeywords(e.target.value)}
+            onBlur={() => {
+              focused.current = null;
+              onTrigger({ ...trigger, keywords: splitKeywords(keywords) });
+              onSeal();
+            }}
+          />
           <span className="text-meta text-graphite">{t('trigger.keywordsHint')}</span>
         </Label>
         <section className="flex flex-col gap-2">
@@ -130,7 +151,10 @@ export function TriggerPanel({
               <Input
                 value={r}
                 maxLength={LIMITS.publicReply}
-                onChange={(e) => onTrigger({ ...trigger, publicReplies: trigger.publicReplies.map((x, j) => (j === i ? e.target.value : x)) })}
+                onChange={(e) =>
+                  onTrigger({ ...trigger, publicReplies: trigger.publicReplies.map((x, j) => (j === i ? e.target.value : x)) }, { merge: true })
+                }
+                onBlur={onSeal}
               />
               <Button variant="ghost" size="icon-sm" aria-label={t('close')} onClick={() => onTrigger({ ...trigger, publicReplies: trigger.publicReplies.filter((_, j) => j !== i) })}>
                 <X aria-hidden />
@@ -146,7 +170,16 @@ export function TriggerPanel({
         </section>
         <Label className="flex flex-col gap-1 text-compact">
           {t('trigger.testUsers')}
-          <Input value={testers} onChange={(e) => setTesters(e.target.value)} onBlur={() => onTestUsernames(splitUsernames(testers))} />
+          <Input
+            value={testers}
+            onFocus={() => (focused.current = 'testers')}
+            onChange={(e) => setTesters(e.target.value)}
+            onBlur={() => {
+              focused.current = null;
+              onTestUsernames(splitUsernames(testers));
+              onSeal();
+            }}
+          />
           <span className="text-meta text-graphite">{t('trigger.testUsersHint')}</span>
         </Label>
       </SheetContent>

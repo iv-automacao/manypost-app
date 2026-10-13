@@ -94,6 +94,7 @@ import { buildContentMachine } from './content-machine.container';
 import { makeClerkIdentityVerifier } from './infra/identity/clerk.identity';
 import { createPrometheusMetrics } from './infra/metrics/prometheus';
 import { isProviderAvailable } from './http/routes/shared/provider-catalog';
+import { buildAutomation } from './automation.container';
 import { log } from './log';
 
 export type Container = Awaited<ReturnType<typeof buildContainer>>;
@@ -310,6 +311,14 @@ export async function buildContainer(env: Env) {
     plan,
   });
 
+  // automação comentário → direct (add-comment-automation): CRUD sempre; motor só com a ponte + segredo
+  const automation = await buildAutomation(env, db, runtime, {
+    channels: repos.channels,
+    audit: repos.audit,
+    zernio,
+    zernioOrgs,
+  });
+
   const contentMachine = await buildContentMachine(env, db, runtime, {
     ai: aiProvider,
     budget,
@@ -330,6 +339,7 @@ export async function buildContainer(env: Env) {
     ai,
     aiImage,
     contentMachine,
+    automation,
     // resumo operacional da home: contagens agregadas do nosso próprio registro (sem métrica
     // de desempenho — `channel_metrics` está vazia porque nada escreve nela)
     insights: makeSummarizeInsights({

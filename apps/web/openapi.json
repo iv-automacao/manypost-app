@@ -686,6 +686,364 @@
           "items"
         ]
       },
+      "CommentAutomationConfig": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "version": {
+            "type": "number",
+            "enum": [
+              1
+            ],
+            "default": 1
+          },
+          "trigger": {
+            "type": "object",
+            "properties": {
+              "mediaIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^\\d{1,32}$"
+                },
+                "maxItems": 50,
+                "default": []
+              },
+              "keywords": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                },
+                "maxItems": 20,
+                "default": []
+              }
+            }
+          },
+          "publicReplies": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300
+            },
+            "maxItems": 10,
+            "default": []
+          },
+          "opening": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 600
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "button",
+                  "text"
+                ],
+                "default": "button"
+              },
+              "buttonTitle": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20,
+                "default": "Quero!"
+              }
+            },
+            "required": [
+              "text"
+            ]
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "choice"
+                      ]
+                    },
+                    "field": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                    },
+                    "prompt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 600
+                    },
+                    "options": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "title": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 20
+                          }
+                        },
+                        "required": [
+                          "title"
+                        ]
+                      },
+                      "minItems": 1,
+                      "maxItems": 13
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "field",
+                    "prompt",
+                    "options"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "text"
+                      ]
+                    },
+                    "field": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                    },
+                    "prompt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 600
+                    },
+                    "validate": {
+                      "type": "string",
+                      "enum": [
+                        "name",
+                        "phone",
+                        "email",
+                        "free"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "field",
+                    "prompt",
+                    "validate"
+                  ]
+                }
+              ]
+            },
+            "maxItems": 5,
+            "default": []
+          },
+          "finish": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 600
+              },
+              "whatsapp": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "pattern": "^\\d{10,15}$"
+                  },
+                  "message": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "default": ""
+                  },
+                  "buttonTitle": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20,
+                    "default": "Falar no WhatsApp"
+                  }
+                },
+                "required": [
+                  "phone"
+                ]
+              }
+            },
+            "required": [
+              "text"
+            ]
+          },
+          "disclosure": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "trigger",
+          "opening",
+          "finish"
+        ],
+        "description": "`null` = configuração gravada não passa mais na validação"
+      },
+      "CommentAutomation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "TEST",
+              "ACTIVE",
+              "PAUSED"
+            ]
+          },
+          "config": {
+            "$ref": "#/components/schemas/CommentAutomationConfig"
+          },
+          "testUsernames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "channelId",
+          "name",
+          "status",
+          "config",
+          "testUsernames",
+          "createdBy",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "AutomationLead": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "automationId": {
+            "type": "string"
+          },
+          "automationName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "channelId": {
+            "type": "string"
+          },
+          "mediaId": {
+            "type": "string"
+          },
+          "commentId": {
+            "type": "string"
+          },
+          "commentText": {
+            "type": "string"
+          },
+          "participantUsername": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "COMPLETED",
+              "FAILED",
+              "UNCERTAIN",
+              "SKIPPED"
+            ]
+          },
+          "step": {
+            "type": "number"
+          },
+          "answers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "publicReply": {
+            "type": "string"
+          },
+          "privateReply": {
+            "type": "string"
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "completedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "automationId",
+          "automationName",
+          "channelId",
+          "mediaId",
+          "commentId",
+          "commentText",
+          "participantUsername",
+          "status",
+          "step",
+          "answers",
+          "publicReply",
+          "privateReply",
+          "lastError",
+          "createdAt",
+          "completedAt"
+        ]
+      },
       "MediaRef": {
         "type": "object",
         "properties": {
@@ -5086,6 +5444,666 @@
         }
       }
     },
+    "/v1/automations": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Automações de comentário da organização",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "channelId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "automações",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CommentAutomation"
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Cria uma automação (em rascunho)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "channelId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "config": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/CommentAutomationConfig"
+                      },
+                      {
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "testUsernames": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 31
+                    },
+                    "maxItems": 10
+                  }
+                },
+                "required": [
+                  "channelId",
+                  "name",
+                  "config"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "criada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentAutomation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/automations/leads": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Leads (execuções) das automações, mais recentes primeiro",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "automationId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OPEN",
+                "COMPLETED",
+                "FAILED",
+                "UNCERTAIN",
+                "SKIPPED"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "leads",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AutomationLead"
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/automations/{id}": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Uma automação",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "automação",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentAutomation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "automations"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Edita nome, configuração ou contas de teste",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "config": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/CommentAutomationConfig"
+                      },
+                      {
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "testUsernames": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 31
+                    },
+                    "maxItems": 10
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "automação",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentAutomation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "automations"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Apaga a automação (os leads continuam) — requer ADMIN/OWNER",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "apagada"
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/automations/{id}/status": {
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Muda o status (rascunho, teste, ativa, pausada) — requer ADMIN/OWNER",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "DRAFT",
+                      "TEST",
+                      "ACTIVE",
+                      "PAUSED"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "automação",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentAutomation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/posts": {
       "post": {
         "tags": [
@@ -6222,7 +7240,8 @@
                         "post.failed",
                         "channel.refresh_required",
                         "channel.disconnected",
-                        "mention.received"
+                        "mention.received",
+                        "lead.captured"
                       ]
                     },
                     "minItems": 1
@@ -11150,7 +12169,8 @@
                         "post.failed",
                         "channel.refresh_required",
                         "channel.disconnected",
-                        "mention.received"
+                        "mention.received",
+                        "lead.captured"
                       ]
                     },
                     "minItems": 1

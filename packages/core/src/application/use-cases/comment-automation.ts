@@ -491,7 +491,7 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
     async ingest(e: { eventId: string; eventType: string; payload: unknown }) {
       const id = await deps.repo.insertInboundEvent({ source: deps.gateway.source, ...e });
       if (!id) return { duplicate: true as const };
-      await deps.scheduler.enqueue(AUTOMATION_EVENT_QUEUE, { inboundEventId: id }, { singletonKey: id, retryLimit: 3 });
+      await deps.scheduler.enqueue(AUTOMATION_EVENT_QUEUE, { inboundEventId: id }, { singletonKey: id, retryLimit: 3, retryBackoffSec: 20 });
       return { duplicate: false as const, id };
     },
 

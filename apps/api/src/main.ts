@@ -17,6 +17,8 @@ import { aiRoutes } from './http/routes/ai.routes';
 import { capabilityRoutes } from './http/routes/capabilities.routes';
 import { insightsRoutes } from './http/routes/insights.routes';
 import { engagementRoutes } from './http/routes/engagement.routes';
+import { automationRoutes } from './http/routes/automations.routes';
+import { zernioWebhookRoutes } from './http/routes/zernio-webhook.routes';
 import { searchRoutes } from './http/routes/search.routes';
 import { channelRoutes } from './http/routes/channels.routes';
 import { eventRoutes } from './http/routes/events.routes';
@@ -106,6 +108,14 @@ app.route('/v1/auth', authRoutes(ctn));
 app.route('/v1/api-keys', apiKeyRoutes(ctn));
 app.route('/v1/channels', channelRoutes(ctn));
 app.route('/v1/channels', engagementRoutes(ctn)); // comentários e métricas por canal
+app.route('/v1/automations', automationRoutes(ctn)); // automação comentário → direct
+if (ctn.automation.engine && ctn.automation.webhookSecret) {
+  // webhook assinado da Zernio (HMAC) — sem sessão; só existe com a ponte + segredo
+  app.route(
+    '/v1/integrations/zernio',
+    zernioWebhookRoutes({ engine: ctn.automation.engine, secret: ctn.automation.webhookSecret }),
+  );
+}
 app.route('/v1/posts', postRoutes(ctn));
 app.route('/v1/publications', publicationRoutes(ctn)); // feed do calendário/kanban
 app.route('/v1/events', eventRoutes(ctn)); // SSE

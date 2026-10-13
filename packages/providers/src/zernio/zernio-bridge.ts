@@ -237,6 +237,10 @@ export function makeZernioBridge(deps: ZernioBridgeDeps) {
       const id = await resolve(ref);
       return id ? transport(id) : null;
     },
+    /** transportes já fechados sobre uma conta da Zernio conhecida (vinda de `accountById`) */
+    bind(zernioAccountId: string): CommentTransport & DirectTransport {
+      return transport(zernioAccountId);
+    },
     /** conta Instagram de um evento do webhook (`account.accountId`) → identidade na rede */
     async accountById(zernioAccountId: string): Promise<{ platformUserId: string | null; username: string | null } | null> {
       let accounts: ZernioAccount[];

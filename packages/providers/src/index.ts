@@ -81,3 +81,4 @@ export {
 export { settingsJsonSchema } from './shared/settings-json-schema';
 
 export { makeZernioBridge, type ZernioBridge, type ZernioAccountRef } from './zernio/zernio-bridge';
+export { parseZernioEvent, verifyZernioSignature } from './zernio/zernio-events';

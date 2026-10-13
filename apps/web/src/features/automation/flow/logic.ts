@@ -254,12 +254,23 @@ export type ShapeKey =
   | 'valueTooLong'
   | 'phoneInvalid'
   | 'urlInvalid'
+  | 'waMessageTooLong'
   | 'tooManyNodes'
   | 'triggerKeywords'
   | 'triggerReplies';
 export interface ShapeIssue {
   nodeId: string | null;
   key: ShapeKey;
+}
+
+/** https parseável e de até 2000 caracteres (o `.url()` do schema recusa "https://:") */
+function validHttpsUrl(u: string): boolean {
+  if (u.length > 2000) return false;
+  try {
+    return new URL(u).protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 const validTitle = (t: string) => t.trim().length >= 1 && t.trim().length <= LIMITS.buttonTitle;
@@ -275,14 +286,14 @@ export function shapeIssues(flow: Flow): ShapeIssue[] {
     if (text !== null && text.trim().length > LIMITS.messageText) add(n.id, 'textTooLong');
     switch (n.type) {
       case 'opening':
-        if (n.data.mode === 'button' && !validTitle(n.data.buttonTitle)) add(n.id, 'buttonTitleInvalid');
+        if (!validTitle(n.data.buttonTitle)) add(n.id, 'buttonTitleInvalid');
         break;
       case 'message': {
         const c = n.data.options.length;
         const [min, max] = n.data.format === 'none' ? [0, 0] : n.data.format === 'buttons' ? [1, LIMITS.maxButtons] : [1, LIMITS.maxOptions];
         if (c < min || c > max) add(n.id, 'optionCount');
         if (n.data.options.some((o) => !validTitle(o.title))) add(n.id, 'optionTitleInvalid');
-        if (n.data.saveTo && !FIELD_RE.test(n.data.saveTo)) add(n.id, 'fieldInvalid');
+        if (n.data.saveTo !== undefined && !FIELD_RE.test(n.data.saveTo)) add(n.id, 'fieldInvalid');
         break;
       }
       case 'question':
@@ -295,8 +306,11 @@ export function shapeIssues(flow: Flow): ShapeIssue[] {
         break;
       case 'link':
         if (!validTitle(n.data.buttonTitle)) add(n.id, 'buttonTitleInvalid');
-        if (n.data.target.kind === 'whatsapp' && !/^\d{10,15}$/.test(n.data.target.phone)) add(n.id, 'phoneInvalid');
-        if (n.data.target.kind === 'url' && !/^https:\/\/\S+$/.test(n.data.target.url)) add(n.id, 'urlInvalid');
+        if (n.data.target.kind === 'whatsapp') {
+          if (!/^\d{10,15}$/.test(n.data.target.phone)) add(n.id, 'phoneInvalid');
+          if (n.data.target.message.trim().length > LIMITS.whatsappMessage) add(n.id, 'waMessageTooLong');
+        }
+        if (n.data.target.kind === 'url' && !validHttpsUrl(n.data.target.url)) add(n.id, 'urlInvalid');
         break;
       case 'end':
         break;
@@ -307,7 +321,7 @@ export function shapeIssues(flow: Flow): ShapeIssue[] {
 
 export function triggerIssues(t: TriggerConfig): ShapeKey[] {
   const out: ShapeKey[] = [];
-  if (t.keywords.length > LIMITS.maxKeywords || t.keywords.some((k) => k.trim().length > LIMITS.keyword)) out.push('triggerKeywords');
+  if (t.keywords.length > LIMITS.maxKeywords || t.keywords.some((k) => !k.trim() || k.trim().length > LIMITS.keyword)) out.push('triggerKeywords');
   if (t.publicReplies.length > LIMITS.maxPublicReplies || t.publicReplies.some((r) => !r.trim() || r.trim().length > LIMITS.publicReply)) {
     out.push('triggerReplies');
   }
@@ -611,7 +625,13 @@ function pruneEdges(flow: Flow): Flow {
 export function updateNodeData(flow: Flow, id: string, patch: Record<string, unknown>): Flow {
   return pruneEdges({
     ...flow,
-    nodes: flow.nodes.map((n) => (n.id === id ? ({ ...n, data: { ...n.data, ...patch } } as FlowNode) : n)),
+    nodes: flow.nodes.map((n) => {
+      if (n.id !== id) return n;
+      const data: Record<string, unknown> = { ...n.data, ...patch };
+      // saveTo vazio não existe: o schema recusa '' e o campo é opcional
+      if ('saveTo' in patch && (patch.saveTo === '' || patch.saveTo === undefined)) delete data.saveTo;
+      return { ...n, data } as FlowNode;
+    }),
   });
 }
 

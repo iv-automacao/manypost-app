@@ -25,6 +25,7 @@ import {
   removeNode,
   removeOption,
   shapeIssues,
+  triggerIssues,
   simulateFlow,
   updateNodeData,
   validateFlow,
@@ -155,5 +156,44 @@ describe('edição', () => {
       { nodeId: m.id, key: 'fieldInvalid' },
       { nodeId: l.id, key: 'phoneInvalid' },
     ]);
+  });
+});
+
+describe('shapeIssues cobre o que a API recusa', () => {
+  test('título da abertura vale em qualquer modo', () => {
+    let f = emptyFlow(TEXTS);
+    f = updateNodeData(f, 'opening', { buttonTitle: '  ' });
+    expect(shapeIssues(f)).toEqual([{ nodeId: 'opening', key: 'buttonTitleInvalid' }]);
+  });
+
+  test('mensagem do WhatsApp longa e url inválida', () => {
+    let f = emptyFlow(TEXTS);
+    const l = createNode('link', { x: 0, y: 0 }, f, TEXTS, null);
+    f = { ...f, nodes: [...f.nodes, l] };
+    const wa = (message: string) =>
+      updateNodeData(f, l.id, { target: { kind: 'whatsapp', phone: '5592999990000', message } });
+    expect(shapeIssues(wa('x'.repeat(500)))).toEqual([]);
+    expect(shapeIssues(wa('x'.repeat(501)))).toEqual([{ nodeId: l.id, key: 'waMessageTooLong' }]);
+    const url = (u: string) => shapeIssues(updateNodeData(f, l.id, { target: { kind: 'url', url: u } }));
+    expect(url('https://:')).toEqual([{ nodeId: l.id, key: 'urlInvalid' }]);
+    expect(url(`https://a.com/${'x'.repeat(1990)}`)).toEqual([{ nodeId: l.id, key: 'urlInvalid' }]);
+    expect(url('http://a.com')).toEqual([{ nodeId: l.id, key: 'urlInvalid' }]);
+    expect(url('https://a.com/ok')).toEqual([]);
+  });
+
+  test('saveTo vazio é removido do nó', () => {
+    let f = emptyFlow(TEXTS);
+    const m = createNode('message', { x: 0, y: 0 }, f, TEXTS, null);
+    f = { ...f, nodes: [...f.nodes, m] };
+    f = updateNodeData(f, m.id, { saveTo: 'plano' });
+    expect(f.nodes.find((n) => n.id === m.id)!.data).toHaveProperty('saveTo', 'plano');
+    f = updateNodeData(f, m.id, { saveTo: '' });
+    expect(f.nodes.find((n) => n.id === m.id)!.data).not.toHaveProperty('saveTo');
+    expect(shapeIssues(f)).toEqual([]);
+  });
+
+  test('palavra-chave vazia é apontada', () => {
+    expect(triggerIssues({ mediaIds: [], keywords: ['quero', '  '], publicReplies: [] })).toEqual(['triggerKeywords']);
+    expect(triggerIssues({ mediaIds: [], keywords: ['quero'], publicReplies: [] })).toEqual([]);
   });
 });

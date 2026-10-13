@@ -18,11 +18,14 @@ export const LIMITS = {
   whatsappMessage: 500,
   maxTestUsernames: 10,
   name: 80,
+  maxNodes: 40,
+  maxEdges: 120,
+  conditionValue: 60,
 } as const;
 
 export const STATUSES = ['DRAFT', 'TEST', 'ACTIVE', 'PAUSED'] as const;
 export type Status = (typeof STATUSES)[number];
-export const RUN_STATUSES = ['OPEN', 'COMPLETED', 'FAILED', 'UNCERTAIN', 'SKIPPED'] as const;
+export const RUN_STATUSES = ['OPEN', 'COMPLETED', 'FAILED', 'UNCERTAIN', 'SKIPPED', 'ABANDONED'] as const;
 export type RunStatus = (typeof RUN_STATUSES)[number];
 export const TEXT_VALIDATIONS = ['name', 'phone', 'email', 'free'] as const;
 export type TextValidation = (typeof TEXT_VALIDATIONS)[number];
@@ -287,6 +290,8 @@ export function runStatusVariant(s: RunStatus): 'neutral' | 'review' | 'publishe
     case 'UNCERTAIN':
       return 'review';
     case 'SKIPPED':
+      return 'neutral';
+    case 'ABANDONED':
       return 'neutral';
   }
 }

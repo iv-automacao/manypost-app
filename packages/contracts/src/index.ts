@@ -1,4 +1,5 @@
 export * from './automation';
+export * from './automation-flow';
 export * from './billing';
 export * from './channel-provider';
 export * from './content-machine';

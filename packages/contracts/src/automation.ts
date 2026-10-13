@@ -9,7 +9,7 @@ import { z } from 'zod';
 export const AutomationStatuses = ['DRAFT', 'TEST', 'ACTIVE', 'PAUSED'] as const;
 export type AutomationStatus = (typeof AutomationStatuses)[number];
 
-export const AutomationRunStatuses = ['OPEN', 'COMPLETED', 'FAILED', 'UNCERTAIN', 'SKIPPED'] as const;
+export const AutomationRunStatuses = ['OPEN', 'COMPLETED', 'FAILED', 'UNCERTAIN', 'SKIPPED', 'ABANDONED'] as const;
 export type AutomationRunStatus = (typeof AutomationRunStatuses)[number];
 
 export const AutomationTextValidations = ['name', 'phone', 'email', 'free'] as const;
@@ -30,6 +30,9 @@ export const AUTOMATION_LIMITS = {
   whatsappMessage: 500,
   maxTestUsernames: 10,
   name: 80,
+  maxNodes: 40,
+  maxEdges: 120,
+  conditionValue: 60,
 } as const;
 
 const L = AUTOMATION_LIMITS;

@@ -56,6 +56,9 @@ export const ErrorCodes = {
   ContentGenerationFailed: 'content.generation_failed',
   /** o serviço de arte recusou a entrada (imagem ilegível, clipe acima do limite) */
   ContentInvalidInput: 'content.invalid_input',
+  // automação
+  /** o fluxo tem problemas que impedem Teste/Ativa — detail: { problems } */
+  AutomationFlowInvalid: 'automation.flow_invalid',
   // genéricos
   /** entrada fora da regra de domínio (mesmo title do 400 de validação Zod) */
   ValidationInvalidRequest: 'validation.invalid_request',

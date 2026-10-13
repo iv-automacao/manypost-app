@@ -588,7 +588,31 @@ export function emptyFlow(t: NodeTexts): Flow {
   };
 }
 
-export const defaultTrigger = (): TriggerConfig => ({ mediaIds: [], keywords: ['quero'], publicReplies: ['Te chamei no direct!'] });
+/** Modelos prontos de resposta pública: avisam quem não segue para olhar em "Solicitações de mensagem". */
+export const PUBLIC_REPLY_TEMPLATES: readonly string[] = [
+  'Te chamei no direct! Se não aparecer, olha em Solicitações de mensagem.',
+  'Acabei de te mandar uma mensagem. Confere o direct, pode estar em Solicitações.',
+  'Enviei os detalhes no seu direct. Se não achar, procura em Solicitações ou na pasta de spam.',
+  'Já te respondi por mensagem! Dá uma olhada no direct, na aba Solicitações.',
+  'Mandei tudo no privado. Não achou? Veja em Solicitações de mensagem.',
+  'Respondi no seu direct. Se não estiver na caixa principal, confira em Solicitações.',
+];
+
+/** Acrescenta os modelos que ainda não estão na lista (sem diferenciar caixa/espaços), respeitando o limite. */
+export function withReplyTemplates(current: string[]): string[] {
+  const key = (r: string) => r.trim().toLowerCase();
+  const seen = new Set(current.map(key));
+  const out = [...current];
+  for (const t of PUBLIC_REPLY_TEMPLATES) {
+    if (out.length >= LIMITS.maxPublicReplies) break;
+    if (seen.has(key(t))) continue;
+    seen.add(key(t));
+    out.push(t);
+  }
+  return out;
+}
+
+export const defaultTrigger = (): TriggerConfig => ({ mediaIds: [], keywords: ['quero'], publicReplies: PUBLIC_REPLY_TEMPLATES.slice(0, 3) });
 
 export function createNode(kind: BlockKind, position: Position, flow: Flow, t: NodeTexts, username: string | null): FlowNode {
   const id = uniqueId(kind === 'follow' ? 'seguir' : kind, flow.nodes.map((n) => n.id));

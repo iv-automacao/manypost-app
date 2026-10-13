@@ -13,7 +13,7 @@ import { captionPreview } from '@/features/engagement/logic';
 import { EngagementError } from '@/features/engagement/shared';
 import { cn } from '@/lib/utils';
 import { LIMITS, splitKeywords, splitUsernames } from '../logic';
-import type { TriggerConfig } from './logic';
+import { type TriggerConfig, withReplyTemplates } from './logic';
 
 /** seletor de posts recentes (movido do editor antigo, sem mudança de comportamento) */
 function MediaPicker({
@@ -174,12 +174,22 @@ export function TriggerPanel({
               </Button>
             </div>
           ))}
-          {trigger.publicReplies.length < LIMITS.maxPublicReplies ? (
-            <Button variant="outline" size="sm" className="self-start" onClick={() => onTrigger({ ...trigger, publicReplies: [...trigger.publicReplies, ''] })}>
-              <Plus aria-hidden />
-              {t('trigger.addReply')}
+          <div className="flex flex-wrap gap-2">
+            {trigger.publicReplies.length < LIMITS.maxPublicReplies ? (
+              <Button variant="outline" size="sm" onClick={() => onTrigger({ ...trigger, publicReplies: [...trigger.publicReplies, ''] })}>
+                <Plus aria-hidden />
+                {t('trigger.addReply')}
+              </Button>
+            ) : null}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={withReplyTemplates(trigger.publicReplies).length === trigger.publicReplies.length}
+              onClick={() => onTrigger({ ...trigger, publicReplies: withReplyTemplates(trigger.publicReplies) })}
+            >
+              {t('trigger.useTemplates')}
             </Button>
-          ) : null}
+          </div>
         </section>
         <Label className="flex flex-col gap-1 text-compact">
           {t('trigger.testUsers')}

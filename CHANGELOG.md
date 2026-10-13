@@ -8,6 +8,7 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
 
 ### Added
 
+- Modelos prontos de resposta pública nas automações, avisando para olhar Solicitações de mensagem.
 - **Construtor de fluxo em canvas para automações do Instagram (`add-flow-builder-canvas`).** Balões
   conectados, ramificação por botão, condição, pedir para seguir, simulador e gatilho separado do
   fluxo. Entrega 1 de 5; runbook em `docs/principal/RUNBOOK_FLOW_BUILDER.md`.

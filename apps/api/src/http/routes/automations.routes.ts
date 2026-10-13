@@ -44,7 +44,10 @@ const Automation = z
     channelId: z.string(),
     name: z.string(),
     status: z.enum(AutomationStatuses),
-    config: Config.nullable().openapi({ description: '`null` = configuração gravada não passa mais na validação' }),
+    // schema sem nome aqui: `.nullable()` sobre o componente nomeado o tornaria anulável também no corpo
+    config: CommentAutomationConfigSchema.nullable().openapi({
+      description: '`null` = configuração gravada não passa mais na validação',
+    }),
     testUsernames: z.array(z.string()),
     createdBy: z.string().nullable(),
     createdAt: z.string(),

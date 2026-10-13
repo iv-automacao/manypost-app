@@ -111,6 +111,8 @@ const EnvSchema = z
     // segredo do webhook da Zernio (HMAC de comentários/mensagens → automação comentário → direct);
     // sem ele a rota pública responde 404 (add-comment-automation)
     ZERNIO_WEBHOOK_SECRET: z.string().min(32).optional(),
+    // base da API da Zernio (padrão produção); serve para homologação e para o E2E local
+    ZERNIO_API_URL: z.string().url().optional(),
     // Streaming — publicam no chat ao vivo, não em feed.
     TWITCH_CLIENT_ID: z.string().optional(),
     TWITCH_CLIENT_SECRET: z.string().optional(),

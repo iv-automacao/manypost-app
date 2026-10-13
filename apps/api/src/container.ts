@@ -192,6 +192,7 @@ export async function buildContainer(env: Env) {
     env.ZERNIO_API_KEY && zernioOrgs.size > 0
       ? makeZernioBridge({
           apiKey: env.ZERNIO_API_KEY,
+          ...(env.ZERNIO_API_URL ? { baseUrl: env.ZERNIO_API_URL.replace(/\/+$/, '') } : {}),
           fetch: globalThis.fetch,
           log: (level, msg, data) => log(level === 'debug' ? 'info' : level, msg, { ...data }),
         })

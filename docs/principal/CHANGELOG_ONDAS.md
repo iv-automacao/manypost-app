@@ -10,6 +10,28 @@
 > **Como manter:** ao fechar uma fatia, adicione a onda nova **no topo** e atualize o STATUS.
 > Cada entrada é auto-contida: o que mudou, onde no código, e a prova de que funciona.
 
+## Onda 44 — 2026-10-12 — comentários reais pela ponte Zernio
+
+- **O que mudou:** a verificação em produção da onda 43 mostrou comentários contados e não
+  entregues. O `scripts/diag-ig-comments.ts`, rodado no console do Easypanel, testou sem `fields`,
+  campo a campo, v21, v25, sem versão e `fields=comments{id}` no post. Em todas as variações a
+  resposta foi HTTP 200, `data=0` e cursor presente, com `comments_count=5`, inclusive para o
+  comentário da própria conta e de conta pessoal que não é testadora. Conclusão: a Meta filtra por
+  nível de acesso do app (padrão vs. Advanced Access), e o código não tem culpa. A decisão do Iago
+  foi usar a Zernio agora (app aprovado, conta já conectada) e pedir o App Review em paralelo. A
+  ponte é uma interface trocável (`CommentTransport`) e só liga com chave **e** allowlist de
+  organização.
+- **Onde:** `packages/contracts/src/channel-provider.ts` (`CommentTransport`),
+  `packages/providers/src/zernio/zernio-bridge.ts`, `packages/core/src/application/use-cases/engagement.ts`
+  (`commentTransportFor`), `apps/api/src/container.ts`, `engagement.routes.ts` (`mediaId`),
+  `apps/web/src/features/engagement/hooks.ts`, `packages/config/src/env.ts`.
+- **Prova:** 14 testes do adaptador (resolução por id e username, cache de 10 min, mapeamento,
+  corpos de escrita, classificação 401/403/400/429/502, chave fora do log), 11 novos no caso de uso
+  (ponte no lugar do provider sem decifrar token, outra org e canal parado sem consultar a ponte,
+  `mediaId` exigido só pela ponte, auditoria, incerteza) e 1 de rota. `bun run check`: 1628
+  passaram e falharam só os 2 de `catalog.test.ts` já conhecidos (espaço no caminho local).
+  Fronteiras, IA e marca ok. O OpenAPI regenerado só acrescentou o `mediaId` opcional.
+
 ## Onda 43 — 2026-10-12 — comentários e insights do Instagram
 
 - **O que mudou:** as funções de comentário e métrica do `instagram-mcp` (MIT, Python) entraram no

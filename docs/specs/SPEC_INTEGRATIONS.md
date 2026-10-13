@@ -142,6 +142,25 @@ chamar a rede. Os stubs `fetchAnalytics`/`fetchPostAnalytics` seguem sem impleme
   `…/comments/{commentId}/visibility`, `…/insights?days=`, `…/insights/media`; telas
   `/comentarios` e `/insights`. O catálogo de providers expõe `engagement: { comments, insights }`.
 
+### 6.2 Ponte de comentários (change `add-zernio-comment-bridge`, 2026-10-12)
+
+Com acesso padrão (app sem App Review), a Graph do Instagram Login **conta** os comentários
+(`comments_count`) mas devolve `data: []` em `/{media}/comments`, com cursor, para qualquer autor.
+Para não esperar o Advanced Access, comentários podem ir por uma **ponte**: o contrato tem
+`CommentTransport` (`listComments`/`replyToComment`/`setCommentHidden` por `mediaId`), e
+`makeEngagement` consulta `commentTransportFor(canal)` depois de resolver organização e status.
+Com ponte, o token próprio nem é decifrado e o escopo próprio não é exigido.
+
+- **Implementação:** `packages/providers/src/zernio/zernio-bridge.ts` (`zernio.com/api/v1`,
+  `/accounts` e `/inbox/comments/...`; exige o add-on Inbox na Zernio).
+- **Ativação:** só com `ZERNIO_API_KEY` **e** `ZERNIO_ORG_IDS`, e só para `instagram-standalone` e
+  `instagram`. A conta precisa estar visível para a chave.
+- **Erros:** 401/403 → `provider_rejected` (é a chave da instalação, não o canal); 408/429/5xx →
+  `provider_failed`.
+- **Escritas:** exigem `mediaId` no corpo.
+- **Leitura:** a Zernio guarda a leitura em cache por até 10 min, e as escritas próprias renovam o
+  cache.
+
 ## 7. Suíte de contrato de provider (qualidade)
 
 Todo provider passa pela mesma suíte (`packages/providers/test-kit`):

@@ -511,6 +511,18 @@ THREADS_APP_SECRET=...
 - **Imagem: prefira JPEG.** A documentação da Meta declara **JPEG como único formato de imagem aceito** no Instagram — PNG pode falhar na criação do container mesmo o manypost aceitando o arquivo.
 - **Os tokens duram ~60 dias** e se renovam sozinhos a cada publicação. Uma conta que passa 60 dias sem publicar pede reconexão (o canal aparece como "precisa reconectar").
 - **Limite de publicação do Instagram:** 100 posts por API a cada 24h por conta (carrossel conta como 1 post; máximo de 50 carrosséis).
+- **Comentários aparecem contados mas vazios?** Enquanto o app não passou pelo App Review, a Meta
+  mostra quantos comentários um post tem mas não entrega o texto. Se você já usa a **Zernio** com a
+  mesma conta do Instagram, dá para ler e responder por ela. No painel da Zernio, gere uma chave de
+  API (a conta precisa do add-on **Inbox**) e coloque no `.env` a chave e o id da sua organização no
+  manypost:
+
+  ```env
+  ZERNIO_API_KEY=sk_...
+  ZERNIO_ORG_IDS=uuid-da-organizacao
+  ```
+
+  Reinicie: os comentários passam a vir pela Zernio. Para voltar ao caminho direto, apague a chave.
 - **Um escopo desmarcado no diálogo derruba a conexão.** Se você clicou em "Editar acesso" e tirou alguma permissão, reconecte marcando tudo.
 
 ### 5.3 TikTok — auditoria obrigatória para post público
@@ -559,6 +571,7 @@ O acesso à API do Google Business Profile depende de um **formulário de solici
 | Facebook **e** Instagram (Facebook Business) | `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` | §5.2 |
 | Instagram (login direto) | `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` | §5.2 |
 | Threads | `THREADS_APP_ID`, `THREADS_APP_SECRET` | §5.2 |
+| Comentários do Instagram pela Zernio (opcional) | `ZERNIO_API_KEY`, `ZERNIO_ORG_IDS` | §5.2 (pegadinhas) |
 | TikTok | `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` | §5.3 |
 
 Depois de editar o `.env`: reinicie o manypost → a rede aparece em **Conexões** → clique em conectar → autorize → publique um post de teste.

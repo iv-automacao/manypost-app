@@ -10,6 +10,11 @@
 > **Como manter:** ao fechar uma fatia, atualize as seções abaixo **e** abra uma entrada nova no
 > topo do changelog. Este arquivo é sobre o presente; o changelog é sobre o passado.
 >
+> **Atualização — ponte de comentários pela Zernio (2026-10-12, onda 44):** a Meta não entrega o
+> conteúdo dos comentários ao app sem Advanced Access. Com `ZERNIO_API_KEY` e `ZERNIO_ORG_IDS`, as
+> organizações listadas leem, respondem e ocultam pela Zernio. O App Review do app próprio segue em
+> paralelo. Mudança `add-zernio-comment-bridge`.
+>
 > **Atualização — comentários e insights do Instagram (2026-10-12, onda 43):** telas
 > `/comentarios` (ler, responder, ocultar) e `/insights` (conta e por post) para canais
 > `instagram-standalone`, lidas direto da Graph sem persistir. Direct e automação comentário →

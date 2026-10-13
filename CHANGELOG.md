@@ -8,6 +8,18 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
 
 ### Added
 
+- **Ponte de comentários pela Zernio (`add-zernio-comment-bridge`).** Com acesso padrão, a Meta
+  conta os comentários mas não entrega o conteúdo ao app próprio: `/{media}/comments` volta `data`
+  vazio. Diagnóstico em `scripts/diag-ig-comments.ts`. Com `ZERNIO_API_KEY` e `ZERNIO_ORG_IDS`
+  definidos, as organizações listadas leem, respondem e ocultam comentários pela Zernio, que já tem
+  a conta conectada. A conta é resolvida por `platformUserId`, com o username como reserva, e a
+  lista de contas fica em cache de 10 minutos. Posts e métricas continuam na Graph própria.
+- **Interface `CommentTransport`.** O contrato ganhou essa interface e `makeEngagement` passou a
+  receber `commentTransportFor`. Organização e status do canal são conferidos antes de consultar a
+  ponte. Uma recusa da chave da ponte vira `channel.provider_rejected` e nunca pede reconexão.
+- **`mediaId` nas escritas.** As rotas de resposta e visibilidade aceitam `mediaId`, que é opcional
+  e exigido só pela ponte (400 sem rede quando falta). A web passa a enviá-lo.
+- **Sem migration.** Para desligar a ponte, basta remover a chave.
 - **Comentários e Insights do Instagram (`add-instagram-engagement`).** Duas telas novas no menu:
   **Comentários** (posts recentes da conta, comentários com respostas, responder em público,
   ocultar/mostrar) e **Insights** (seguidores, alcance, visualizações e interações da conta em 7/14/28

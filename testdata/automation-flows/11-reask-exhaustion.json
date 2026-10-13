@@ -1,0 +1,112 @@
+{
+  "name": "re-pergunta uma vez; na segunda, grava o texto cru e segue pela primeira opção",
+  "flow": {
+    "version": 2,
+    "nodes": [
+      {
+        "id": "opening",
+        "type": "opening",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "data": {
+          "text": "Olá!"
+        }
+      },
+      {
+        "id": "m",
+        "type": "message",
+        "position": {
+          "x": 0,
+          "y": 160
+        },
+        "data": {
+          "text": "Qual plano?",
+          "options": [
+            {
+              "id": "sa",
+              "title": "Saúde"
+            },
+            {
+              "id": "vi",
+              "title": "Vida"
+            }
+          ],
+          "saveTo": "plano",
+          "onTyped": "reask"
+        }
+      },
+      {
+        "id": "x",
+        "type": "end",
+        "position": {
+          "x": 0,
+          "y": 320
+        },
+        "data": {
+          "text": "Plano: {plano}"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "opening",
+        "sourceHandle": "next",
+        "target": "m"
+      },
+      {
+        "id": "e2",
+        "source": "m",
+        "sourceHandle": "sa",
+        "target": "x"
+      },
+      {
+        "id": "e3",
+        "source": "m",
+        "sourceHandle": "vi",
+        "target": "x"
+      }
+    ]
+  },
+  "inputs": [
+    {
+      "text": "oi"
+    },
+    {
+      "text": "sei lá"
+    },
+    {
+      "text": "talvez"
+    }
+  ],
+  "expect": {
+    "messages": [
+      {
+        "text": "Olá!\n\nResponda esta mensagem para continuar.\n\nMensagem automática."
+      },
+      {
+        "text": "Qual plano?",
+        "buttons": [
+          "Saúde",
+          "Vida"
+        ]
+      },
+      {
+        "text": "Qual plano?",
+        "buttons": [
+          "Saúde",
+          "Vida"
+        ]
+      },
+      {
+        "text": "Plano: talvez"
+      }
+    ],
+    "status": "completed",
+    "answers": {
+      "plano": "talvez"
+    }
+  }
+}

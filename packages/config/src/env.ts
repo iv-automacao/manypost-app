@@ -104,6 +104,15 @@ const EnvSchema = z
     // "Facebook Login" no painel da Meta — a MESMA app serve os dois providers
     FACEBOOK_APP_ID: z.string().optional(),
     FACEBOOK_APP_SECRET: z.string().optional(),
+    // Ponte de comentários pela Zernio (add-zernio-comment-bridge): chave da conta Zernio que já tem
+    // o Instagram conectado + ids das organizações autorizadas (vírgula). Só liga com as duas.
+    ZERNIO_API_KEY: z.string().optional(),
+    ZERNIO_ORG_IDS: z.string().optional(),
+    // segredo do webhook da Zernio (HMAC de comentários/mensagens → automação comentário → direct);
+    // sem ele a rota pública responde 404 (add-comment-automation)
+    ZERNIO_WEBHOOK_SECRET: z.string().min(32).optional(),
+    // base da API da Zernio (padrão produção); serve para homologação e para o E2E local
+    ZERNIO_API_URL: z.string().url().optional(),
     // Streaming — publicam no chat ao vivo, não em feed.
     TWITCH_CLIENT_ID: z.string().optional(),
     TWITCH_CLIENT_SECRET: z.string().optional(),
@@ -163,6 +172,31 @@ const EnvSchema = z
      * nomeando esta variável — nunca é entregue como se estivesse pronta.
      */
     AI_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(64).max(32_000).default(4000),
+    /**
+     * Nome do parâmetro de teto de saída no dialeto chat-completions. Modelos da família de
+     * raciocínio recusam `max_tokens` e exigem `max_completion_tokens` (change add-content-machine).
+     */
+    AI_TOKEN_LIMIT_PARAM: z.enum(['max_tokens', 'max_completion_tokens']).default('max_tokens'),
+    /** `false` = não envia `temperature` (modelos de raciocínio só aceitam o padrão) */
+    AI_SEND_TEMPERATURE: z
+      .union([z.boolean(), z.string()])
+      .default('true')
+      .transform((v) => v === true || v === 'true'),
+    /**
+     * Máquina de conteúdo (change add-content-machine). Renderizador HTTP (artes, lint, paleta,
+     * montagem de vídeo) e provedor de vídeo; ausentes = a máquina recusa com capability indisponível.
+     */
+    CONTENT_RENDERER_URL: z.string().url().optional(),
+    CONTENT_RENDERER_KEY: z.string().optional(),
+    VIDEO_PROVIDER_KEY: z.string().optional(),
+    VIDEO_PROVIDER_MODEL: z.string().default('bytedance/seedance-2.5/text-to-video'),
+    /** vazio = endpoint padrão do adapter */
+    VIDEO_PROVIDER_BASE_URL: z.string().url().optional(),
+    /** 480p custa menos da metade de 720p; o reels final sai sempre em 1080×1920 */
+    VIDEO_PROVIDER_RESOLUTION: z.enum(['480p', '720p']).default('720p'),
+    /** preço de texto por milhão de tokens (entrada/saída), para o registro de gasto da máquina */
+    CONTENT_TEXT_USD_IN: z.coerce.number().min(0).default(0.25),
+    CONTENT_TEXT_USD_OUT: z.coerce.number().min(0).default(2),
     /**
      * Provedor de imagem independente. Ausente = modo de compatibilidade, herdando a conexão
      * completa de texto; `none` desliga somente imagens.
@@ -415,6 +449,8 @@ export type AiConfig = {
   model: string;
   timeoutMs: number;
   maxOutputTokens: number;
+  tokenLimitParam: 'max_tokens' | 'max_completion_tokens';
+  sendTemperature: boolean;
 };
 
 export function aiConfigFromEnv(env: Env): AiConfig | null {
@@ -427,6 +463,8 @@ export function aiConfigFromEnv(env: Env): AiConfig | null {
     model: env.AI_MODEL!,
     timeoutMs: env.AI_TIMEOUT_MS,
     maxOutputTokens: env.AI_MAX_OUTPUT_TOKENS,
+    tokenLimitParam: env.AI_TOKEN_LIMIT_PARAM,
+    sendTemperature: env.AI_SEND_TEMPERATURE,
   };
 }
 
@@ -531,4 +569,33 @@ export function providerSecretsFromEnv(env: Env): Record<string, Record<string, 
 export function providerEnvVarNames(providerId: string, secretKeys: string[]): string[] {
   const map = (PROVIDER_ENV as Record<string, Record<string, string>>)[providerId] ?? {};
   return secretKeys.map((k) => map[k]).filter((v): v is string => Boolean(v));
+}
+
+/**
+ * Máquina de conteúdo (openspec add-content-machine, design D4/D5). Renderizador e vídeo são
+ * opcionais: sem eles a máquina responde que a capacidade não está configurada, nunca falha calada.
+ */
+export interface ContentMachineConfig {
+  renderer: { baseUrl: string; apiKey: string } | null;
+  video: { apiKey: string; model: string; baseUrl?: string; timeoutMs: number } | null;
+  videoResolution: '480p' | '720p';
+  prices: { textUsdIn: number; textUsdOut: number };
+}
+
+export function contentMachineConfigFromEnv(env: Env): ContentMachineConfig {
+  return {
+    renderer: env.CONTENT_RENDERER_URL
+      ? { baseUrl: env.CONTENT_RENDERER_URL, apiKey: env.CONTENT_RENDERER_KEY ?? '' }
+      : null,
+    video: env.VIDEO_PROVIDER_KEY
+      ? {
+          apiKey: env.VIDEO_PROVIDER_KEY,
+          model: env.VIDEO_PROVIDER_MODEL,
+          ...(env.VIDEO_PROVIDER_BASE_URL ? { baseUrl: env.VIDEO_PROVIDER_BASE_URL } : {}),
+          timeoutMs: 60_000,
+        }
+      : null,
+    videoResolution: env.VIDEO_PROVIDER_RESOLUTION,
+    prices: { textUsdIn: env.CONTENT_TEXT_USD_IN, textUsdOut: env.CONTENT_TEXT_USD_OUT },
+  };
 }

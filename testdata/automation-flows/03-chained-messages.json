@@ -1,0 +1,31 @@
+{
+  "name": "mensagens sem botão saem em sequência até o próximo passo que espera",
+  "flow": {
+    "version": 2,
+    "nodes": [
+      { "id": "opening", "type": "opening", "position": { "x": 0, "y": 0 }, "data": { "text": "Olá!" } },
+      { "id": "a1", "type": "message", "position": { "x": 0, "y": 160 }, "data": { "text": "Primeiro aviso.", "format": "none" } },
+      { "id": "a2", "type": "message", "position": { "x": 0, "y": 320 }, "data": { "text": "Segundo aviso.", "format": "none" } },
+      { "id": "nome", "type": "question", "position": { "x": 0, "y": 480 }, "data": { "text": "Qual é o seu nome?", "field": "nome", "validate": "name" } },
+      { "id": "fim", "type": "end", "position": { "x": 0, "y": 640 }, "data": { "text": "Obrigado, {nome}!" } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "opening", "sourceHandle": "next", "target": "a1" },
+      { "id": "e2", "source": "a1", "sourceHandle": "next", "target": "a2" },
+      { "id": "e3", "source": "a2", "sourceHandle": "next", "target": "nome" },
+      { "id": "e4", "source": "nome", "sourceHandle": "next", "target": "fim" }
+    ]
+  },
+  "inputs": [{ "text": "oi" }, { "text": "Ana" }],
+  "expect": {
+    "messages": [
+      { "text": "Olá!\n\nResponda esta mensagem para continuar.\n\nMensagem automática." },
+      { "text": "Primeiro aviso." },
+      { "text": "Segundo aviso." },
+      { "text": "Qual é o seu nome?" },
+      { "text": "Obrigado, Ana!" }
+    ],
+    "status": "completed",
+    "answers": { "nome": "Ana" }
+  }
+}

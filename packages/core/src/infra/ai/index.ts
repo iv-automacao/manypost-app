@@ -10,6 +10,8 @@ import type { AiProvider, ImageGenerationProvider } from '../../application/port
 import { makeChatCompletionsProvider } from './chat-completions';
 import { makeImageGenerationsProvider } from './image-generations';
 import { makeMessagesProvider } from './messages';
+import { makeVideoQueueProvider, type VideoQueueConfig } from './video-queue';
+import type { VideoGenerationProvider } from '../../application/ports/content-machine';
 import type { AiAdapterConfig, FetchLike, ImageAdapterConfig } from './shared';
 
 export type AiProviderConfig = AiAdapterConfig & {
@@ -39,3 +41,14 @@ export function makeImageGenerationProvider(
 }
 
 export type { AiAdapterConfig, FetchLike, ImageAdapterConfig } from './shared';
+
+/** endpoint padrão do gerador de vídeo; o operador troca por `VIDEO_PROVIDER_BASE_URL` */
+const VIDEO_DEFAULT_BASE_URL = 'https://api.higgsfield.ai';
+
+export function makeVideoGenerationProvider(
+  config: (Omit<VideoQueueConfig, 'baseUrl'> & { baseUrl?: string }) | null,
+  fetchImpl: FetchLike = fetch,
+): VideoGenerationProvider | null {
+  if (!config) return null;
+  return makeVideoQueueProvider({ ...config, baseUrl: config.baseUrl || VIDEO_DEFAULT_BASE_URL }, fetchImpl);
+}

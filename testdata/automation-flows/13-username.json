@@ -1,0 +1,56 @@
+{
+  "name": "{username} é preenchido com o usuário de quem comentou",
+  "username": "ana.x",
+  "flow": {
+    "version": 2,
+    "nodes": [
+      {
+        "id": "opening",
+        "type": "opening",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "data": {
+          "text": "Oi {username}!"
+        }
+      },
+      {
+        "id": "fim",
+        "type": "end",
+        "position": {
+          "x": 0,
+          "y": 160
+        },
+        "data": {
+          "text": "Até já, {username}"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "opening",
+        "sourceHandle": "next",
+        "target": "fim"
+      }
+    ]
+  },
+  "inputs": [
+    {
+      "text": "oi"
+    }
+  ],
+  "expect": {
+    "messages": [
+      {
+        "text": "Oi ana.x!\n\nResponda esta mensagem para continuar.\n\nMensagem automática."
+      },
+      {
+        "text": "Até já, ana.x"
+      }
+    ],
+    "status": "completed",
+    "answers": {}
+  }
+}

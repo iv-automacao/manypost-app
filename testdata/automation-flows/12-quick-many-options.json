@@ -1,0 +1,124 @@
+{
+  "name": "formato de respostas rápidas aceita 4 ou mais opções",
+  "flow": {
+    "version": 2,
+    "nodes": [
+      {
+        "id": "opening",
+        "type": "opening",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "data": {
+          "text": "Olá!"
+        }
+      },
+      {
+        "id": "m",
+        "type": "message",
+        "position": {
+          "x": 0,
+          "y": 160
+        },
+        "data": {
+          "text": "Qual cidade?",
+          "format": "quick",
+          "options": [
+            {
+              "id": "c1",
+              "title": "Manaus"
+            },
+            {
+              "id": "c2",
+              "title": "Belém"
+            },
+            {
+              "id": "c3",
+              "title": "Macapá"
+            },
+            {
+              "id": "c4",
+              "title": "Boa Vista"
+            }
+          ],
+          "saveTo": "cidade"
+        }
+      },
+      {
+        "id": "x",
+        "type": "end",
+        "position": {
+          "x": 0,
+          "y": 320
+        },
+        "data": {
+          "text": "Atendemos {cidade}"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "opening",
+        "sourceHandle": "next",
+        "target": "m"
+      },
+      {
+        "id": "e2",
+        "source": "m",
+        "sourceHandle": "c1",
+        "target": "x"
+      },
+      {
+        "id": "e3",
+        "source": "m",
+        "sourceHandle": "c2",
+        "target": "x"
+      },
+      {
+        "id": "e4",
+        "source": "m",
+        "sourceHandle": "c3",
+        "target": "x"
+      },
+      {
+        "id": "e5",
+        "source": "m",
+        "sourceHandle": "c4",
+        "target": "x"
+      }
+    ]
+  },
+  "inputs": [
+    {
+      "text": "oi"
+    },
+    {
+      "tap": "c4"
+    }
+  ],
+  "expect": {
+    "messages": [
+      {
+        "text": "Olá!\n\nResponda esta mensagem para continuar.\n\nMensagem automática."
+      },
+      {
+        "text": "Qual cidade?",
+        "quick": [
+          "Manaus",
+          "Belém",
+          "Macapá",
+          "Boa Vista"
+        ]
+      },
+      {
+        "text": "Atendemos Boa Vista"
+      }
+    ],
+    "status": "completed",
+    "answers": {
+      "cidade": "Boa Vista"
+    }
+  }
+}

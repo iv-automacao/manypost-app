@@ -64,6 +64,7 @@ const ALL_EVENTS: WebhookEvent[] = [
   'channel.refresh_required',
   'channel.disconnected',
   'mention.received',
+  'lead.captured',
 ];
 
 function SectionTitle({ icon: Icon, children }: { icon?: React.ElementType; children: React.ReactNode }) {

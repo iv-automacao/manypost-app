@@ -8,6 +8,89 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
 
 ### Added
 
+- **Construtor de fluxo em canvas para automações do Instagram (`add-flow-builder-canvas`).** Balões
+  conectados, ramificação por botão, condição, pedir para seguir, simulador e gatilho separado do
+  fluxo. Entrega 1 de 5; runbook em `docs/principal/RUNBOOK_FLOW_BUILDER.md`.
+- **Automação comentário → direct (`add-comment-automation`).** Um ManyChat próprio no manypost.
+  - **Telas:** **Automações** (lista e construtor com pré-visualização da conversa) e **Leads**.
+  - **Construtor:**
+    - **Gatilho:** posts escolhidos ou qualquer post, mais palavras-chave (sem acento e caixa, palavra
+      inteira) ou qualquer comentário.
+    - **Resposta pública:** variações sorteadas.
+    - **Abertura no direct:** resposta privada com botão ou só texto, mais o aviso "Mensagem
+      automática.".
+    - **Perguntas:** até 5. As de escolha vão como botões (até 3) ou respostas rápidas (até 13); as
+      de texto validam nome, telefone, e-mail ou texto livre. Resposta inválida é perguntada de novo
+      uma vez.
+    - **Mensagem final:** botão `wa.me` com o texto já preenchido pelas respostas.
+    - **Estados:** rascunho, teste (só as contas listadas disparam), ativa e pausada. Ativar e
+      apagar exigem ADMIN/OWNER.
+  - **Lead:** cada lead completo sai no novo evento assinado `lead.captured`.
+  - **Entrada:** `POST /v1/integrations/zernio/webhook` confere o HMAC em tempo constante, aceita
+    corpo de até 256 KB e grava cada evento uma vez em `inbound_events`. O processamento fica na
+    fila serial `automation-event`.
+  - **Motor:** é retomável. Cada envio é gravado depois de confirmado, as mensagens levam
+    `Idempotency-Key` e a resposta privada incerta nunca é retentada.
+  - **Migration `0011`:** `comment_automations`, `automation_runs` e `inbound_events`.
+  - **Variáveis:** `ZERNIO_WEBHOOK_SECRET`, mais `ZERNIO_API_URL` opcional.
+  - **Scripts:** `scripts/register-zernio-webhook.ts` e `scripts/e2e-automation.ts`.
+- **Ponte de comentários pela Zernio (`add-zernio-comment-bridge`).** Com acesso padrão, a Meta
+  conta os comentários mas não entrega o conteúdo ao app próprio: `/{media}/comments` volta `data`
+  vazio. Diagnóstico em `scripts/diag-ig-comments.ts`. Com `ZERNIO_API_KEY` e `ZERNIO_ORG_IDS`
+  definidos, as organizações listadas leem, respondem e ocultam comentários pela Zernio, que já tem
+  a conta conectada. A conta é resolvida por `platformUserId`, com o username como reserva, e a
+  lista de contas fica em cache de 10 minutos. Posts e métricas continuam na Graph própria.
+- **Interface `CommentTransport`.** O contrato ganhou essa interface e `makeEngagement` passou a
+  receber `commentTransportFor`. Organização e status do canal são conferidos antes de consultar a
+  ponte. Uma recusa da chave da ponte vira `channel.provider_rejected` e nunca pede reconexão.
+- **`mediaId` nas escritas.** As rotas de resposta e visibilidade aceitam `mediaId`, que é opcional
+  e exigido só pela ponte (400 sem rede quando falta). A web passa a enviá-lo.
+- **Sem migration.** Para desligar a ponte, basta remover a chave.
+- **Comentários e Insights do Instagram (`add-instagram-engagement`).** Duas telas novas no menu:
+  **Comentários** (posts recentes da conta, comentários com respostas, responder em público,
+  ocultar/mostrar) e **Insights** (seguidores, alcance, visualizações e interações da conta em 7/14/28
+  dias, alcance por dia e tabela por post). Lido direto da Graph do Instagram Login a cada consulta,
+  sem persistir. O contrato de provider ganhou métodos opcionais de engajamento e
+  `engagementScopes`; o caso de uso confere organização, status do canal e escopo antes de chamar a
+  rede e classifica a falha (`channel.refresh_required` 409, `channel.missing_scopes` 403,
+  `channel.provider_rejected` 422, `channel.provider_failed` 502 com `uncertain` em escrita). Rotas
+  `/v1/channels/{id}/{media,insights,…}`; ids de mídia/comentário só numéricos; resposta aceita
+  `Idempotency-Key` e resposta/ocultação vão para a auditoria. Catálogo de providers expõe
+  `engagement`. Sem migration e sem variável nova; nenhuma conta precisa reconectar.
+- **Máquina de conteúdo (`add-content-machine`).** Nova área "Máquina" com a esteira completa por
+  organização: pauta da semana (fórmulas de gancho) → roteiro e legenda (com lint mecânico e uma
+  correção automática) → produção (carrossel, post e story renderizados com a identidade da marca;
+  reels com um clipe por cena gerado com narração nativa e montado com card final) → revisão de
+  conformidade (prompt versionado + checagem determinística de CTA) → agendamento pela esteira de
+  publicação de sempre → acompanhamento até `publicado`. Peça sinalizada para em `revisao` para uma
+  pessoa aprovar, reprovar ou pedir ajuste de roteiro/arte. Identidade visual (logos para fundo
+  claro/escuro, paleta extraída da logo, slogan, assinatura, tom, canal padrão, CTA por direct ou
+  WhatsApp), fundação editorial e prompts versionados ficam no app. Todo gasto (texto por tokens,
+  vídeo pela estimativa do fornecedor, com estorno de pedido moderado) é registrado por peça e por
+  mês. Tabelas novas (migration aditiva `0008_content-machine`), fila `content-machine` + sweeper
+  por minuto, rotas `/v1/content-machine/*`. Variáveis opcionais: `CONTENT_RENDERER_URL`,
+  `CONTENT_RENDERER_KEY`, `VIDEO_PROVIDER_KEY`, `VIDEO_PROVIDER_MODEL`, `VIDEO_PROVIDER_BASE_URL`,
+  `VIDEO_PROVIDER_RESOLUTION`, `CONTENT_TEXT_USD_IN`, `CONTENT_TEXT_USD_OUT`; sem elas a máquina
+  responde que a capacidade não está configurada. As etapas rodam no processo da API (`MODE=all`,
+  `standalone` ou `full`); o worker dedicado não consome esta fila.
+- **Roteiro, legenda e revisão mais firmes.** A pílula de CTA de post e story é sempre o texto
+  fixo do canal; a legenda recebe formato, público e praça e também os achados do lint; o roteiro
+  tem até duas correções automáticas; flag do revisor marcada `falhou: false` é descartada.
+- **Reels só com roteiro.** Interruptor "Gerar o vídeo dos reels" na Identidade (`reelsVideo`,
+  migration `0010_content-reels-video`, padrão ligado). Desligado, o reels passa pelo roteiro e pela
+  revisão de conformidade, para em `revisao` como "roteiro para gravar" e não gera vídeo nem gasto
+  de vídeo; aprovar reels sem vídeo é recusado (a tela não oferece o botão).
+- **CTA da máquina com palavra simples e canal por comentário.** A marca define a palavra do CTA
+  (`ctaWord`, padrão `PLANO`) e a palavra para empresa/MEI (`ctaWordBusiness`, padrão `EMPRESA`):
+  uma palavra, maiúsculas, sem acento, repetida entre peças para servir de gatilho de automação
+  (ManyChat). Novo canal `comentario` ("Comenta PLANO aqui"), além de direct e WhatsApp. A palavra
+  sai em destaque na pílula de CTA da arte e do card final do reels. Migration `0009_content-cta-word`
+  troca o índice único de `keyword` por índice simples; o código por peça (`PME-1005-A`) deixa de
+  ser gerado.
+- **Adapter de texto aceita modelos de raciocínio.** `AI_TOKEN_LIMIT_PARAM`
+  (`max_tokens` | `max_completion_tokens`) e `AI_SEND_TEMPERATURE` (padrão `true`) ajustam o
+  pedido do dialeto chat-completions; o padrão mantém o comportamento anterior.
+
 - **A API pública ganhou os campos aditivos que o feed interno já tinha.** `GET
   /public/v1/publications` agora expõe `publishedAt` (quando a entrega de fato aconteceu),
   `updatedAt` (última mutação, o que ordena atividade recente) e `mediaPreview` (primeira mídia do
@@ -75,6 +158,25 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
 
 ### Fixed
 
+- **Máquina de conteúdo: correções de três revisões adversariais.** Posse da etapa com token (uma
+  execução que perdeu a peça para uma decisão humana não grava mais por cima); espera de
+  retentativa gravada na trava (job duplicado não fura o intervalo) e respeito ao `retryable` do
+  adapter (402/4xx não são repetidos); agendamento idempotente com id do post escolhido antes de
+  criar; post que falhou é descartado quando a máquina cria o novo, e reprovar ou refazer tira do ar
+  o post anterior; vídeo marcado como "enviando" antes do pedido (resposta ambígua para para uma
+  pessoa em vez de pagar de novo) e gasto conciliado por id; refazer roteiro descarta roteiro,
+  mídia e clipes antigos; carrossel limitado a 10; legenda + hashtags até 2.200; pauta assíncrona
+  (202) que gera só os slots que faltam e avisa no sininho se falhar; edição bloqueada em `ideia`,
+  `aprovado`, `reprovado` e durante uma etapa; datas, `limit`, mês e JSON malformado respondem 400;
+  canal via Facebook recusado antes das etapas pagas. Na tela: rascunho por campo que sobrevive a
+  decisões, travas e salvamento; ações bloqueadas com ajuste não salvo; pauta e ideia indisponíveis
+  sem modelo de texto.
+- **Publicação com resultado incerto na máquina.** Nova decisão `resolvePublication`: "saiu" marca
+  publicação e peça como publicadas (com o link), "não saiu" libera o "tentar de novo" em um post
+  novo. O domínio de publicação ganhou `FAILED → CANCELLED` (descartar post que falhou). Descartar ou resolver
+  recalcula o estado do grupo (Quadro e alerta de parcial corretos), e peça em erro cujo post saiu
+  por outro caminho é conciliada como publicada pelo sweeper, sem gerar segunda publicação.
+
 - **As tools MCP de posts viam um post diferente do REST.** `get_post` (e as respostas de
   agendar/reagendar/cancelar via MCP) omitia `media` e `attemptCount` de cada publicação porque o
   servidor MCP mantinha uma cópia própria do serializer — e as cópias divergiram em silêncio. A
@@ -116,6 +218,8 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
 
 ### Changed
 
+- **O motor da automação percorre o fluxo em grafo.** Automações e conversas do formato antigo
+  continuam funcionando.
 - **Todo log estruturado sai por um helper único por fronteira.** `packages/queue/src/log.ts`
   cobre o runtime de filas, os três adapters Redis e o boot do worker; `apps/api/src/log.ts`
   cobre migrations/boot (o banner virou linha estruturada com modo/porta/hosts),

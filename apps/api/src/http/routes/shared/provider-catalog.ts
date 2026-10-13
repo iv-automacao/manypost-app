@@ -25,6 +25,11 @@ export const providerCatalogEntry = (p: ChannelProvider) => ({
   maxLength: p.capabilities.maxLength(undefined),
   media: p.capabilities.media,
   settingsSchema: settingsJsonSchema(p.settingsSchema),
+  // o que a rede oferece além de publicar — a UI lista só canais elegíveis em Comentários/Insights
+  engagement: {
+    comments: typeof p.listComments === 'function' && typeof p.replyToComment === 'function',
+    insights: typeof p.fetchAccountInsights === 'function',
+  },
   // rede que exige plano no gerenciado (hoje só o X) — a UI marca o cartão com "Pro"
   ...(PROVIDER_REQUIRED_FEATURE[p.id]
     ? { requiredFeature: PROVIDER_REQUIRED_FEATURE[p.id] }

@@ -657,6 +657,1148 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/v1/channels/{id}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Posts recentes da conta conectada (inclui os que não saíram pelo manypost) */
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description página de posts */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EngagementMediaPage"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description papel insuficiente (requer ADMIN/OWNER) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description conflito */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description erro */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description provedor externo falhou — o pedido pode ser repetido */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/channels/{id}/media/{mediaId}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Comentários de um post, com as respostas */
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    mediaId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description página de comentários */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EngagementCommentPage"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description papel insuficiente (requer ADMIN/OWNER) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description conflito */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description erro */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description provedor externo falhou — o pedido pode ser repetido */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/channels/{id}/comments/{commentId}/replies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Responde um comentário publicamente
+         * @description Aceita `Idempotency-Key`: a mesma chave devolve a primeira resposta em vez de responder de novo. Falha de transporte depois do envio volta como `channel.provider_failed` com `extra.uncertain=true` — confira os comentários antes de repetir.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    commentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        message: string;
+                        /** @description post do comentário (exigido quando há ponte) */
+                        mediaId?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description resposta publicada */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            id: string;
+                        };
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description papel insuficiente (requer ADMIN/OWNER) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description conflito */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description erro */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description provedor externo falhou — o pedido pode ser repetido */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/channels/{id}/comments/{commentId}/visibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Oculta ou reexibe um comentário */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    commentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        hidden: boolean;
+                        /** @description post do comentário (exigido quando há ponte) */
+                        mediaId?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description aplicado (idempotente) */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description papel insuficiente (requer ADMIN/OWNER) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description conflito */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description erro */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description provedor externo falhou — o pedido pode ser repetido */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/channels/{id}/insights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Métricas da conta no período (até 30 dias)
+         * @description A rede pode atrasar os dados em até 48 h. Métrica que a rede recusar volta `null`.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    days?: number;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description métricas da conta */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountInsights"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description papel insuficiente (requer ADMIN/OWNER) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description conflito */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description erro */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description provedor externo falhou — o pedido pode ser repetido */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/channels/{id}/insights/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Métricas vitalícias dos posts recentes
+         * @description Post que a rede recusar volta com métricas `null` e `unavailableReason`, sem derrubar a página.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description posts com métricas */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MediaInsightsPage"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description papel insuficiente (requer ADMIN/OWNER) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description conflito */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description erro */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description provedor externo falhou — o pedido pode ser repetido */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/automations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Automações de comentário da organização */
+        get: {
+            parameters: {
+                query?: {
+                    channelId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description automações */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["CommentAutomation"][];
+                        };
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description papel insuficiente (requer ADMIN/OWNER) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Cria uma automação (em rascunho) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        channelId: string;
+                        name: string;
+                        flow: components["schemas"]["AutomationFlow"];
+                        triggers?: components["schemas"]["AutomationTriggerInput"][];
+                        testUsernames?: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description criada */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CommentAutomation"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description papel insuficiente (requer ADMIN/OWNER) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/automations/leads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Leads (execuções) das automações, mais recentes primeiro */
+        get: {
+            parameters: {
+                query?: {
+                    automationId?: string;
+                    status?: "OPEN" | "COMPLETED" | "FAILED" | "UNCERTAIN" | "SKIPPED" | "ABANDONED";
+                    cursor?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description leads */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["AutomationLead"][];
+                            nextCursor?: string;
+                        };
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description papel insuficiente (requer ADMIN/OWNER) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/automations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Uma automação */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description automação */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CommentAutomation"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description papel insuficiente (requer ADMIN/OWNER) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Apaga a automação (os leads continuam) — requer ADMIN/OWNER */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description apagada */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description papel insuficiente (requer ADMIN/OWNER) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Edita nome, fluxo, gatilho ou contas de teste */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        flow?: components["schemas"]["AutomationFlow"];
+                        triggers?: components["schemas"]["AutomationTriggerInput"][];
+                        testUsernames?: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description automação */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CommentAutomation"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description papel insuficiente (requer ADMIN/OWNER) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/v1/automations/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Muda o status (rascunho, teste, ativa, pausada) — requer ADMIN/OWNER */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        status: "DRAFT" | "TEST" | "ACTIVE" | "PAUSED";
+                    };
+                };
+            };
+            responses: {
+                /** @description automação */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CommentAutomation"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description papel insuficiente (requer ADMIN/OWNER) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/posts": {
         parameters: {
             query?: never;
@@ -1577,7 +2719,7 @@ export type paths = {
                         name: string;
                         /** Format: uri */
                         url: string;
-                        events: ("post.scheduled" | "post.published" | "post.failed" | "channel.refresh_required" | "channel.disconnected" | "mention.received")[];
+                        events: ("post.scheduled" | "post.published" | "post.failed" | "channel.refresh_required" | "channel.disconnected" | "mention.received" | "lead.captured")[];
                         channelIds?: string[];
                     };
                 };
@@ -2812,6 +3954,988 @@ export type paths = {
                 };
                 /** @description rate limit — aguarde e tente de novo */
                 429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estado da máquina: identidade, capacidades e contagem por etapa
+         * @description Na primeira chamada, configura a organização (prompts, fórmulas e fundação vazia).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description visão geral */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentOverview"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/brand": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Atualiza a identidade visual e as preferências de publicação */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        /** Format: uuid */
+                        logoMediaId?: string | null;
+                        /** Format: uuid */
+                        logoDarkMediaId?: string | null;
+                        palette?: components["schemas"]["ContentPalette"];
+                        slogan?: string;
+                        signature?: string;
+                        tone?: string;
+                        /** Format: uuid */
+                        defaultChannelId?: string | null;
+                        /** @enum {string} */
+                        ctaChannel?: "direct" | "whatsapp" | "comentario";
+                        whatsappNumber?: string;
+                        ctaWord?: string;
+                        ctaWordBusiness?: string;
+                        publishHour?: number;
+                        timezone?: string;
+                        autoApprove?: boolean;
+                        reelsVideo?: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description identidade */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentBrand"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/brand/palette": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Extrai a paleta de cores da logo
+         * @description Sem `mediaId`, usa a logo principal. Sem logo definida, a imagem enviada vira a logo.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        mediaId?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description identidade com a paleta */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentBrand"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description capacidade não disponível nesta instalação */
+                501: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description provedor externo falhou — o pedido pode ser repetido */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/foundation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Documentos da fundação editorial */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description fundação */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentFoundation"][];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/foundation/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Grava um documento da fundação */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    key: "produtos" | "icp" | "personagem" | "marca" | "escada" | "pilares";
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        body: string;
+                        validUntil?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description documento */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentFoundation"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/prompts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Prompts da máquina, com o histórico de versões */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description prompts */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentPrompt"][];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/prompts/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Cria uma versão nova (ativa) do prompt */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    name: "pauta" | "roteiro" | "legenda" | "revisor";
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        system: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description versão criada */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentPrompt"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/hooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fórmulas de gancho que a pauta usa */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description fórmulas */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentHook"][];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/pieces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Peças da máquina, mais recentes primeiro */
+        get: {
+            parameters: {
+                query?: {
+                    status?: string;
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description peças */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentPiece"][];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Cria uma peça a partir de uma ideia; a esteira começa sozinha */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        format: "carrossel" | "post" | "story" | "reels";
+                        /** @description a ideia ou o gancho */
+                        hook: string;
+                        angle?: string;
+                        pillar?: string;
+                        icp?: string;
+                        market?: string;
+                        /** Format: date-time */
+                        scheduledFor?: string;
+                        /** Format: uuid */
+                        channelId?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description peça criada */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentPiece"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description capacidade não disponível nesta instalação */
+                501: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pede a pauta da semana; as peças aparecem no quadro quando a geração termina
+         * @description Sem `slots`, usa o mix padrão (2 carrosséis, 1 reels, 1 post). A geração roda na fila (o modelo passa do tempo de uma requisição); semana já planejada responde 409.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        weekStart: string;
+                        market?: string;
+                        /** Format: uuid */
+                        channelId?: string;
+                        slots?: {
+                            date: string;
+                            /** @enum {string} */
+                            format: "carrossel" | "post" | "story" | "reels";
+                            pillar: string;
+                            icp?: string;
+                            market?: string;
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description pauta na fila */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentPlanQueued"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description conflito */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description capacidade não disponível nesta instalação */
+                501: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/pieces/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Uma peça com o histórico de etapas */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description peça */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentPieceDetail"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Ajusta legenda, hashtags, data ou canal antes do agendamento */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        caption?: string;
+                        hashtags?: string[];
+                        /** Format: date-time */
+                        scheduledFor?: string | null;
+                        /** Format: uuid */
+                        channelId?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description peça */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentPiece"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description conflito */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/v1/content-machine/pieces/{id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decisão humana: aprovar, reprovar, refazer uma etapa ou tentar de novo */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        action: "approve";
+                    } | {
+                        /** @enum {string} */
+                        action: "reject";
+                        reason?: string;
+                    } | {
+                        /** @enum {string} */
+                        action: "redo";
+                        /** @enum {string} */
+                        stage: "roteiro" | "producao";
+                        feedback: string;
+                    } | {
+                        /** @enum {string} */
+                        action: "retry";
+                    } | {
+                        /** @enum {string} */
+                        action: "resolvePublication";
+                        /** @description true = a pessoa conferiu que o post saiu na rede */
+                        published: boolean;
+                        /** Format: uri */
+                        permalink?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description peça */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentPiece"];
+                    };
+                };
+                /** @description requisição fora do contrato (problem+json) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description não encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description conflito */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/content-machine/spend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Gasto do mês por serviço e por peça (USD) */
+        get: {
+            parameters: {
+                query?: {
+                    month?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description gasto */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentSpend"];
+                    };
+                };
+                /** @description não autenticado */
+                401: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -4728,7 +6852,7 @@ export type paths = {
                         name: string;
                         /** Format: uri */
                         url: string;
-                        events: ("post.scheduled" | "post.published" | "post.failed" | "channel.refresh_required" | "channel.disconnected" | "mention.received")[];
+                        events: ("post.scheduled" | "post.published" | "post.failed" | "channel.refresh_required" | "channel.disconnected" | "mention.received" | "lead.captured")[];
                         channelIds?: string[];
                     };
                 };
@@ -5342,10 +7466,411 @@ export type components = {
             };
             /** @description feature de plano exigida por esta rede no serviço gerenciado (ex.: `x_network`); ausente = incluída em todos os planos. Em self-hosted nunca é imposta */
             requiredFeature?: string;
+            /** @description comentários (ler/responder/ocultar) e métricas disponíveis para canais desta rede */
+            engagement: {
+                comments: boolean;
+                insights: boolean;
+            };
             /** @description false = rede implementada, mas SEM as credenciais de app no env desta instalação; `POST /connect` responde 404 até configurar */
             available: boolean;
             /** @description variáveis de ambiente que faltam para habilitar a rede (ex.: `["THREADS_APP_ID"]`). Só vem em instalação self-hosted, onde quem opera é quem usa; no serviço gerenciado é omitido */
             setupEnv?: string[];
+        };
+        EngagementMedia: {
+            id: string;
+            /** @example CAROUSEL_ALBUM */
+            mediaType: string;
+            /** @example REELS */
+            productType?: string;
+            caption?: string;
+            permalink?: string;
+            /** @description URL temporária da rede — não guardar */
+            previewUrl?: string;
+            timestamp: string;
+            likeCount?: number;
+            commentsCount?: number;
+        };
+        EngagementMediaPage: {
+            items: components["schemas"]["EngagementMedia"][];
+            nextCursor?: string;
+        };
+        EngagementReply: {
+            id: string;
+            text: string;
+            username?: string;
+            timestamp: string;
+            likeCount?: number;
+            hidden: boolean;
+            /** @description escrito pela própria conta conectada */
+            fromOwner: boolean;
+            /** @description sempre vazio */
+            replies: Record<string, never>[];
+        };
+        EngagementComment: {
+            id: string;
+            text: string;
+            username?: string;
+            timestamp: string;
+            likeCount?: number;
+            hidden: boolean;
+            /** @description escrito pela própria conta conectada */
+            fromOwner: boolean;
+            replies: components["schemas"]["EngagementReply"][];
+        };
+        EngagementCommentPage: {
+            items: components["schemas"]["EngagementComment"][];
+            nextCursor?: string;
+        };
+        AccountInsights: {
+            since: string;
+            until: string;
+            /** @description `null` = a rede não devolveu essa métrica (nunca inventamos zero) */
+            totals: {
+                [key: string]: number | null;
+            };
+            followersCount: number | null;
+            mediaCount: number | null;
+            dailyReach: {
+                date: string;
+                value: number;
+            }[];
+        };
+        MediaWithInsights: {
+            media: components["schemas"]["EngagementMedia"];
+            /** @description `null` = a rede não devolveu essa métrica (nunca inventamos zero) */
+            metrics: {
+                [key: string]: number | null;
+            };
+            unavailableReason?: string;
+        };
+        MediaInsightsPage: {
+            items: components["schemas"]["MediaWithInsights"][];
+            nextCursor?: string;
+        };
+        CommentAutomation: {
+            id: string;
+            channelId: string;
+            name: string;
+            /** @enum {string} */
+            status: "DRAFT" | "TEST" | "ACTIVE" | "PAUSED";
+            /** @description `null` = configuração gravada não passa mais na validação */
+            flow: {
+                /** @enum {number} */
+                version: 2;
+                nodes: ({
+                    id: string;
+                    /** @enum {string} */
+                    type: "opening";
+                    position: {
+                        x: number;
+                        y: number;
+                    };
+                    data: {
+                        text: string;
+                        /**
+                         * @default text
+                         * @enum {string}
+                         */
+                        mode: "text" | "button";
+                        /** @default Quero! */
+                        buttonTitle: string;
+                        /** @default true */
+                        disclosure: boolean;
+                    };
+                } | {
+                    id: string;
+                    /** @enum {string} */
+                    type: "message";
+                    position: {
+                        x: number;
+                        y: number;
+                    };
+                    data: {
+                        text: string;
+                        /**
+                         * @default buttons
+                         * @enum {string}
+                         */
+                        format: "none" | "buttons" | "quick";
+                        /** @default [] */
+                        options: {
+                            id: string;
+                            title: string;
+                        }[];
+                        saveTo?: string;
+                        /**
+                         * @default reask
+                         * @enum {string}
+                         */
+                        onTyped: "reask" | "branch";
+                    };
+                } | {
+                    id: string;
+                    /** @enum {string} */
+                    type: "question";
+                    position: {
+                        x: number;
+                        y: number;
+                    };
+                    data: {
+                        text: string;
+                        field: string;
+                        /** @enum {string} */
+                        validate: "name" | "phone" | "email" | "free";
+                    };
+                } | {
+                    id: string;
+                    /** @enum {string} */
+                    type: "condition";
+                    position: {
+                        x: number;
+                        y: number;
+                    };
+                    data: {
+                        field: string;
+                        /** @enum {string} */
+                        op: "equals" | "contains" | "filled" | "empty";
+                        /** @default  */
+                        value: string;
+                    };
+                } | {
+                    id: string;
+                    /** @enum {string} */
+                    type: "link";
+                    position: {
+                        x: number;
+                        y: number;
+                    };
+                    data: {
+                        text: string;
+                        /** @default Abrir */
+                        buttonTitle: string;
+                        target: {
+                            /** @enum {string} */
+                            kind: "whatsapp";
+                            phone: string;
+                            /** @default  */
+                            message: string;
+                        } | {
+                            /** @enum {string} */
+                            kind: "url";
+                            /** Format: uri */
+                            url: string;
+                        };
+                    };
+                } | {
+                    id: string;
+                    /** @enum {string} */
+                    type: "end";
+                    position: {
+                        x: number;
+                        y: number;
+                    };
+                    data: {
+                        /** @default  */
+                        text: string;
+                    };
+                })[];
+                /** @default [] */
+                edges: {
+                    id: string;
+                    source: string;
+                    sourceHandle: string;
+                    target: string;
+                }[];
+            } | null;
+            triggers: {
+                id: string | null;
+                /** @enum {string} */
+                kind: "comment";
+                config: {
+                    /** @default [] */
+                    mediaIds: string[];
+                    /** @default [] */
+                    keywords: string[];
+                    /** @default [] */
+                    publicReplies: string[];
+                };
+                position: {
+                    x: number;
+                    y: number;
+                } | null;
+            }[];
+            problems: {
+                /** @enum {string} */
+                code: "unreachable" | "missing_edge" | "wait_free_cycle" | "unknown_field" | "no_finish" | "opening_button";
+                /** @enum {string} */
+                severity: "error" | "warning";
+                nodeId?: string;
+                handle?: string;
+            }[];
+            testUsernames: string[];
+            createdBy: string | null;
+            createdAt: string;
+            updatedAt: string;
+        };
+        AutomationFlow: {
+            /** @enum {number} */
+            version: 2;
+            nodes: ({
+                id: string;
+                /** @enum {string} */
+                type: "opening";
+                position: {
+                    x: number;
+                    y: number;
+                };
+                data: {
+                    text: string;
+                    /**
+                     * @default text
+                     * @enum {string}
+                     */
+                    mode: "text" | "button";
+                    /** @default Quero! */
+                    buttonTitle: string;
+                    /** @default true */
+                    disclosure: boolean;
+                };
+            } | {
+                id: string;
+                /** @enum {string} */
+                type: "message";
+                position: {
+                    x: number;
+                    y: number;
+                };
+                data: {
+                    text: string;
+                    /**
+                     * @default buttons
+                     * @enum {string}
+                     */
+                    format: "none" | "buttons" | "quick";
+                    /** @default [] */
+                    options: {
+                        id: string;
+                        title: string;
+                    }[];
+                    saveTo?: string;
+                    /**
+                     * @default reask
+                     * @enum {string}
+                     */
+                    onTyped: "reask" | "branch";
+                };
+            } | {
+                id: string;
+                /** @enum {string} */
+                type: "question";
+                position: {
+                    x: number;
+                    y: number;
+                };
+                data: {
+                    text: string;
+                    field: string;
+                    /** @enum {string} */
+                    validate: "name" | "phone" | "email" | "free";
+                };
+            } | {
+                id: string;
+                /** @enum {string} */
+                type: "condition";
+                position: {
+                    x: number;
+                    y: number;
+                };
+                data: {
+                    field: string;
+                    /** @enum {string} */
+                    op: "equals" | "contains" | "filled" | "empty";
+                    /** @default  */
+                    value: string;
+                };
+            } | {
+                id: string;
+                /** @enum {string} */
+                type: "link";
+                position: {
+                    x: number;
+                    y: number;
+                };
+                data: {
+                    text: string;
+                    /** @default Abrir */
+                    buttonTitle: string;
+                    target: {
+                        /** @enum {string} */
+                        kind: "whatsapp";
+                        phone: string;
+                        /** @default  */
+                        message: string;
+                    } | {
+                        /** @enum {string} */
+                        kind: "url";
+                        /** Format: uri */
+                        url: string;
+                    };
+                };
+            } | {
+                id: string;
+                /** @enum {string} */
+                type: "end";
+                position: {
+                    x: number;
+                    y: number;
+                };
+                data: {
+                    /** @default  */
+                    text: string;
+                };
+            })[];
+            /** @default [] */
+            edges: {
+                id: string;
+                source: string;
+                sourceHandle: string;
+                target: string;
+            }[];
+        };
+        AutomationTriggerInput: {
+            /** @enum {string} */
+            kind: "comment";
+            config: {
+                /** @default [] */
+                mediaIds: string[];
+                /** @default [] */
+                keywords: string[];
+                /** @default [] */
+                publicReplies: string[];
+            };
+            /** @default null */
+            position: {
+                x: number;
+                y: number;
+            } | null;
+        };
+        AutomationLead: {
+            id: string;
+            automationId: string;
+            automationName: string | null;
+            channelId: string;
+            mediaId: string;
+            commentId: string;
+            commentText: string;
+            participantUsername: string | null;
+            /** @enum {string} */
+            status: "OPEN" | "COMPLETED" | "FAILED" | "UNCERTAIN" | "SKIPPED" | "ABANDONED";
+            step: number;
+            answers: {
+                [key: string]: string;
+            };
+            publicReply: string;
+            privateReply: string;
+            lastError: string | null;
+            createdAt: string;
+            completedAt: string | null;
         };
         MediaRef: {
             mediaId?: string;
@@ -5677,6 +8202,190 @@ export type components = {
              * @enum {string}
              */
             signal: "network_baseline" | "own_posting_history" | "own_engagement";
+        };
+        ContentPalette: {
+            primaria?: string;
+            destaque?: string;
+            fundoEscuro?: string;
+            fundoClaro?: string;
+            texto?: string;
+            textoSuave?: string;
+            extraidas?: string[];
+        };
+        ContentBrand: {
+            name: string;
+            logoMediaId: string | null;
+            logoUrl: string | null;
+            logoDarkMediaId: string | null;
+            logoDarkUrl: string | null;
+            palette: components["schemas"]["ContentPalette"];
+            slogan: string;
+            signature: string;
+            tone: string;
+            defaultChannelId: string | null;
+            /** @enum {string} */
+            ctaChannel: "direct" | "whatsapp" | "comentario";
+            whatsappNumber: string;
+            /** @description palavra do CTA para pessoa física (ex.: PLANO) */
+            ctaWord: string;
+            /** @description palavra do CTA para empresa/MEI (ex.: EMPRESA) */
+            ctaWordBusiness: string;
+            publishHour: number;
+            timezone: string;
+            autoApprove: boolean;
+            /** @description false = reels sai só como roteiro para gravar */
+            reelsVideo: boolean;
+        };
+        ContentCapabilities: {
+            text: boolean;
+            renderer: boolean;
+            video: boolean;
+            videoModel: string | null;
+        };
+        ContentOverview: {
+            brand: components["schemas"]["ContentBrand"];
+            capabilities: components["schemas"]["ContentCapabilities"];
+            counts: {
+                [key: string]: number;
+            };
+            foundationFilled: number;
+            foundationTotal: number;
+        };
+        ContentFoundation: {
+            /** @enum {string} */
+            key: "produtos" | "icp" | "personagem" | "marca" | "escada" | "pilares";
+            body: string;
+            validUntil: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ContentPrompt: {
+            id: string;
+            /** @enum {string} */
+            name: "pauta" | "roteiro" | "legenda" | "revisor";
+            version: number;
+            system: string;
+            active: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ContentHook: {
+            id: string;
+            formula: string;
+            template: string;
+            example: string;
+            pillar: string;
+            origin: string;
+            score: number;
+            uses: number;
+        };
+        ContentPiece: {
+            id: string;
+            /** @enum {string} */
+            status: "ideia" | "roteiro" | "producao" | "revisao" | "aprovado" | "agendado" | "publicado" | "reprovado" | "erro";
+            /** @enum {string} */
+            format: "carrossel" | "post" | "story" | "reels";
+            pillar: string;
+            icp: string;
+            market: string;
+            awareness: string;
+            hook: string;
+            plan: {
+                [key: string]: unknown;
+            };
+            script: {
+                [key: string]: unknown;
+            } | null;
+            caption: string;
+            hashtags: string[];
+            keyword: string;
+            media: {
+                mediaId: string;
+                /** @enum {string} */
+                kind: "image" | "video";
+                order: number;
+                url: string | null;
+                mime: string | null;
+            }[];
+            review: {
+                aprovado: boolean;
+                flags: {
+                    codigo: string;
+                    trecho: string;
+                    motivo: string;
+                }[];
+                motivo: string;
+                lint?: {
+                    /** @enum {string} */
+                    nivel: "erro" | "aviso";
+                    codigo: string;
+                    msg: string;
+                }[];
+            } | null;
+            feedback: {
+                at: string;
+                stage: string;
+                text: string;
+                by: string | null;
+            }[];
+            attempts: number;
+            /** Format: date-time */
+            scheduledFor: string | null;
+            channelId: string | null;
+            postGroupId: string | null;
+            /** Format: date-time */
+            publishedAt: string | null;
+            permalink: string | null;
+            costUsd: number;
+            error: string | null;
+            /** @description true = uma etapa está executando agora */
+            running: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ContentPlanQueued: {
+            /** @enum {boolean} */
+            queued: true;
+            weekStart: string;
+        };
+        ContentPieceEvent: {
+            id: string;
+            stage: string;
+            fromStatus: string | null;
+            toStatus: string;
+            detail: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ContentPieceDetail: {
+            piece: components["schemas"]["ContentPiece"];
+            events: components["schemas"]["ContentPieceEvent"][];
+            /** @description estado do post da peça no agendador (null = ainda não agendada) */
+            publication: {
+                state: string;
+                releaseUrl: string | null;
+                errorMessage: string | null;
+            } | null;
+        };
+        ContentSpend: {
+            month: string;
+            totalUsd: number;
+            byService: {
+                service: string;
+                model: string;
+                costUsd: number;
+                count: number;
+            }[];
+            pieces: {
+                pieceId: string;
+                keyword: string;
+                format: string;
+                costUsd: number;
+            }[];
         };
         PlanCatalog: {
             currency: string;

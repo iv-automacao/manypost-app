@@ -1,0 +1,1 @@
+ALTER TABLE "content_brands" ADD COLUMN "reels_video" boolean DEFAULT true NOT NULL;

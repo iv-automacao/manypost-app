@@ -118,6 +118,74 @@ Igual à direção do Postiz com três correções: state single-use com TTL, to
 
 `fetchAnalytics` on-demand com cache Redis 1h (*direção do Postiz*) **e** persistência diária em `channel_metrics` (job `analytics-cache`) para histórico — série básica (followers, impressões, engajamento). Benchmarking/comparação/alertas vivem na camada avançada do monorepo, consumindo essas séries via API de domínio e sendo controlados por `PlanPolicy` no SaaS.
 
+### 6.1 Engajamento: comentários e métricas ao vivo (change `add-instagram-engagement`, 2026-10-12)
+
+Primeira implementação real de métricas — e ela **não** segue o desenho acima ainda: lê direto da
+rede a cada consulta, sem cache Redis nem `channel_metrics` (histórico é uma mudança futura). O
+contrato ganhou métodos **opcionais** (`listRecentMedia`, `listComments`, `replyToComment`,
+`setCommentHidden`, `fetchAccountInsights`, `fetchMediaInsights`) e `engagementScopes`
+(`{ comments, insights }`), que a plataforma confere contra os escopos do canal **antes** de
+chamar a rede. Os stubs `fetchAnalytics`/`fetchPostAnalytics` seguem sem implementação: o formato
+`MetricSeries[]` por dia não descreve os totais `metric_type=total_value` que a Graph devolve hoje.
+
+- **Quem implementa:** só `instagram-standalone` (Instagram Login, `graph.instagram.com/v21.0`),
+  via `shared/instagram-engagement.ts` (`makeInstagramEngagement(apiBase)`, pronto para o
+  Facebook Login quando a resolução por Página for feita).
+- **Erros:** o provider lança `ProviderFailure` já classificado por `code` da Meta
+  (`classifyEngagementError`): 190 e 200–299 → reconectar; 1/2/4/17/32/341/613/429/5xx →
+  transitório; o resto (100, 10 "Not enough viewers", 803) → permanente. O `type: OAuthException`
+  **não** decide nada aqui — a Meta o usa também em erro de parâmetro.
+- **Métricas que mudam de nome:** conjunto recusado com `#100` é refeito uma métrica por chamada;
+  a recusada volta `null` (nunca zero). Por post, concorrência 4 e falha isolada por post.
+- **Superfície:** `/v1/channels/{id}/media`, `…/media/{mediaId}/comments`,
+  `…/comments/{commentId}/replies` (com `Idempotency-Key` e auditoria),
+  `…/comments/{commentId}/visibility`, `…/insights?days=`, `…/insights/media`; telas
+  `/comentarios` e `/insights`. O catálogo de providers expõe `engagement: { comments, insights }`.
+
+### 6.2 Ponte de comentários (change `add-zernio-comment-bridge`, 2026-10-12)
+
+Com acesso padrão (app sem App Review), a Graph do Instagram Login **conta** os comentários
+(`comments_count`) mas devolve `data: []` em `/{media}/comments`, com cursor, para qualquer autor.
+Para não esperar o Advanced Access, comentários podem ir por uma **ponte**: o contrato tem
+`CommentTransport` (`listComments`/`replyToComment`/`setCommentHidden` por `mediaId`), e
+`makeEngagement` consulta `commentTransportFor(canal)` depois de resolver organização e status.
+Com ponte, o token próprio nem é decifrado e o escopo próprio não é exigido.
+
+- **Implementação:** `packages/providers/src/zernio/zernio-bridge.ts` (`zernio.com/api/v1`,
+  `/accounts` e `/inbox/comments/...`; exige o add-on Inbox na Zernio).
+- **Ativação:** só com `ZERNIO_API_KEY` **e** `ZERNIO_ORG_IDS`, e só para `instagram-standalone` e
+  `instagram`. A conta precisa estar visível para a chave.
+- **Erros:** 401/403 → `provider_rejected` (é a chave da instalação, não o canal); 408/429/5xx →
+  `provider_failed`.
+- **Escritas:** exigem `mediaId` no corpo.
+- **Leitura:** a Zernio guarda a leitura em cache por até 10 min, e as escritas próprias renovam o
+  cache.
+
+### 6.3 Automação comentário → direct (change `add-comment-automation`, 2026-10-12)
+
+Um ManyChat próprio sobre a mesma ponte:
+
+- **Entrada:** a Zernio entrega `comment.received` e `message.received` em
+  `POST /v1/integrations/zernio/webhook`.
+  - **Assinatura:** HMAC-SHA256 hex do corpo cru em `X-Zernio-Signature`, com
+    `ZERNIO_WEBHOOK_SECRET`.
+  - **Deduplicação:** por `X-Zernio-Event-Id` em `inbound_events`.
+  - **Prazo:** 2xx em menos de 5 s.
+- **Tradução:** o adaptador traduz o payload para um evento normalizado
+  (`InboundAutomationEvent`, em contracts).
+- **Motor:** `makeAutomationEngine`, no core, roda na fila serial `automation-event` e conversa
+  com a ponte por duas interfaces:
+  - `CommentTransport`: resposta pública.
+  - `DirectTransport`: `privateReply`, uma por comentário em até 7 dias, sem chave de idempotência
+    e por isso nunca retentada às cegas; e `sendMessage`, com `Idempotency-Key`.
+- **Botões:** o payload `mp1:<runId>:<passo>:<opção>` localiza a execução sem depender do id do
+  remetente; o IGSID e, como reserva, o username cobrem o texto livre.
+- **Leads:** saem em `lead.captured`, com pelo menos uma entrega; `runId` é a chave de
+  deduplicação de quem recebe.
+- **Troca de transporte:** quando o App Review do app próprio sair, um transporte Meta direto
+  implementa as mesmas duas interfaces e a assinatura `X-Hub-Signature-256` entra num adaptador
+  irmão.
+
 ## 7. Suíte de contrato de provider (qualidade)
 
 Todo provider passa pela mesma suíte (`packages/providers/test-kit`):

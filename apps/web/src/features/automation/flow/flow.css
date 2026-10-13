@@ -1,0 +1,45 @@
+/*
+ * React Flow com os tokens da marca (openspec add-flow-builder-canvas, design D8): o pacote entra
+ * só com `base.css` (layout), e a aparência vem daqui — sem sombra, raio por função, cor por token.
+ */
+.flow-canvas {
+  background: var(--canvas);
+}
+.flow-canvas .react-flow__edge-path {
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+.flow-canvas .react-flow__edge.selected .react-flow__edge-path,
+.flow-canvas .react-flow__edge:focus-visible .react-flow__edge-path {
+  stroke: var(--accent);
+}
+.flow-canvas .react-flow__connection-path {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.flow-canvas .react-flow__node {
+  cursor: grab;
+}
+.flow-canvas .react-flow__node.dragging {
+  cursor: grabbing;
+}
+.flow-canvas .react-flow__attribution {
+  background: transparent;
+  color: var(--graphite);
+}
+.flow-canvas .react-flow__attribution a {
+  color: var(--graphite);
+}
+.flow-handle {
+  width: 10px;
+  height: 10px;
+  border-radius: 4px;
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  transition: border-color 0.2s, background-color 0.2s;
+}
+.flow-handle:hover,
+.flow-handle.connectingto {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}

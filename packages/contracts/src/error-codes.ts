@@ -5,6 +5,10 @@ export const ErrorCodes = {
   ChannelMissingScopes: 'channel.missing_scopes',
   ChannelDisabled: 'channel.disabled',
   ChannelConnectFailed: 'channel.connect_failed',
+  /** a rede recusou o pedido (id inexistente, comentário apagado, regra da plataforma) — 422 */
+  ChannelProviderRejected: 'channel.provider_rejected',
+  /** a rede falhou ou limitou; em escrita, detail.uncertain diz se o efeito pode ter acontecido — 502 */
+  ChannelProviderFailed: 'channel.provider_failed',
   // posts
   PostInvalidMedia: 'post.invalid_media',
   PostTooLong: 'post.too_long',
@@ -46,7 +50,18 @@ export const ErrorCodes = {
   AuthUnauthorized: 'auth.unauthorized',
   AuthProviderUnavailable: 'auth.provider_unavailable',
   AuthSocialEmailUnverified: 'auth.social_email_unverified',
+  // máquina de conteúdo
+  ContentInvalidTransition: 'content.invalid_transition',
+  ContentNotConfigured: 'content.not_configured',
+  ContentGenerationFailed: 'content.generation_failed',
+  /** o serviço de arte recusou a entrada (imagem ilegível, clipe acima do limite) */
+  ContentInvalidInput: 'content.invalid_input',
+  // automação
+  /** o fluxo tem problemas que impedem Teste/Ativa — detail.problems no DomainError; extra.problems no corpo HTTP */
+  AutomationFlowInvalid: 'automation.flow_invalid',
   // genéricos
+  /** entrada fora da regra de domínio (mesmo title do 400 de validação Zod) */
+  ValidationInvalidRequest: 'validation.invalid_request',
   NotFound: 'common.not_found',
   Forbidden: 'common.forbidden',
   IdempotencyConflict: 'common.idempotency_conflict',

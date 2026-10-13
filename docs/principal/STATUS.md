@@ -10,6 +10,44 @@
 > **Como manter:** ao fechar uma fatia, atualize as seções abaixo **e** abra uma entrada nova no
 > topo do changelog. Este arquivo é sobre o presente; o changelog é sobre o passado.
 >
+> **Atualização — construtor de fluxo em canvas (2026-10-13, onda 46):** o editor de automação
+> agora é um canvas de balões (abertura, mensagem com botões, pergunta, condição, link ou WhatsApp,
+> pedir para seguir, fim), com simulador e gatilho separado do fluxo. O motor percorre o grafo; a
+> automação do formato antigo roda convertida. É a **entrega 1 de 5**. Provas: 1806 testes
+> passando (localmente `check:ci` tem 2 falhas conhecidas em `catalog.test.ts`, por o caminho local ter
+> espaços; no CI passam, e os demais passos — typecheck, typecheck:web, fronteiras, ai-providers,
+> brand, `db:check`, `build:web`, `spec:validate` — estão verdes), 15 fixtures compartilhadas entre core e web, sequência dourada da v1 igual no grafo
+> convertido e E2E v1 + v2. **Falta:** entregas 2 a 5, a tarefa 9.3 (deploy pelo Iago e teste em
+> produção com o @ de teste) e a conferência no navegador, que não foi feita (login via Clerk).
+> Roteiro e rollout em [RUNBOOK_FLOW_BUILDER.md](RUNBOOK_FLOW_BUILDER.md). Mudança
+> `add-flow-builder-canvas`.
+>
+> **Atualização — automação comentário → direct (2026-10-12, onda 45):** telas `/automacoes`
+> (construtor com pré-visualização) e `/leads`. A Zernio entrega comentários e mensagens por webhook
+> assinado; o motor responde em público e no direct, faz as perguntas, encerra com o botão do
+> WhatsApp e emite `lead.captured`. Para ligar em produção: `ZERNIO_WEBHOOK_SECRET`, rodar
+> `scripts/register-zernio-webhook.ts`, testar no modo teste, desligar a IA do CRM no Instagram e só
+> então ativar. Mudança `add-comment-automation`.
+>
+> **Atualização — ponte de comentários pela Zernio (2026-10-12, onda 44):** a Meta não entrega o
+> conteúdo dos comentários ao app sem Advanced Access. Com `ZERNIO_API_KEY` e `ZERNIO_ORG_IDS`, as
+> organizações listadas leem, respondem e ocultam pela Zernio. O App Review do app próprio segue em
+> paralelo. Mudança `add-zernio-comment-bridge`.
+>
+> **Atualização — comentários e insights do Instagram (2026-10-12, onda 43):** telas
+> `/comentarios` (ler, responder, ocultar) e `/insights` (conta e por post) para canais
+> `instagram-standalone`, lidas direto da Graph sem persistir. Direct e automação comentário →
+> direct ficam para a próxima mudança (exige `instagram_business_manage_messages` e reconexão).
+> Mudança OpenSpec `add-instagram-engagement` aberta até a verificação em produção.
+>
+> **Atualização — máquina de conteúdo (2026-09-28, onda 39):** a área "Máquina" leva a ideia até o
+> post publicado dentro do produto (pauta, roteiro, arte ou reels com narração, revisão, agendamento,
+> acompanhamento), com identidade visual, fundação, prompts versionados e gasto por peça. Rodando em
+> produção no fork interno: post e carrossel publicados ponta a ponta em 28/09; reels validado até o
+> limite de saldo do fornecedor de vídeo. Depende de `CONTENT_RENDERER_URL` (serviço do operador) e,
+> para reels, de `VIDEO_PROVIDER_KEY`. As etapas rodam no processo da API. Detalhes e provas na
+> [onda 39](CHANGELOG_ONDAS.md).
+>
 > **Atualização — registro regularizado dos modos de imagem (2026-08-13):** a geração de imagem
 > opera desde 2026-07-28 (PR #55) com dois modos fechados sobre o mesmo `AI_IMAGE_MODEL` —
 > `economy` (renderização `low`, 2 créditos, padrão determinístico) e `quality` (renderização

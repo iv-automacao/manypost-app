@@ -4,3 +4,5 @@ export * from './billing';
 export * from './channels';
 export * from './content';
 export * from './platform';
+export * from './content-machine';
+export * from './automation';

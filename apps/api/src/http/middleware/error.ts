@@ -15,6 +15,12 @@ const STATUS: Record<string, ContentfulStatusCode> = {
   'common.not_found': 404,
   'common.forbidden': 403,
   'common.idempotency_conflict': 409,
+  // canal: reconectar (409 — o estado do canal impede, não o pedido), permissão não concedida
+  // na conexão (403), recusa da rede (422) e rede indisponível/limitada (502)
+  'channel.refresh_required': 409,
+  'channel.missing_scopes': 403,
+  'channel.provider_rejected': 422,
+  'channel.provider_failed': 502,
   'rate.limited': 429,
   // 402 Payment Required: o pedido é válido, falta plano — a UI abre o CTA de upgrade
   'plan.channel_limit': 402,
@@ -34,6 +40,12 @@ const STATUS: Record<string, ContentfulStatusCode> = {
   // o bucket/volume falhou, não o pedido do cliente — 502 diz "é do nosso lado", e a mídia
   // pode ser tentada de novo sem mudar nada na requisição
   'media.store_failed': 502,
+  // máquina de conteúdo: a peça mudou de etapa enquanto a pessoa decidia
+  'content.invalid_transition': 409,
+  // falta configurar renderizador, vídeo ou prompt nesta instalação/organização
+  'content.not_configured': 501,
+  'content.generation_failed': 502,
+  'content.invalid_input': 422,
 };
 
 export function errorHandler(err: unknown, c: Context) {

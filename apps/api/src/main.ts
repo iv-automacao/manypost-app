@@ -16,6 +16,9 @@ import { billingRoutes } from './http/routes/billing.routes';
 import { aiRoutes } from './http/routes/ai.routes';
 import { capabilityRoutes } from './http/routes/capabilities.routes';
 import { insightsRoutes } from './http/routes/insights.routes';
+import { engagementRoutes } from './http/routes/engagement.routes';
+import { automationRoutes } from './http/routes/automations.routes';
+import { zernioWebhookRoutes } from './http/routes/zernio-webhook.routes';
 import { searchRoutes } from './http/routes/search.routes';
 import { channelRoutes } from './http/routes/channels.routes';
 import { eventRoutes } from './http/routes/events.routes';
@@ -28,6 +31,7 @@ import { publicV1Routes } from './http/routes/public/public-v1.routes';
 import { publicationRoutes } from './http/routes/publications.routes';
 import { stripeWebhookRoutes } from './http/routes/stripe-webhook.routes';
 import { webhookRoutes } from './http/routes/webhooks.routes';
+import { contentMachineRoutes } from './http/routes/content-machine.routes';
 
 const env = loadEnv();
 
@@ -103,6 +107,15 @@ app.use('/v1/*', humansOnly(machineEndpoints(env).restBaseUrl));
 app.route('/v1/auth', authRoutes(ctn));
 app.route('/v1/api-keys', apiKeyRoutes(ctn));
 app.route('/v1/channels', channelRoutes(ctn));
+app.route('/v1/channels', engagementRoutes(ctn)); // comentários e métricas por canal
+app.route('/v1/automations', automationRoutes(ctn)); // automação comentário → direct
+if (ctn.automation.engine && ctn.automation.webhookSecret) {
+  // webhook assinado da Zernio (HMAC) — sem sessão; só existe com a ponte + segredo
+  app.route(
+    '/v1/integrations/zernio',
+    zernioWebhookRoutes({ engine: ctn.automation.engine, secret: ctn.automation.webhookSecret }),
+  );
+}
 app.route('/v1/posts', postRoutes(ctn));
 app.route('/v1/publications', publicationRoutes(ctn)); // feed do calendário/kanban
 app.route('/v1/events', eventRoutes(ctn)); // SSE
@@ -115,6 +128,8 @@ app.route('/v1/search', searchRoutes(ctn)); // busca de posts (paleta de comando
 // IA: as rotas existem sempre; sem AI_PROVIDER elas respondem `capability.disabled` (404), e
 // /best-times segue funcionando porque é heurística, não modelo (SPEC_AI §3)
 app.route('/v1/ai', aiRoutes(ctn));
+// máquina de conteúdo: pauta → roteiro → arte/vídeo → revisão → agendamento (add-content-machine)
+app.route('/v1/content-machine', contentMachineRoutes(ctn));
 if (ctn.billing) {
   // gerenciado apenas (IS_SELF_HOSTED=false + Stripe): em self-hosted estas rotas não existem
   app.route('/v1/billing', billingRoutes(ctn));

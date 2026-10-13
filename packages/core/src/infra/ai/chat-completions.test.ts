@@ -370,3 +370,24 @@ describe('geração de imagem', () => {
     expect(serializado).not.toContain('gateway.example');
   });
 });
+
+describe('adapter de chat-completions: formato para modelos de raciocínio (add-content-machine)', () => {
+  it('sem configuração, o pedido continua com max_tokens e temperature', async () => {
+    const f = fakeFetch({ body: okBody });
+    await makeChatCompletionsProvider(config, f).generateText({ system: 's', prompt: 'p', maxTokens: 100, temperature: 0.3 });
+    expect(body(f).max_tokens).toBe(500);
+    expect(body(f).temperature).toBe(0.3);
+    expect(body(f).max_completion_tokens).toBeUndefined();
+  });
+
+  it('configurado para raciocínio: max_completion_tokens e sem temperature', async () => {
+    const f = fakeFetch({ body: okBody });
+    await makeChatCompletionsProvider(
+      { ...config, tokenLimitParam: 'max_completion_tokens', sendTemperature: false },
+      f,
+    ).generateText({ system: 's', prompt: 'p', maxTokens: 100, temperature: 0.3 });
+    expect(body(f).max_completion_tokens).toBe(500);
+    expect(body(f).max_tokens).toBeUndefined();
+    expect(body(f).temperature).toBeUndefined();
+  });
+});

@@ -10,7 +10,9 @@ export const AllowedTransitions: Record<PublicationState, readonly PublicationSt
   RETRYING: ['PUBLISHING', 'FAILED', 'CANCELLED'],
   TOKEN_REFRESH: ['PUBLISHING', 'FAILED'],
   PUBLISHED: [],
-  FAILED: ['SCHEDULED'], // retry manual
+  // retry manual, ou descarte: quem refaz o conteúdo (ex.: máquina de conteúdo) aposenta o post que
+  // falhou para ele não voltar ao ar por um "tentar de novo" esquecido no Quadro
+  FAILED: ['SCHEDULED', 'CANCELLED'],
   CANCELLED: [],
   NEEDS_REVIEW: ['PUBLISHED', 'SCHEDULED', 'FAILED'], // resolução humana (DECISIONS v1 §7)
 };

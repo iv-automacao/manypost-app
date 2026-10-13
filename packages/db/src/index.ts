@@ -15,6 +15,8 @@ export * from './repositories/oauth.repo';
 export * from './repositories/ai-credits.repo';
 export * from './repositories/publishing.repo';
 export * from './repositories/webhooks.repo';
+export * from './repositories/content-machine.repo';
+export * from './repositories/automation.repo';
 
 export type Db = ReturnType<typeof createDb>;
 

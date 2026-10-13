@@ -383,6 +383,22 @@
             "type": "string",
             "description": "feature de plano exigida por esta rede no serviço gerenciado (ex.: `x_network`); ausente = incluída em todos os planos. Em self-hosted nunca é imposta"
           },
+          "engagement": {
+            "type": "object",
+            "properties": {
+              "comments": {
+                "type": "boolean"
+              },
+              "insights": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "comments",
+              "insights"
+            ],
+            "description": "comentários (ler/responder/ocultar) e métricas disponíveis para canais desta rede"
+          },
           "available": {
             "type": "boolean",
             "description": "false = rede implementada, mas SEM as credenciais de app no env desta instalação; `POST /connect` responde 404 até configurar"
@@ -406,7 +422,1642 @@
           "maxLength",
           "media",
           "settingsSchema",
+          "engagement",
           "available"
+        ]
+      },
+      "EngagementMedia": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "mediaType": {
+            "type": "string",
+            "example": "CAROUSEL_ALBUM"
+          },
+          "productType": {
+            "type": "string",
+            "example": "REELS"
+          },
+          "caption": {
+            "type": "string"
+          },
+          "permalink": {
+            "type": "string"
+          },
+          "previewUrl": {
+            "type": "string",
+            "description": "URL temporária da rede — não guardar"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "likeCount": {
+            "type": "number"
+          },
+          "commentsCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "mediaType",
+          "timestamp"
+        ]
+      },
+      "EngagementMediaPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EngagementMedia"
+            }
+          },
+          "nextCursor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "EngagementReply": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "likeCount": {
+            "type": "number"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "fromOwner": {
+            "type": "boolean",
+            "description": "escrito pela própria conta conectada"
+          },
+          "replies": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {}
+            },
+            "maxItems": 0,
+            "description": "sempre vazio"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "timestamp",
+          "hidden",
+          "fromOwner",
+          "replies"
+        ]
+      },
+      "EngagementComment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "likeCount": {
+            "type": "number"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "fromOwner": {
+            "type": "boolean",
+            "description": "escrito pela própria conta conectada"
+          },
+          "replies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EngagementReply"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "timestamp",
+          "hidden",
+          "fromOwner",
+          "replies"
+        ]
+      },
+      "EngagementCommentPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EngagementComment"
+            }
+          },
+          "nextCursor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "AccountInsights": {
+        "type": "object",
+        "properties": {
+          "since": {
+            "type": "string"
+          },
+          "until": {
+            "type": "string"
+          },
+          "totals": {
+            "type": "object",
+            "additionalProperties": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "description": "`null` = a rede não devolveu essa métrica (nunca inventamos zero)"
+          },
+          "followersCount": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "mediaCount": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "dailyReach": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "date",
+                "value"
+              ]
+            }
+          }
+        },
+        "required": [
+          "since",
+          "until",
+          "totals",
+          "followersCount",
+          "mediaCount",
+          "dailyReach"
+        ]
+      },
+      "MediaWithInsights": {
+        "type": "object",
+        "properties": {
+          "media": {
+            "$ref": "#/components/schemas/EngagementMedia"
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "description": "`null` = a rede não devolveu essa métrica (nunca inventamos zero)"
+          },
+          "unavailableReason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "media",
+          "metrics"
+        ]
+      },
+      "MediaInsightsPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaWithInsights"
+            }
+          },
+          "nextCursor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "CommentAutomation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "TEST",
+              "ACTIVE",
+              "PAUSED"
+            ]
+          },
+          "flow": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "version": {
+                "type": "number",
+                "enum": [
+                  2
+                ]
+              },
+              "nodes": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9_-]{1,24}$"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "opening"
+                          ]
+                        },
+                        "position": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            },
+                            "y": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "y"
+                          ]
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 600
+                            },
+                            "mode": {
+                              "type": "string",
+                              "enum": [
+                                "text",
+                                "button"
+                              ],
+                              "default": "text"
+                            },
+                            "buttonTitle": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 20,
+                              "default": "Quero!"
+                            },
+                            "disclosure": {
+                              "type": "boolean",
+                              "default": true
+                            }
+                          },
+                          "required": [
+                            "text"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type",
+                        "position",
+                        "data"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9_-]{1,24}$"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "message"
+                          ]
+                        },
+                        "position": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            },
+                            "y": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "y"
+                          ]
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 600
+                            },
+                            "format": {
+                              "type": "string",
+                              "enum": [
+                                "none",
+                                "buttons",
+                                "quick"
+                              ],
+                              "default": "buttons"
+                            },
+                            "options": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "pattern": "^[a-z0-9_-]{1,24}$"
+                                  },
+                                  "title": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 20
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "title"
+                                ]
+                              },
+                              "maxItems": 13,
+                              "default": []
+                            },
+                            "saveTo": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                            },
+                            "onTyped": {
+                              "type": "string",
+                              "enum": [
+                                "reask",
+                                "branch"
+                              ],
+                              "default": "reask"
+                            }
+                          },
+                          "required": [
+                            "text"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type",
+                        "position",
+                        "data"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9_-]{1,24}$"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "question"
+                          ]
+                        },
+                        "position": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            },
+                            "y": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "y"
+                          ]
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 600
+                            },
+                            "field": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                            },
+                            "validate": {
+                              "type": "string",
+                              "enum": [
+                                "name",
+                                "phone",
+                                "email",
+                                "free"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "text",
+                            "field",
+                            "validate"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type",
+                        "position",
+                        "data"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9_-]{1,24}$"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "condition"
+                          ]
+                        },
+                        "position": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            },
+                            "y": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "y"
+                          ]
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "field": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                            },
+                            "op": {
+                              "type": "string",
+                              "enum": [
+                                "equals",
+                                "contains",
+                                "filled",
+                                "empty"
+                              ]
+                            },
+                            "value": {
+                              "type": "string",
+                              "maxLength": 60,
+                              "default": ""
+                            }
+                          },
+                          "required": [
+                            "field",
+                            "op"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type",
+                        "position",
+                        "data"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9_-]{1,24}$"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "link"
+                          ]
+                        },
+                        "position": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            },
+                            "y": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "y"
+                          ]
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 600
+                            },
+                            "buttonTitle": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 20,
+                              "default": "Abrir"
+                            },
+                            "target": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "whatsapp"
+                                      ]
+                                    },
+                                    "phone": {
+                                      "type": "string",
+                                      "pattern": "^\\d{10,15}$"
+                                    },
+                                    "message": {
+                                      "type": "string",
+                                      "maxLength": 500,
+                                      "default": ""
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "phone"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "url"
+                                      ]
+                                    },
+                                    "url": {
+                                      "type": "string",
+                                      "maxLength": 2000,
+                                      "format": "uri"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "url"
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "text",
+                            "target"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type",
+                        "position",
+                        "data"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9_-]{1,24}$"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "end"
+                          ]
+                        },
+                        "position": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            },
+                            "y": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "y"
+                          ]
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "text": {
+                              "type": "string",
+                              "maxLength": 600,
+                              "default": ""
+                            }
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type",
+                        "position",
+                        "data"
+                      ]
+                    }
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 40
+              },
+              "edges": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "source": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    },
+                    "sourceHandle": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    },
+                    "target": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "source",
+                    "sourceHandle",
+                    "target"
+                  ]
+                },
+                "maxItems": 120,
+                "default": []
+              }
+            },
+            "required": [
+              "version",
+              "nodes"
+            ],
+            "description": "`null` = configuração gravada não passa mais na validação"
+          },
+          "triggers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "comment"
+                  ]
+                },
+                "config": {
+                  "type": "object",
+                  "properties": {
+                    "mediaIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^\\d{1,32}$"
+                      },
+                      "maxItems": 50,
+                      "default": []
+                    },
+                    "keywords": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 60
+                      },
+                      "maxItems": 20,
+                      "default": []
+                    },
+                    "publicReplies": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 300
+                      },
+                      "maxItems": 10,
+                      "default": []
+                    }
+                  }
+                },
+                "position": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "config",
+                "position"
+              ]
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "enum": [
+                    "unreachable",
+                    "missing_edge",
+                    "wait_free_cycle",
+                    "unknown_field",
+                    "no_finish",
+                    "opening_button"
+                  ]
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "error",
+                    "warning"
+                  ]
+                },
+                "nodeId": {
+                  "type": "string"
+                },
+                "handle": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "severity"
+              ]
+            }
+          },
+          "testUsernames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "channelId",
+          "name",
+          "status",
+          "flow",
+          "triggers",
+          "problems",
+          "testUsernames",
+          "createdBy",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "AutomationFlow": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "number",
+            "enum": [
+              2
+            ]
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "opening"
+                      ]
+                    },
+                    "position": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "text": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 600
+                        },
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "text",
+                            "button"
+                          ],
+                          "default": "text"
+                        },
+                        "buttonTitle": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 20,
+                          "default": "Quero!"
+                        },
+                        "disclosure": {
+                          "type": "boolean",
+                          "default": true
+                        }
+                      },
+                      "required": [
+                        "text"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "position",
+                    "data"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "message"
+                      ]
+                    },
+                    "position": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "text": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 600
+                        },
+                        "format": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "buttons",
+                            "quick"
+                          ],
+                          "default": "buttons"
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "pattern": "^[a-z0-9_-]{1,24}$"
+                              },
+                              "title": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 20
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "title"
+                            ]
+                          },
+                          "maxItems": 13,
+                          "default": []
+                        },
+                        "saveTo": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                        },
+                        "onTyped": {
+                          "type": "string",
+                          "enum": [
+                            "reask",
+                            "branch"
+                          ],
+                          "default": "reask"
+                        }
+                      },
+                      "required": [
+                        "text"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "position",
+                    "data"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "question"
+                      ]
+                    },
+                    "position": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "text": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 600
+                        },
+                        "field": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                        },
+                        "validate": {
+                          "type": "string",
+                          "enum": [
+                            "name",
+                            "phone",
+                            "email",
+                            "free"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "text",
+                        "field",
+                        "validate"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "position",
+                    "data"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "condition"
+                      ]
+                    },
+                    "position": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "field": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                        },
+                        "op": {
+                          "type": "string",
+                          "enum": [
+                            "equals",
+                            "contains",
+                            "filled",
+                            "empty"
+                          ]
+                        },
+                        "value": {
+                          "type": "string",
+                          "maxLength": 60,
+                          "default": ""
+                        }
+                      },
+                      "required": [
+                        "field",
+                        "op"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "position",
+                    "data"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "link"
+                      ]
+                    },
+                    "position": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "text": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 600
+                        },
+                        "buttonTitle": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 20,
+                          "default": "Abrir"
+                        },
+                        "target": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "whatsapp"
+                                  ]
+                                },
+                                "phone": {
+                                  "type": "string",
+                                  "pattern": "^\\d{10,15}$"
+                                },
+                                "message": {
+                                  "type": "string",
+                                  "maxLength": 500,
+                                  "default": ""
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "phone"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "url"
+                                  ]
+                                },
+                                "url": {
+                                  "type": "string",
+                                  "maxLength": 2000,
+                                  "format": "uri"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "url"
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "text",
+                        "target"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "position",
+                    "data"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "end"
+                      ]
+                    },
+                    "position": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "text": {
+                          "type": "string",
+                          "maxLength": 600,
+                          "default": ""
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "position",
+                    "data"
+                  ]
+                }
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 40
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "source": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_-]{1,24}$"
+                },
+                "sourceHandle": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_-]{1,24}$"
+                },
+                "target": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_-]{1,24}$"
+                }
+              },
+              "required": [
+                "id",
+                "source",
+                "sourceHandle",
+                "target"
+              ]
+            },
+            "maxItems": 120,
+            "default": []
+          }
+        },
+        "required": [
+          "version",
+          "nodes"
+        ]
+      },
+      "AutomationTriggerInput": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "comment"
+            ]
+          },
+          "config": {
+            "type": "object",
+            "properties": {
+              "mediaIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^\\d{1,32}$"
+                },
+                "maxItems": 50,
+                "default": []
+              },
+              "keywords": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                },
+                "maxItems": 20,
+                "default": []
+              },
+              "publicReplies": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                },
+                "maxItems": 10,
+                "default": []
+              }
+            }
+          },
+          "position": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "x": {
+                "type": "number",
+                "minimum": -100000,
+                "maximum": 100000
+              },
+              "y": {
+                "type": "number",
+                "minimum": -100000,
+                "maximum": 100000
+              }
+            },
+            "default": null,
+            "required": [
+              "x",
+              "y"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "config"
+        ]
+      },
+      "AutomationLead": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "automationId": {
+            "type": "string"
+          },
+          "automationName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "channelId": {
+            "type": "string"
+          },
+          "mediaId": {
+            "type": "string"
+          },
+          "commentId": {
+            "type": "string"
+          },
+          "commentText": {
+            "type": "string"
+          },
+          "participantUsername": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "COMPLETED",
+              "FAILED",
+              "UNCERTAIN",
+              "SKIPPED",
+              "ABANDONED"
+            ]
+          },
+          "step": {
+            "type": "number"
+          },
+          "answers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "publicReply": {
+            "type": "string"
+          },
+          "privateReply": {
+            "type": "string"
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "completedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "automationId",
+          "automationName",
+          "channelId",
+          "mediaId",
+          "commentId",
+          "commentText",
+          "participantUsername",
+          "status",
+          "step",
+          "answers",
+          "publicReply",
+          "privateReply",
+          "lastError",
+          "createdAt",
+          "completedAt"
         ]
       },
       "MediaRef": {
@@ -1664,6 +3315,772 @@
           "sampleSize",
           "fromBaseline",
           "signal"
+        ]
+      },
+      "ContentPalette": {
+        "type": "object",
+        "properties": {
+          "primaria": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "destaque": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "fundoEscuro": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "fundoClaro": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "texto": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "textoSuave": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "extraidas": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ContentBrand": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "logoMediaId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "logoUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "logoDarkMediaId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "logoDarkUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "palette": {
+            "$ref": "#/components/schemas/ContentPalette"
+          },
+          "slogan": {
+            "type": "string"
+          },
+          "signature": {
+            "type": "string"
+          },
+          "tone": {
+            "type": "string"
+          },
+          "defaultChannelId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ctaChannel": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "whatsapp",
+              "comentario"
+            ]
+          },
+          "whatsappNumber": {
+            "type": "string"
+          },
+          "ctaWord": {
+            "type": "string",
+            "description": "palavra do CTA para pessoa física (ex.: PLANO)"
+          },
+          "ctaWordBusiness": {
+            "type": "string",
+            "description": "palavra do CTA para empresa/MEI (ex.: EMPRESA)"
+          },
+          "publishHour": {
+            "type": "integer"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "autoApprove": {
+            "type": "boolean"
+          },
+          "reelsVideo": {
+            "type": "boolean",
+            "description": "false = reels sai só como roteiro para gravar"
+          }
+        },
+        "required": [
+          "name",
+          "logoMediaId",
+          "logoUrl",
+          "logoDarkMediaId",
+          "logoDarkUrl",
+          "palette",
+          "slogan",
+          "signature",
+          "tone",
+          "defaultChannelId",
+          "ctaChannel",
+          "whatsappNumber",
+          "ctaWord",
+          "ctaWordBusiness",
+          "publishHour",
+          "timezone",
+          "autoApprove",
+          "reelsVideo"
+        ]
+      },
+      "ContentCapabilities": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "boolean"
+          },
+          "renderer": {
+            "type": "boolean"
+          },
+          "video": {
+            "type": "boolean"
+          },
+          "videoModel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "text",
+          "renderer",
+          "video",
+          "videoModel"
+        ]
+      },
+      "ContentOverview": {
+        "type": "object",
+        "properties": {
+          "brand": {
+            "$ref": "#/components/schemas/ContentBrand"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/ContentCapabilities"
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "foundationFilled": {
+            "type": "integer"
+          },
+          "foundationTotal": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "brand",
+          "capabilities",
+          "counts",
+          "foundationFilled",
+          "foundationTotal"
+        ]
+      },
+      "ContentFoundation": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "produtos",
+              "icp",
+              "personagem",
+              "marca",
+              "escada",
+              "pilares"
+            ]
+          },
+          "body": {
+            "type": "string"
+          },
+          "validUntil": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "key",
+          "body",
+          "validUntil",
+          "updatedAt"
+        ]
+      },
+      "ContentPrompt": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "enum": [
+              "pauta",
+              "roteiro",
+              "legenda",
+              "revisor"
+            ]
+          },
+          "version": {
+            "type": "integer"
+          },
+          "system": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "version",
+          "system",
+          "active",
+          "createdAt"
+        ]
+      },
+      "ContentHook": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "formula": {
+            "type": "string"
+          },
+          "template": {
+            "type": "string"
+          },
+          "example": {
+            "type": "string"
+          },
+          "pillar": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string"
+          },
+          "score": {
+            "type": "integer"
+          },
+          "uses": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "formula",
+          "template",
+          "example",
+          "pillar",
+          "origin",
+          "score",
+          "uses"
+        ]
+      },
+      "ContentPiece": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ideia",
+              "roteiro",
+              "producao",
+              "revisao",
+              "aprovado",
+              "agendado",
+              "publicado",
+              "reprovado",
+              "erro"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "carrossel",
+              "post",
+              "story",
+              "reels"
+            ]
+          },
+          "pillar": {
+            "type": "string"
+          },
+          "icp": {
+            "type": "string"
+          },
+          "market": {
+            "type": "string"
+          },
+          "awareness": {
+            "type": "string"
+          },
+          "hook": {
+            "type": "string"
+          },
+          "plan": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "script": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {}
+          },
+          "caption": {
+            "type": "string"
+          },
+          "hashtags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "keyword": {
+            "type": "string"
+          },
+          "media": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "mediaId": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "image",
+                    "video"
+                  ]
+                },
+                "order": {
+                  "type": "integer"
+                },
+                "url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "mime": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "mediaId",
+                "kind",
+                "order",
+                "url",
+                "mime"
+              ]
+            }
+          },
+          "review": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "aprovado": {
+                "type": "boolean"
+              },
+              "flags": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "codigo": {
+                      "type": "string"
+                    },
+                    "trecho": {
+                      "type": "string"
+                    },
+                    "motivo": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "codigo",
+                    "trecho",
+                    "motivo"
+                  ]
+                }
+              },
+              "motivo": {
+                "type": "string"
+              },
+              "lint": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "nivel": {
+                      "type": "string",
+                      "enum": [
+                        "erro",
+                        "aviso"
+                      ]
+                    },
+                    "codigo": {
+                      "type": "string"
+                    },
+                    "msg": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "nivel",
+                    "codigo",
+                    "msg"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "aprovado",
+              "flags",
+              "motivo"
+            ]
+          },
+          "feedback": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "at": {
+                  "type": "string"
+                },
+                "stage": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "by": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "at",
+                "stage",
+                "text",
+                "by"
+              ]
+            }
+          },
+          "attempts": {
+            "type": "integer"
+          },
+          "scheduledFor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "channelId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "postGroupId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "publishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "permalink": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "costUsd": {
+            "type": "number"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "running": {
+            "type": "boolean",
+            "description": "true = uma etapa está executando agora"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "format",
+          "pillar",
+          "icp",
+          "market",
+          "awareness",
+          "hook",
+          "plan",
+          "script",
+          "caption",
+          "hashtags",
+          "keyword",
+          "media",
+          "review",
+          "feedback",
+          "attempts",
+          "scheduledFor",
+          "channelId",
+          "postGroupId",
+          "publishedAt",
+          "permalink",
+          "costUsd",
+          "error",
+          "running",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ContentPlanQueued": {
+        "type": "object",
+        "properties": {
+          "queued": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "weekStart": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "queued",
+          "weekStart"
+        ]
+      },
+      "ContentPieceEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "stage": {
+            "type": "string"
+          },
+          "fromStatus": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "toStatus": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "stage",
+          "fromStatus",
+          "toStatus",
+          "detail",
+          "createdAt"
+        ]
+      },
+      "ContentPieceDetail": {
+        "type": "object",
+        "properties": {
+          "piece": {
+            "$ref": "#/components/schemas/ContentPiece"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContentPieceEvent"
+            }
+          },
+          "publication": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "state": {
+                "type": "string"
+              },
+              "releaseUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "errorMessage": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "state",
+              "releaseUrl",
+              "errorMessage"
+            ],
+            "description": "estado do post da peça no agendador (null = ainda não agendada)"
+          }
+        },
+        "required": [
+          "piece",
+          "events",
+          "publication"
+        ]
+      },
+      "ContentSpend": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "totalUsd": {
+            "type": "number"
+          },
+          "byService": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "service": {
+                  "type": "string"
+                },
+                "model": {
+                  "type": "string"
+                },
+                "costUsd": {
+                  "type": "number"
+                },
+                "count": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "service",
+                "model",
+                "costUsd",
+                "count"
+              ]
+            }
+          },
+          "pieces": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "pieceId": {
+                  "type": "string"
+                },
+                "keyword": {
+                  "type": "string"
+                },
+                "format": {
+                  "type": "string"
+                },
+                "costUsd": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "pieceId",
+                "keyword",
+                "format",
+                "costUsd"
+              ]
+            }
+          }
+        },
+        "required": [
+          "month",
+          "totalUsd",
+          "byService",
+          "pieces"
         ]
       },
       "PlanCatalog": {
@@ -3286,6 +5703,1424 @@
         }
       }
     },
+    "/v1/channels/{id}/media": {
+      "get": {
+        "tags": [
+          "engagement"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Posts recentes da conta conectada (inclui os que não saíram pelo manypost)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 512,
+              "description": "cursor opaco devolvido em `nextCursor`"
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "página de posts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngagementMediaPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "conflito",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "erro",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "provedor externo falhou — o pedido pode ser repetido",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/channels/{id}/media/{mediaId}/comments": {
+      "get": {
+        "tags": [
+          "engagement"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Comentários de um post, com as respostas",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,32}$"
+            },
+            "required": true,
+            "name": "mediaId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 512,
+              "description": "cursor opaco devolvido em `nextCursor`"
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "página de comentários",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngagementCommentPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "conflito",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "erro",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "provedor externo falhou — o pedido pode ser repetido",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/channels/{id}/comments/{commentId}/replies": {
+      "post": {
+        "tags": [
+          "engagement"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Responde um comentário publicamente",
+        "description": "Aceita `Idempotency-Key`: a mesma chave devolve a primeira resposta em vez de responder de novo. Falha de transporte depois do envio volta como `channel.provider_failed` com `extra.uncertain=true` — confira os comentários antes de repetir.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,32}$"
+            },
+            "required": true,
+            "name": "commentId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2200
+                  },
+                  "mediaId": {
+                    "type": "string",
+                    "pattern": "^\\d{1,32}$",
+                    "description": "post do comentário (exigido quando há ponte)"
+                  }
+                },
+                "required": [
+                  "message"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "resposta publicada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "conflito",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "erro",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "provedor externo falhou — o pedido pode ser repetido",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/channels/{id}/comments/{commentId}/visibility": {
+      "post": {
+        "tags": [
+          "engagement"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Oculta ou reexibe um comentário",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,32}$"
+            },
+            "required": true,
+            "name": "commentId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "hidden": {
+                    "type": "boolean"
+                  },
+                  "mediaId": {
+                    "type": "string",
+                    "pattern": "^\\d{1,32}$",
+                    "description": "post do comentário (exigido quando há ponte)"
+                  }
+                },
+                "required": [
+                  "hidden"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "aplicado (idempotente)"
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "conflito",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "erro",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "provedor externo falhou — o pedido pode ser repetido",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/channels/{id}/insights": {
+      "get": {
+        "tags": [
+          "engagement"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Métricas da conta no período (até 30 dias)",
+        "description": "A rede pode atrasar os dados em até 48 h. Métrica que a rede recusar volta `null`.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 30,
+              "default": 28,
+              "description": "janela até agora, em dias (a Graph aceita no máximo 30)"
+            },
+            "required": false,
+            "name": "days",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "métricas da conta",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountInsights"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "conflito",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "erro",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "provedor externo falhou — o pedido pode ser repetido",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/channels/{id}/insights/media": {
+      "get": {
+        "tags": [
+          "engagement"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Métricas vitalícias dos posts recentes",
+        "description": "Post que a rede recusar volta com métricas `null` e `unavailableReason`, sem derrubar a página.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 512,
+              "description": "cursor opaco devolvido em `nextCursor`"
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "posts com métricas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaInsightsPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "conflito",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "erro",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "provedor externo falhou — o pedido pode ser repetido",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/automations": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Automações de comentário da organização",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "channelId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "automações",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CommentAutomation"
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Cria uma automação (em rascunho)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "channelId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "flow": {
+                    "$ref": "#/components/schemas/AutomationFlow"
+                  },
+                  "triggers": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/AutomationTriggerInput"
+                    },
+                    "maxItems": 1
+                  },
+                  "testUsernames": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 31
+                    },
+                    "maxItems": 10
+                  }
+                },
+                "required": [
+                  "channelId",
+                  "name",
+                  "flow"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "criada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentAutomation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/automations/leads": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Leads (execuções) das automações, mais recentes primeiro",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "automationId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OPEN",
+                "COMPLETED",
+                "FAILED",
+                "UNCERTAIN",
+                "SKIPPED",
+                "ABANDONED"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "leads",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AutomationLead"
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/automations/{id}": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Uma automação",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "automação",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentAutomation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "automations"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Edita nome, fluxo, gatilho ou contas de teste",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "flow": {
+                    "$ref": "#/components/schemas/AutomationFlow"
+                  },
+                  "triggers": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/AutomationTriggerInput"
+                    },
+                    "maxItems": 1
+                  },
+                  "testUsernames": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 31
+                    },
+                    "maxItems": 10
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "automação",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentAutomation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "automations"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Apaga a automação (os leads continuam) — requer ADMIN/OWNER",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "apagada"
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/automations/{id}/status": {
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Muda o status (rascunho, teste, ativa, pausada) — requer ADMIN/OWNER",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "DRAFT",
+                      "TEST",
+                      "ACTIVE",
+                      "PAUSED"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "automação",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentAutomation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "papel insuficiente (requer ADMIN/OWNER)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/posts": {
       "post": {
         "tags": [
@@ -4422,7 +8257,8 @@
                         "post.failed",
                         "channel.refresh_required",
                         "channel.disconnected",
-                        "mention.received"
+                        "mention.received",
+                        "lead.captured"
                       ]
                     },
                     "minItems": 1
@@ -5869,6 +9705,1278 @@
           },
           "429": {
             "description": "rate limit — aguarde e tente de novo",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/overview": {
+      "get": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Estado da máquina: identidade, capacidades e contagem por etapa",
+        "description": "Na primeira chamada, configura a organização (prompts, fórmulas e fundação vazia).",
+        "responses": {
+          "200": {
+            "description": "visão geral",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentOverview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/brand": {
+      "put": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Atualiza a identidade visual e as preferências de publicação",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "logoMediaId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  },
+                  "logoDarkMediaId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  },
+                  "palette": {
+                    "$ref": "#/components/schemas/ContentPalette"
+                  },
+                  "slogan": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "signature": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "tone": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "defaultChannelId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  },
+                  "ctaChannel": {
+                    "type": "string",
+                    "enum": [
+                      "direct",
+                      "whatsapp",
+                      "comentario"
+                    ]
+                  },
+                  "whatsappNumber": {
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "ctaWord": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3,15}$"
+                  },
+                  "ctaWordBusiness": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3,15}$"
+                  },
+                  "publishHour": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 23
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "autoApprove": {
+                    "type": "boolean"
+                  },
+                  "reelsVideo": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "identidade",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentBrand"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/brand/palette": {
+      "post": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Extrai a paleta de cores da logo",
+        "description": "Sem `mediaId`, usa a logo principal. Sem logo definida, a imagem enviada vira a logo.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mediaId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "identidade com a paleta",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentBrand"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "capacidade não disponível nesta instalação",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "provedor externo falhou — o pedido pode ser repetido",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/foundation": {
+      "get": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Documentos da fundação editorial",
+        "responses": {
+          "200": {
+            "description": "fundação",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContentFoundation"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/foundation/{key}": {
+      "put": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Grava um documento da fundação",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "produtos",
+                "icp",
+                "personagem",
+                "marca",
+                "escada",
+                "pilares"
+              ]
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "maxLength": 60000
+                  },
+                  "validUntil": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  }
+                },
+                "required": [
+                  "body"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "documento",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentFoundation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/prompts": {
+      "get": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Prompts da máquina, com o histórico de versões",
+        "responses": {
+          "200": {
+            "description": "prompts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContentPrompt"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/prompts/{name}": {
+      "put": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Cria uma versão nova (ativa) do prompt",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pauta",
+                "roteiro",
+                "legenda",
+                "revisor"
+              ]
+            },
+            "required": true,
+            "name": "name",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "system": {
+                    "type": "string",
+                    "minLength": 20,
+                    "maxLength": 30000
+                  }
+                },
+                "required": [
+                  "system"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "versão criada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentPrompt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/hooks": {
+      "get": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Fórmulas de gancho que a pauta usa",
+        "responses": {
+          "200": {
+            "description": "fórmulas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContentHook"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/pieces": {
+      "get": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Peças da máquina, mais recentes primeiro",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "status separados por vírgula"
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "peças",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContentPiece"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Cria uma peça a partir de uma ideia; a esteira começa sozinha",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "format": {
+                    "type": "string",
+                    "enum": [
+                      "carrossel",
+                      "post",
+                      "story",
+                      "reels"
+                    ]
+                  },
+                  "hook": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500,
+                    "description": "a ideia ou o gancho"
+                  },
+                  "angle": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "pillar": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "icp": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "market": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "scheduledFor": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "channelId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "format",
+                  "hook"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "peça criada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentPiece"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "capacidade não disponível nesta instalação",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/plan": {
+      "post": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Pede a pauta da semana; as peças aparecem no quadro quando a geração termina",
+        "description": "Sem `slots`, usa o mix padrão (2 carrosséis, 1 reels, 1 post). A geração roda na fila (o modelo passa do tempo de uma requisição); semana já planejada responde 409.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "weekStart": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "market": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "channelId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "slots": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "date": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        },
+                        "format": {
+                          "type": "string",
+                          "enum": [
+                            "carrossel",
+                            "post",
+                            "story",
+                            "reels"
+                          ]
+                        },
+                        "pillar": {
+                          "type": "string",
+                          "maxLength": 40
+                        },
+                        "icp": {
+                          "type": "string",
+                          "maxLength": 40
+                        },
+                        "market": {
+                          "type": "string",
+                          "maxLength": 40
+                        }
+                      },
+                      "required": [
+                        "date",
+                        "format",
+                        "pillar"
+                      ]
+                    },
+                    "maxItems": 14
+                  }
+                },
+                "required": [
+                  "weekStart"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "pauta na fila",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentPlanQueued"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "conflito",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "capacidade não disponível nesta instalação",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/pieces/{id}": {
+      "get": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Uma peça com o histórico de etapas",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "peça",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentPieceDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Ajusta legenda, hashtags, data ou canal antes do agendamento",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "caption": {
+                    "type": "string",
+                    "maxLength": 2200
+                  },
+                  "hashtags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "maxItems": 5
+                  },
+                  "scheduledFor": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "channelId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "peça",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentPiece"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "conflito",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/pieces/{id}/decision": {
+      "post": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Decisão humana: aprovar, reprovar, refazer uma etapa ou tentar de novo",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "approve"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "action"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "reject"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "maxLength": 500
+                      }
+                    },
+                    "required": [
+                      "action"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "redo"
+                        ]
+                      },
+                      "stage": {
+                        "type": "string",
+                        "enum": [
+                          "roteiro",
+                          "producao"
+                        ]
+                      },
+                      "feedback": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2000
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "stage",
+                      "feedback"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "retry"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "action"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "resolvePublication"
+                        ]
+                      },
+                      "published": {
+                        "type": "boolean",
+                        "description": "true = a pessoa conferiu que o post saiu na rede"
+                      },
+                      "permalink": {
+                        "type": "string",
+                        "maxLength": 500,
+                        "format": "uri"
+                      }
+                    },
+                    "required": [
+                      "action",
+                      "published"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "peça",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentPiece"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "requisição fora do contrato (problem+json)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "não encontrado",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "conflito",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content-machine/spend": {
+      "get": {
+        "tags": [
+          "content-machine"
+        ],
+        "security": [
+          {
+            "clerkAuth": []
+          }
+        ],
+        "summary": "Gasto do mês por serviço e por peça (USD)",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            },
+            "required": false,
+            "name": "month",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "gasto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentSpend"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "não autenticado",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -8078,7 +13186,8 @@
                         "post.failed",
                         "channel.refresh_required",
                         "channel.disconnected",
-                        "mention.received"
+                        "mention.received",
+                        "lead.captured"
                       ]
                     },
                     "minItems": 1

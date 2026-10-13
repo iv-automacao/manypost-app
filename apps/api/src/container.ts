@@ -59,6 +59,7 @@ import {
   makeListInvoices,
   makeListMedia,
   makeListSubAccounts,
+  makeEngagement,
   makeListWebhooks,
   makeOpenBillingPortal,
   makePlanUsageReader,
@@ -83,13 +84,18 @@ import {
   makeVerifyApiKey,
   makeVerifyOAuthAccessToken,
   type BillingDeps,
+  type ChannelRecord,
 } from '@manypost/core';
-import { providerRegistry } from '@manypost/providers';
+import { makeZernioBridge, providerRegistry } from '@manypost/providers';
 import { createPublishingRuntime } from '@manypost/queue';
 import { makeStripeGateway, type StripeGateway } from './infra/billing/stripe.gateway';
 import { makeConfiguredAiProviders } from './infra/ai/provider-composition';
+import { buildContentMachine } from './content-machine.container';
 import { makeClerkIdentityVerifier } from './infra/identity/clerk.identity';
 import { createPrometheusMetrics } from './infra/metrics/prometheus';
+import { isProviderAvailable } from './http/routes/shared/provider-catalog';
+import { buildAutomation } from './automation.container';
+import { log } from './log';
 
 export type Container = Awaited<ReturnType<typeof buildContainer>>;
 
@@ -175,6 +181,22 @@ export async function buildContainer(env: Env) {
   // secrets de app por provider (SPEC_INTEGRATIONS §2): env → ctx.secrets;
   // provider indisponível quando faltam os requiredSecrets dele
   const providerSecrets = providerSecretsFromEnv(env);
+  // ponte de comentários pela Zernio (add-zernio-comment-bridge): só com chave + allowlist de orgs
+  const zernioOrgs = new Set(
+    (env.ZERNIO_ORG_IDS ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+  const zernio =
+    env.ZERNIO_API_KEY && zernioOrgs.size > 0
+      ? makeZernioBridge({
+          apiKey: env.ZERNIO_API_KEY,
+          ...(env.ZERNIO_API_URL ? { baseUrl: env.ZERNIO_API_URL.replace(/\/+$/, '') } : {}),
+          fetch: globalThis.fetch,
+          log: (level, msg, data) => log(level === 'debug' ? 'info' : level, msg, { ...data }),
+        })
+      : null;
 
   // métricas Prometheus (SPEC_INFRA §4): o sink alimenta publish/recover; a apps/api expõe /metrics
   const metrics = createPrometheusMetrics();
@@ -279,6 +301,37 @@ export async function buildContainer(env: Env) {
     enabled: Boolean(imageProvider),
   };
 
+  const schedulePost = makeSchedulePost({
+    channels: repos.channels,
+    publishing: repos.publishing,
+    registry: providerRegistry,
+    scheduler: runtime.scheduler,
+    media: repos.media,
+    storage,
+    events: runtime.events,
+    plan,
+  });
+
+  // automação comentário → direct (add-comment-automation): CRUD sempre; motor só com a ponte + segredo
+  const automation = await buildAutomation(env, db, runtime, {
+    channels: repos.channels,
+    audit: repos.audit,
+    zernio,
+    zernioOrgs,
+  });
+
+  const contentMachine = await buildContentMachine(env, db, runtime, {
+    ai: aiProvider,
+    budget,
+    media: repos.media,
+    storage,
+    channels: repos.channels,
+    publishing: repos.publishing,
+    schedulePost,
+    audit: repos.audit,
+    notifications: repos.notifications,
+  });
+
   return {
     env,
     db,
@@ -286,6 +339,8 @@ export async function buildContainer(env: Env) {
     budget,
     ai,
     aiImage,
+    contentMachine,
+    automation,
     // resumo operacional da home: contagens agregadas do nosso próprio registro (sem métrica
     // de desempenho — `channel_metrics` está vazia porque nada escreve nela)
     insights: makeSummarizeInsights({
@@ -318,6 +373,39 @@ export async function buildContainer(env: Env) {
       setAlt: makeSetMediaAlt(mediaDeps),
       remove: makeDeleteMedia(mediaDeps),
     },
+    // comentários e métricas lidos direto da rede, sem persistir (add-instagram-engagement)
+    engagement: makeEngagement({
+      channels: repos.channels,
+      crypto,
+      audit: repos.audit,
+      providerFor: (id: string) => {
+        const provider = providerRegistry.get(id);
+        if (!provider || !isProviderAvailable(provider, providerSecrets)) return null;
+        return {
+          provider,
+          ctx: {
+            fetch: globalThis.fetch,
+            // o caso de uso só loga metadados (op, provider, status, classe) — nunca token/corpo
+            log: (level, msg, data) => log(level === 'debug' ? 'info' : level, msg, { ...data }),
+            now: () => new Date(),
+            secrets: providerSecrets[id] ?? {},
+          },
+        };
+      },
+      ...(zernio
+        ? {
+            commentTransportFor: async (row: ChannelRecord) => {
+              if (!zernioOrgs.has(row.orgId)) return null;
+              if (row.provider !== 'instagram-standalone' && row.provider !== 'instagram') return null;
+              const userId = (row.settings as { userId?: unknown } | null)?.userId;
+              return zernio.forAccount({
+                platformUserId: typeof userId === 'string' && userId ? userId : row.externalId,
+                ...(row.username ? { username: row.username } : {}),
+              });
+            },
+          }
+        : {}),
+    }),
     channels: {
       connect: makeConnectChannel({ channels: repos.channels, crypto, plan }),
       list: makeListChannels({ channels: repos.channels }),
@@ -325,16 +413,7 @@ export async function buildContainer(env: Env) {
       listSubAccounts: makeListSubAccounts({ channels: repos.channels, crypto }),
     },
     posts: {
-      schedule: makeSchedulePost({
-        channels: repos.channels,
-        publishing: repos.publishing,
-        registry: providerRegistry,
-        scheduler: runtime.scheduler,
-        media: repos.media,
-        storage,
-        events: runtime.events,
-        plan,
-      }),
+      schedule: schedulePost,
       getGroup: (orgId: string, groupId: string) => repos.publishing.getGroup(orgId, groupId),
       // sem orgId de propósito: só chamar com ids vindos de um getGroup org-scoped (como o preview de aprovação)
       listItems: (publicationId: string) => repos.publishing.listItems(publicationId),

@@ -17,6 +17,11 @@ describe('máquina de estados de publicação (SPEC_QUEUE §4)', () => {
     expect(canTransition('PUBLISHED', 'SCHEDULED')).toBe(false);
   });
 
+  test('post que falhou pode ser descartado; publicado nunca', () => {
+    expect(canTransition('FAILED', 'CANCELLED')).toBe(true);
+    expect(canTransition('PUBLISHED', 'CANCELLED')).toBe(false);
+  });
+
   test('toda transição referencia estados válidos', () => {
     for (const from of PublicationStates) {
       for (const to of AllowedTransitions[from]) {

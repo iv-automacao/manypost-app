@@ -1,0 +1,23 @@
+{
+  "name": "nó solto, botão sem ligação e abertura com botão",
+  "flow": {
+    "version": 2,
+    "nodes": [
+      { "id": "opening", "type": "opening", "position": { "x": 0, "y": 0 }, "data": { "text": "Olá!", "mode": "button" } },
+      { "id": "m", "type": "message", "position": { "x": 0, "y": 160 }, "data": { "text": "Qual?", "options": [{ "id": "a", "title": "A" }, { "id": "b", "title": "B" }] } },
+      { "id": "fim", "type": "end", "position": { "x": 0, "y": 320 }, "data": {} },
+      { "id": "solto", "type": "end", "position": { "x": 300, "y": 320 }, "data": {} }
+    ],
+    "edges": [
+      { "id": "e1", "source": "opening", "sourceHandle": "next", "target": "m" },
+      { "id": "e2", "source": "m", "sourceHandle": "a", "target": "fim" }
+    ]
+  },
+  "expect": {
+    "problems": [
+      { "code": "unreachable", "severity": "error", "nodeId": "solto" },
+      { "code": "missing_edge", "severity": "error", "nodeId": "m", "handle": "b" },
+      { "code": "opening_button", "severity": "warning", "nodeId": "opening" }
+    ]
+  }
+}

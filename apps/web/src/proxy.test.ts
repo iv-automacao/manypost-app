@@ -14,6 +14,13 @@ describe('proxy Clerk + manypost', () => {
     }
   });
 
+  it('deixa as páginas legais abertas para visitante e para quem tem sessão', () => {
+    for (const path of ['/privacidade', '/termos']) {
+      expect(authRouteAction(path, false)).toBe('allow');
+      expect(authRouteAction(path, true)).toBe('allow');
+    }
+  });
+
   it('libera endpoints de máquina do AS OAuth sem sessão Clerk', () => {
     for (const path of ['/oauth/authorize', '/oauth/register', '/oauth/token']) {
       expect(authRouteAction(path, false)).toBe('allow');

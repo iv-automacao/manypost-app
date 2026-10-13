@@ -168,6 +168,8 @@ export interface PublicationFeedQuery {
 
 export interface PublishingRepository {
   createGroup(d: {
+    /** id escolhido pelo chamador — torna a criação idempotente para quem precisa retentar */
+    id?: string;
     orgId: string;
     authorId: string | null;
     baseContent: PostContent;

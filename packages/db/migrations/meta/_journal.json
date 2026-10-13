@@ -57,6 +57,48 @@
       "when": 1785167855108,
       "tag": "0007_ai_image_provenance",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790565895987,
+      "tag": "0008_content-machine",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790640258161,
+      "tag": "0009_content-cta-word",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790694720855,
+      "tag": "0010_content-reels-video",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791851044778,
+      "tag": "0011_comment-automation",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791892186033,
+      "tag": "0012_flow-builder",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791892186530,
+      "tag": "0013_flow-builder-backfill",
+      "breakpoints": true
     }
   ]
 }

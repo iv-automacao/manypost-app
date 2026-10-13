@@ -1,0 +1,32 @@
+{
+  "name": "linear no formato da v1: abertura, escolha, telefone com re-pergunta, WhatsApp",
+  "flow": {
+    "version": 2,
+    "nodes": [
+      { "id": "opening", "type": "opening", "position": { "x": 0, "y": 0 }, "data": { "text": "Olá!" } },
+      { "id": "q0", "type": "message", "position": { "x": 0, "y": 160 }, "data": { "text": "Qual plano?", "format": "buttons", "options": [{ "id": "o0", "title": "Saúde" }, { "id": "o1", "title": "Vida" }], "saveTo": "plano" } },
+      { "id": "q1", "type": "question", "position": { "x": 0, "y": 320 }, "data": { "text": "Seu WhatsApp?", "field": "whatsapp", "validate": "phone" } },
+      { "id": "finish", "type": "link", "position": { "x": 0, "y": 480 }, "data": { "text": "Valeu, {plano}!", "buttonTitle": "Falar no WhatsApp", "target": { "kind": "whatsapp", "phone": "5592999990000", "message": "Quero {plano}" } } },
+      { "id": "end", "type": "end", "position": { "x": 0, "y": 640 }, "data": { "text": "" } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "opening", "sourceHandle": "next", "target": "q0" },
+      { "id": "e2", "source": "q0", "sourceHandle": "o0", "target": "q1" },
+      { "id": "e3", "source": "q0", "sourceHandle": "o1", "target": "q1" },
+      { "id": "e4", "source": "q1", "sourceHandle": "next", "target": "finish" },
+      { "id": "e5", "source": "finish", "sourceHandle": "next", "target": "end" }
+    ]
+  },
+  "inputs": [{ "text": "oi" }, { "tap": "o1" }, { "text": "não sei" }, { "text": "(92) 98888-7777" }],
+  "expect": {
+    "messages": [
+      { "text": "Olá!\n\nResponda esta mensagem para continuar.\n\nMensagem automática." },
+      { "text": "Qual plano?", "buttons": ["Saúde", "Vida"] },
+      { "text": "Seu WhatsApp?" },
+      { "text": "Seu WhatsApp?" },
+      { "text": "Valeu, Vida!", "buttons": ["Falar no WhatsApp"], "urls": ["https://wa.me/5592999990000?text=Quero%20Vida"] }
+    ],
+    "status": "completed",
+    "answers": { "plano": "Vida", "whatsapp": "92988887777" }
+  }
+}

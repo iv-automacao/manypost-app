@@ -10,6 +10,235 @@
 > **Como manter:** ao fechar uma fatia, adicione a onda nova **no topo** e atualize o STATUS.
 > Cada entrada é auto-contida: o que mudou, onde no código, e a prova de que funciona.
 
+## Onda 46 — 2026-10-13 — construtor de fluxo em canvas (entrega 1 de 5)
+
+- **O que mudou:** o formulário linear da automação virou um canvas de balões conectados, com o
+  motor percorrendo o fluxo como grafo. O roteiro tem 5 entregas; esta é a primeira e traz o canvas,
+  ramificação por botão, condição, link ou WhatsApp, pedir para seguir, simulador, desfazer e
+  refazer, Organizar e gatilho separado do fluxo (tabela própria). Decisões do Iago de 13/10/2026:
+  - **Seguir sem portão:** pedir para seguir é um bloco como outro, sem travar o fluxo.
+  - **Abertura em modo texto por padrão:** o Instagram recusa botões para quem não segue a conta.
+    O modo botão continua possível e gera o aviso `opening_button`, que não bloqueia.
+  - **Motor próprio:** o fluxo roda no manypost, não em workflows da Zernio.
+
+  Compatibilidade: a automação e as conversas do formato antigo seguem funcionando (a v1 é
+  convertida em memória, o payload `mp1:` continua aceito e a automação v1 sem linha de gatilho
+  cai para a configuração antiga). O motor novo renderiza `{campo}` e `{username}` em todas as
+  mensagens, não só na final. Execuções ganham o status `ABANDONED` e o erro
+  `automation.flow_invalid` (HTTP 400, `extra.problems`) bloqueia Teste/Ativa com fluxo inválido.
+- **Onde:**
+  - **Contratos:** `packages/contracts/src/automation-flow.ts` e `error-codes.ts`.
+  - **Core:** `packages/core/src/domain/automation/` (`flow-validate`, `flow-from-v1`,
+    `flow-step`) e `use-cases/comment-automation.ts`.
+  - **Banco:** migrations `0012_flow-builder` (tabela `automation_triggers`, colunas `node_id`,
+    `cursor`, `sent_cursor`) e `0013_flow-builder-backfill`.
+  - **Web:** `apps/web/src/features/automation/flow/` (lógica, histórico, canvas, simulador,
+    editor), com `@xyflow/react` e `@dagrejs/dagre`.
+  - **Fixtures:** `testdata/automation-flows/`.
+  - **Scripts:** `scripts/e2e-automation.ts` (cenário v2) e `scripts/diag-automation.ts`.
+  - **Docs:** [RUNBOOK_FLOW_BUILDER.md](RUNBOOK_FLOW_BUILDER.md).
+- **Prova:**
+  - **Equivalência:** a sequência dourada da v1 sai igual pelo grafo convertido.
+  - **Fixtures:** 15 compartilhadas entre o core e a web (paridade de validação e simulação).
+  - **Repositório:** testes de integração em Postgres real (33 em `packages/db`).
+  - **E2E** (`scripts/e2e-automation.ts`): cenário v1 intacto e cenário v2 com ramificação,
+    condição e pedir para seguir, com a Zernio falsa.
+  - **`bun run check:ci`:** 1806 passaram (eram 1705 na linha de base) e as únicas 2 falhas são as
+    já conhecidas de `catalog.test.ts` (espaço no caminho local). Typecheck, typecheck:web,
+    fronteiras, IA, marca, `db:check`, `build:web` e `spec:validate` (38 itens) verdes.
+  - **Revisão final do branch:** 4 pontos importantes corrigidos (desfazer após Delete, Salvar
+    bloqueado em Teste/Ativa com erro, aviso ao sair com edição, saída "Digitou outra coisa"
+    visível) mais os menores, com nova revisão aprovada.
+- **Pendente:**
+  - **Entregas 2 a 5** do roteiro.
+  - **Tarefa 9.3 (produção):** deploy pelo Iago e teste com o @ de teste.
+  - **Conferência no navegador:** não foi feita (login local via Clerk). Roteiro no runbook.
+  - **Conferir antes de migrar a automação ativa:** abertura e perguntas sem `{...}` literal.
+  - **Conhecido e adiado:**
+    - o tooltip do "seguir" desabilitado não aparece;
+    - voltar/avançar do navegador não passa pelo aviso de saída;
+    - o `whatsappUrl` do lead de fluxo ramificado usa o primeiro link do grafo.
+
+## Onda 45 — 2026-10-12 — automação comentário → direct (ManyChat próprio)
+
+- **O que mudou:** fase 2 do engajamento do Instagram, com as decisões do Iago de 12/10:
+  - **Quem conduz o direct:** o fluxo do manypost. A IA do CRM fica desligada no Instagram e o CRM
+    só registra o histórico via Zernio.
+  - **Destino dos leads:** ficam no manypost e saem em `lead.captured` para o n8n.
+  - **Transporte:** a Zernio agora, com App Review do app próprio em paralelo.
+
+  O fluxo é linear: gatilho por post e palavra-chave → resposta pública sorteada → resposta privada
+  com botão (ou só texto) e aviso de automação → até 5 perguntas → mensagem final com botão do
+  WhatsApp. Há modo teste por username. O motor é retomável e serial e não reenvia em incerteza.
+- **Onde:**
+  - **Contratos:** `packages/contracts/src/automation.ts` (schema v1, `DirectTransport`, evento
+    normalizado) e `events.ts` (`lead.captured`).
+  - **Banco:** `packages/db/src/schema/automation.ts`, migration `0011` e `automation.repo.ts`.
+  - **Core:** `packages/core/src/domain/automation/automation-logic.ts` e
+    `use-cases/comment-automation.ts`.
+  - **Zernio:** `packages/providers/src/zernio/` (resposta privada, mensagem, `accountById`,
+    `bind`, eventos e assinatura).
+  - **API:** `apps/api/src/automation.container.ts`, `automations.routes.ts` e
+    `zernio-webhook.routes.ts`.
+  - **Web:** `apps/web/src/features/automation/` e as rotas `/automacoes`, `/automacoes/nova`,
+    `/automacoes/[id]` e `/leads`.
+  - **Scripts:** `scripts/register-zernio-webhook.ts` e `scripts/e2e-automation.ts`.
+- **Prova:**
+  - **Testes novos:**
+
+    | Área | Testes |
+    |---|---|
+    | Schema | 6 |
+    | Zernio: direct, eventos e assinatura | 9 |
+    | Lógica pura | 14 |
+    | Motor e CRUD | 22 (reentrega, modo teste, consumida/incerta, retomada após 503, toque repetido, fallback por username) |
+    | Rotas | 12 |
+    | Web: lógica e paridade com o contrato | 12 |
+    | Repositório (Postgres real, `TEST_DATABASE_URL`) | 5 |
+
+  - **E2E** (`scripts/e2e-automation.ts`, 13 checagens): API real em `MODE=all` com Zernio falsa,
+    do comentário ao `lead.captured` assinado, inclusive reentrega sem duplicar e assinatura
+    inválida → 401.
+  - **`bun run check`:** 1705 passaram, e as únicas 2 falhas são as já conhecidas de
+    `catalog.test.ts` (espaço no caminho local). A mesma regra, conferida com o caminho
+    decodificado, passou.
+  - **Fronteiras, IA e marca:** ok.
+  - **Build da web:** ok, com as 4 rotas novas.
+
+## Onda 44 — 2026-10-12 — comentários reais pela ponte Zernio
+
+- **O que mudou:** a verificação em produção da onda 43 mostrou comentários contados e não
+  entregues. O `scripts/diag-ig-comments.ts`, rodado no console do Easypanel, testou sem `fields`,
+  campo a campo, v21, v25, sem versão e `fields=comments{id}` no post. Em todas as variações a
+  resposta foi HTTP 200, `data=0` e cursor presente, com `comments_count=5`, inclusive para o
+  comentário da própria conta e de conta pessoal que não é testadora. Conclusão: a Meta filtra por
+  nível de acesso do app (padrão vs. Advanced Access), e o código não tem culpa. A decisão do Iago
+  foi usar a Zernio agora (app aprovado, conta já conectada) e pedir o App Review em paralelo. A
+  ponte é uma interface trocável (`CommentTransport`) e só liga com chave **e** allowlist de
+  organização.
+- **Onde:** `packages/contracts/src/channel-provider.ts` (`CommentTransport`),
+  `packages/providers/src/zernio/zernio-bridge.ts`, `packages/core/src/application/use-cases/engagement.ts`
+  (`commentTransportFor`), `apps/api/src/container.ts`, `engagement.routes.ts` (`mediaId`),
+  `apps/web/src/features/engagement/hooks.ts`, `packages/config/src/env.ts`.
+- **Prova:** 14 testes do adaptador (resolução por id e username, cache de 10 min, mapeamento,
+  corpos de escrita, classificação 401/403/400/429/502, chave fora do log), 11 novos no caso de uso
+  (ponte no lugar do provider sem decifrar token, outra org e canal parado sem consultar a ponte,
+  `mediaId` exigido só pela ponte, auditoria, incerteza) e 1 de rota. `bun run check`: 1628
+  passaram e falharam só os 2 de `catalog.test.ts` já conhecidos (espaço no caminho local).
+  Fronteiras, IA e marca ok. O OpenAPI regenerado só acrescentou o `mediaId` opcional.
+
+## Onda 43 — 2026-10-12 — comentários e insights do Instagram
+
+- **O que mudou:** as funções de comentário e métrica do `instagram-mcp` (MIT, Python) entraram no
+  produto em TypeScript, sem rodar o servidor: telas **Comentários** (listar por post, responder,
+  ocultar) e **Insights** (conta e por post) sobre as contas `instagram-standalone` já conectadas.
+  Antes, conferido em produção pelo `GET /v1/channels`: a conta da Invista usa o login pelo
+  Instagram e já concedia `instagram_business_manage_comments` e `_manage_insights`; faltava
+  `_manage_messages` (direct), que fica para a automação comentário → direct. Direct, automação e
+  histórico de métricas ficaram de fora de propósito (a caixa do direct é do CRM).
+- **Onde:** `packages/contracts/src/channel-provider.ts` (tipos + métodos opcionais +
+  `ProviderFailure`), `packages/providers/src/shared/instagram-engagement.ts`,
+  `instagram-standalone.provider.ts`, `packages/core/src/application/use-cases/engagement.ts`,
+  `apps/api/src/http/routes/engagement.routes.ts`, `apps/web/src/features/engagement/`, rotas
+  `app/(app)/comentarios` e `app/(app)/insights`.
+- **Prova:** testes novos — 25 do módulo Graph (paginação, respostas, degradação por métrica,
+  concorrência, classificação), 3 do provider, 21 do caso de uso (outra org sem decifrar, escopo e
+  status sem rede, incerteza sem retry, auditoria sem token), 17 de rota (id `../me` → 400,
+  replay por `Idempotency-Key`, status dos códigos) e 16 de lógica do web. `bun run check` 1599
+  pass (2 falhas conhecidas do catálogo por caminho com espaço; o mesmo teste rodado com o caminho
+  decodificado passa), `check:boundaries`, `check:ai-providers`, `check:brand`, `spec:validate`,
+  `git diff --check`; `build:web` com `/comentarios` e `/insights` (rodado numa cópia fora de
+  `~/Documents` por bloqueio de privacidade do macOS). OpenAPI regenerado: só adições.
+  **Não verificado em navegador nem contra a Graph real** — fica para o deploy.
+
+## Onda 42 — 2026-09-29 — roteiros pelo método do cliente dos sonhos
+
+- **O que mudou:** na fundação e nos prompts da Invista (fora do código), ICP, personagem e
+  escada refeitos pelo método do Segredos DotCom; prompts pauta v2, roteiro v6, legenda v3 e
+  revisor v5. No código: pílula de CTA fixa do canal em post e story, `PAUTA` (formato, icp,
+  praça) e os achados do lint também na etapa de legenda, até duas correções de lint no roteiro
+  (`TENTATIVAS_ROTEIRO`) e descarte de flag do revisor com `falhou: false`.
+- **Onde:** `content-machine-stages.ts` (etapa de roteiro, `etapaArte`, `etapaRevisao`).
+- **Prova:** testes novos no core (pílula fixa, praça na legenda, legenda recebe CORRIJA, erro de
+  lint persistente vai para revisão, flag `falhou: false` descartada); 549 pass em core + api.
+  Em produção, peças de teste no perfil de teste: carrossel de servidor em Boa Vista aprovado com
+  aviso e registros ANS; reels de família e de profissional com a apresentação da Jéssica.
+
+## Onda 41 — 2026-09-29 — reels só com roteiro
+
+- **O que mudou:** a marca pode desligar o vídeo automático dos reels (`reelsVideo`). Desligado, a
+  etapa de produção do reels não chama o gerador de vídeo; a peça segue para a revisão de
+  conformidade do roteiro e da legenda e para em `revisao` com o motivo "Roteiro para gravar". O
+  backend recusa aprovar reels sem vídeo e a ficha da peça esconde o botão.
+- **Onde:** `content-machine-stages.ts` (despacho da etapa `roteiro`, `REELS_PARA_GRAVAR` na
+  revisão), `content-machine.ts` (guarda no `approve`), migration `0010_content-reels-video`,
+  `identity-view.tsx` e `logic.ts` (`isReelsToRecord`).
+- **Prova:** teste novo no core (sem pedido nem gasto de vídeo, revisão com o motivo, aprovar
+  recusado) e na web (sem "aprovar"); `bun run check` 1510 pass (2 falhas conhecidas do catálogo),
+  `check:*`, `db:check`, `spec:validate`, `build:web`.
+
+## Onda 40 — 2026-09-28 — CTA simples e canal por comentário
+
+- **O que mudou:** a palavra do CTA deixou de ser um código por peça (`PME-1005-A`) e passou a ser
+  uma palavra da marca (`PLANO`; `EMPRESA` para empresa/MEI), editável na Identidade e validada
+  (`^[A-Z]{3,15}$`). Canal novo `comentario` para o gatilho de comentário do ManyChat; o modelo
+  recebe a mecânica do canal no prompt e o lint do renderizador exige "coment…" na legenda.
+- **Onde:** `packages/core/src/application/use-cases/content-machine.ts` (`palavraDoCta`,
+  `PALAVRA_CTA`), `content-machine-stages.ts` (`ctaTexto`, `canalCtaParaModelo`), migration
+  `0009_content-cta-word`, `apps/web/src/features/content-machine/identity-view.tsx`,
+  renderizador `scripts/render_marca.py` (`_cta` com `palavra_chave`) e `scripts/lint.py`.
+- **Prova:** `bun run check` (1507 pass; 2 falhas conhecidas do catálogo por caminho com espaço),
+  `check:brand`, `check:boundaries`, `check:ai-providers`, `db:check`, `spec:validate`, `build:web`;
+  arte de teste renderizada com "Comenta **PLANO** aqui".
+- **Junto:** fundação aceita até 60 mil caracteres (a tabela de produtos da Seed tem 46 mil) e
+  `generateJson` faz uma segunda chamada na hora quando o modelo devolve JSON quebrado — o revisor
+  deixava a peça em revisão humana por uma aspa sem escape.
+
+## Onda 39 — 2026-09-28 — máquina de conteúdo (`add-content-machine`)
+
+A esteira de conteúdo que rodava fora do produto (n8n + renderizador Python + API de vídeo + banco
+separado) entrou no manypost como área "Máquina", por organização: pauta → roteiro/legenda → arte ou
+vídeo → revisão → agendamento → publicado.
+
+- **Core:** domínio com status fechado e tabela de transições; casos de uso de configuração
+  idempotente (prompts, fórmulas, fundação), identidade visual com extração de paleta, pauta semanal,
+  peça manual, decisões humanas (aprovar, reprovar, refazer roteiro, refazer arte/vídeo, tentar de
+  novo) e gasto por mês. Etapas com posse por trava, transição condicional, duas retentativas
+  automáticas, agendamento idempotente (reaproveita o post já criado) e revisão com checagem
+  determinística de CTA.
+- **Vídeo:** um clipe por cena com narração nativa; o id do pedido é gravado antes da espera
+  (queda não paga de novo), pedido moderado/sem saldo é estornado e a nova tentativa pede só a cena
+  que falhou. Adapter por fila em `infra/ai/video-queue.ts`.
+- **Renderizador (serviço do operador):** `/v2/render` com a marca no pedido (paleta, logo para fundo
+  claro e escuro, slogan, assinatura), `/paleta`, `/montar-reel` (ffmpeg + card final).
+- **Persistência:** migration aditiva `0008_content-machine` (7 tabelas, todas com `org_id`).
+- **Fila:** `content-machine` (3 laços, expiração 1h) + sweeper por minuto, via
+  `PublishingRuntime.registerQueue`.
+- **API/Web:** `/v1/content-machine/*` e as telas Quadro, detalhe da peça, Identidade, Fundação,
+  Prompts e Gastos.
+- **Adapter de texto:** `AI_TOKEN_LIMIT_PARAM` e `AI_SEND_TEMPERATURE` para modelos de raciocínio.
+
+**Provas.** Local: 25 testes de caso de uso com fakes, 8 de adapters, 7 de rota, 30 da web;
+`bun run check` com 1464 passes (as 2 falhas são as conhecidas de caminho com espaço), fronteiras,
+provedores de IA, brand, Drizzle, OpenSpec 34/34 e build com as 5 rotas `/maquina`. `scripts/e2e-content-machine.ts`
+rodou as etapas com modelo e renderizador reais (post até `agendado`, carrossel de 7 artes).
+Produção (post.vantagemanaus.com.br, 28/09): identidade e fundação cadastradas, paleta extraída da
+logo em 2,4 s pelo renderizador interno; post `PME-0928-A` da ideia ao Instagram
+(https://www.instagram.com/p/Dd09lP2leRj/, US$ 0,0027); carrossel `PLANO-0928-A` parado pelo revisor,
+refeito por decisão humana na tela, reaprovado e publicado
+(https://www.instagram.com/p/Dd09zTXlRUU/, US$ 0,007); reels `PLANO-0928-B` gerou 2 cenas e parou em
+`erro` por saldo insuficiente no fornecedor de vídeo, com as 3 tentativas da cena 3 estornadas —
+retoma com "Tentar de novo" depois da recarga.
+
+**Revisões adversariais (28/09).** Quatro rodadas (60, 29, 29 e 29 agentes; a última com 9 achados confirmados, todos corrigidos): 37 achados confirmados na
+primeira (deduplicados em ~20 defeitos), resíduos e 3 regressões na segunda, e uma final sobre as
+rodadas 3 e 4. Tudo corrigido com teste de regressão por achado (core: 440 testes; web: 42) e em
+produção. Destaques: token de posse, espera no banco, agendamento com id escolhido antes, descarte
+do post anterior, publicação incerta com confirmação humana, vídeo sem reenvio pago em resposta
+ambígua, pauta assíncrona idempotente por slot, contraste da paleta nos dois fundos mantendo o tom
+da marca. Produção validou os quatro formatos: post, carrossel, reels
+(https://www.instagram.com/reel/Dd1DF1cEZ9b/) e story.
+
 ## Onda 38 — 2026-08-13 — registro regularizado: modos de custo e qualidade na imagem (entrega de 2026-07-28)
 
 Regularização de registro: a entrega abaixo estava documentada no `CHANGELOG.md` da raiz e na

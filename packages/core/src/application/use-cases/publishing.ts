@@ -119,6 +119,8 @@ export const makeSchedulePost = (deps: SchedulePostDeps) =>
     thread?: Array<{ text: string; mediaIds?: string[] | undefined; delaySec?: number | undefined }>;
     /** true = nasce DRAFT aguardando aprovação por link (DECISIONS v1.1 §12) — sem job até aprovar */
     requireApproval?: boolean;
+    /** id do grupo escolhido por quem chama (máquina de conteúdo): retentar não duplica o post */
+    groupId?: string;
   }) => {
     // teto de posts do plano (Grátis: 15/mês) — falha antes de qualquer escrita
     await deps.plan?.assert(input.orgId, { kind: 'post' });
@@ -252,6 +254,7 @@ export const makeSchedulePost = (deps: SchedulePostDeps) =>
 
     const first = items[0]!;
     const created = await deps.publishing.createGroup({
+      ...(input.groupId ? { id: input.groupId } : {}),
       orgId: input.orgId,
       authorId: input.authorId,
       baseContent: { text: first.text, ...(first.media.length > 0 ? { media: first.media } : {}) },
@@ -282,11 +285,20 @@ export const makeSchedulePost = (deps: SchedulePostDeps) =>
       }
     }
 
-    await deps.events?.emit({
-      orgId: input.orgId,
-      event: WebhookEvents.PostScheduled,
-      data: { groupId: created.groupId, publishAt: input.publishAt.toISOString() },
-    });
+    // o post já existe e o job já foi enfileirado: falha do aviso não pode virar erro de agendamento
+    // (quem retentasse criaria um segundo post)
+    try {
+      await deps.events?.emit({
+        orgId: input.orgId,
+        event: WebhookEvents.PostScheduled,
+        data: { groupId: created.groupId, publishAt: input.publishAt.toISOString() },
+      });
+    } catch (err) {
+      deps.log?.('error', 'aviso post.scheduled falhou — post agendado mesmo assim', {
+        groupId: created.groupId,
+        err: String(err),
+      });
+    }
 
     return deps.publishing.getGroup(input.orgId, created.groupId);
   };

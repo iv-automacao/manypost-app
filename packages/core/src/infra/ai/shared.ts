@@ -18,6 +18,10 @@ export type ProviderHttpConfig = {
 export type AiAdapterConfig = ProviderHttpConfig & {
   model: string;
   maxOutputTokens: number;
+  /** nome do parâmetro de teto no chat-completions; ausente = `max_tokens` */
+  tokenLimitParam?: 'max_tokens' | 'max_completion_tokens';
+  /** `false` = omite `temperature`; ausente = envia quando o caso de uso pede */
+  sendTemperature?: boolean;
 };
 
 export type ImageAdapterConfig = ProviderHttpConfig & { model: string };

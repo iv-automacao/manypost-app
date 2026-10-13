@@ -119,12 +119,14 @@ compartilhada que não depende de adapters.
 
 | Área | Papel | Exemplos |
 | --- | --- | --- |
-| `src/domain/` | estados e regras puras | `publishing/publication-state.ts`, `shared/result.ts` |
-| `src/application/use-cases/` | orquestração de negócio | auth, channels, publishing, media, webhooks, billing |
+| `src/domain/` | estados e regras puras | `publishing/publication-state.ts`, `content-machine/content-piece-state.ts`, `shared/result.ts` |
+| `src/application/use-cases/` | orquestração de negócio | auth, channels, publishing, media, webhooks, billing, máquina de conteúdo (`content-machine*.ts`) |
 | `src/application/ports/` | interfaces de saída | repositories, providers, jobs, events, crypto |
 | `src/infra/crypto/` | AES-GCM e helpers | `aes-gcm.service.ts` |
 | `src/infra/media/` | detecção por conteúdo | `sniff.ts` |
 | `src/infra/storage/` | drivers `local` e `s3` de mídia | `local.storage.ts`, `s3.storage.ts` |
+| `src/infra/content-renderer.ts` | cliente HTTP do renderizador de artes (máquina de conteúdo) | render, lint, paleta, montagem de reels |
+| `src/infra/ai/video-queue.ts` | adapter do gerador de vídeo por fila (único lugar com o nome do fornecedor) | submit, status, estimate |
 
 - Dependências: contracts e bibliotecas permitidas; nunca apps/db/providers.
 - Consumidores: API, worker e testes/fakes.
@@ -139,9 +141,9 @@ compartilhada que não depende de adapters.
 **Responsabilidade:** schema/migrations/repositories PostgreSQL.
 
 - Entradas: `src/index.ts`, `src/migrate.ts`, `drizzle.config.ts`.
-- Schema: `src/schema/{identity,channels,content,platform,billing}.ts`.
+- Schema: `src/schema/{identity,channels,content,platform,billing,content-machine}.ts`.
 - Repositories: identidade, canais, publicação, mídia, aprovação, webhook,
-  platform e billing.
+  platform, billing e máquina de conteúdo (`content-machine.repo.ts`).
 - Consumidores: API/worker/core ports.
 - Riscos: isolamento por organização; updates condicionais; migrations
   automáticas; tabelas filhas sem `org_id`; dados cifrados.
@@ -173,7 +175,7 @@ compartilhada que não depende de adapters.
 
 | Arquivo | Papel |
 | --- | --- |
-| `src/runtime.ts` | pg-boss, handlers, cron e composição de publish/webhook |
+| `src/runtime.ts` | pg-boss, handlers, cron e composição de publish/webhook; `registerQueue` para filas de outros módulos (ex.: `content-machine`) |
 | `src/redis-rate-limiter.ts` | janela e semáforo atômicos |
 | `src/redis-idempotency.ts` | claim/replay da API pública |
 | `src/redis-realtime-bus.ts` | pub/sub por organização |
@@ -195,7 +197,8 @@ compartilhada que não depende de adapters.
 - E2E: `e2e-auth.ts`, `e2e-publish.ts`, `e2e-public.ts`, `e2e-mcp.ts`,
   `e2e-mcp-oauth.ts`,
   `e2e-billing.ts`; `e2e-clerk.ts` cria identidade e token Clerk somente no
-  PostgreSQL/RSA efêmeros da suíte.
+  PostgreSQL/RSA efêmeros da suíte; `e2e-content-machine.ts` roda as etapas da
+  máquina com modelo e renderizador reais, sem publicar.
 - Operação externa: `stripe-sync.ts`, `stripe-webhook.ts`,
   `connect-and-post.ts`, `live-telegram.ts`.
 

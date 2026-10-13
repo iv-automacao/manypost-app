@@ -4,6 +4,17 @@ import type { ZodType } from 'zod';
 
 export type ErrorClass = 'transient' | 'refresh-token' | 'permanent';
 
+/**
+ * Forma do erro que um provider lança quando a rede responde com falha. `errorClass` presente =
+ * o provider já classificou (dispensa `classifyError`); ausente = a plataforma chama `classifyError`.
+ * Qualquer outra coisa lançada (TypeError do fetch, timeout) é falha de transporte.
+ */
+export interface ProviderFailure {
+  status: number;
+  body: string;
+  errorClass?: ErrorClass;
+}
+
 export interface MediaRule {
   maxCount: number;
   mimeTypes: string[];
@@ -107,6 +118,75 @@ export interface MetricSeries {
   points: MetricPoint[];
 }
 
+// ---------- Engajamento (comentários e métricas — change add-instagram-engagement) ----------
+
+/** Página de resultados com cursor opaco da rede; ausente = fim. */
+export interface EngagementPage<T> {
+  items: T[];
+  nextCursor?: string;
+}
+
+/** Mídia publicada na conta conectada (inclui posts que não saíram pelo manypost). */
+export interface EngagementMedia {
+  id: string;
+  /** IMAGE | VIDEO | CAROUSEL_ALBUM */
+  mediaType: string;
+  /** FEED | REELS | STORY — quando a rede informa */
+  productType?: string;
+  caption?: string;
+  permalink?: string;
+  /** imagem para miniatura (thumbnail do vídeo ou a própria imagem); URL temporária da rede */
+  previewUrl?: string;
+  timestamp: string;
+  likeCount?: number;
+  commentsCount?: number;
+}
+
+export interface EngagementComment {
+  id: string;
+  text: string;
+  username?: string;
+  timestamp: string;
+  likeCount?: number;
+  hidden: boolean;
+  /** escrito pela própria conta conectada */
+  fromOwner: boolean;
+  /** respostas diretas (a rede só tem um nível) — vazio nas próprias respostas */
+  replies: EngagementComment[];
+}
+
+/** valor `null` = a rede não devolveu/recusou essa métrica (nunca inventamos zero) */
+export type MetricValues = Record<string, number | null>;
+
+export interface AccountInsights {
+  since: string; // ISO
+  until: string; // ISO
+  totals: MetricValues;
+  followersCount: number | null;
+  mediaCount: number | null;
+  /** série diária de alcance; vazia quando a rede não devolve */
+  dailyReach: MetricPoint[];
+}
+
+export interface MediaInsights {
+  mediaId: string;
+  metrics: MetricValues;
+  /** motivo saneado quando a rede recusou as métricas deste post */
+  unavailableReason?: string;
+}
+
+/**
+ * Ponte de comentários (change add-zernio-comment-bridge): fala com a rede por um intermediário
+ * autorizado no lugar dos métodos de comentário do provider. Quem a constrói já fechou sobre a
+ * credencial e a conta — por isso não recebe ctx nem token. Falhas são `ProviderFailure`.
+ */
+export interface CommentTransport {
+  readonly id: string;
+  listComments(mediaId: string, page: { cursor?: string; limit: number }): Promise<EngagementPage<EngagementComment>>;
+  replyToComment(mediaId: string, commentId: string, message: string): Promise<{ id: string }>;
+  setCommentHidden(mediaId: string, commentId: string, hidden: boolean): Promise<void>;
+}
+
 /** Contexto injetado — providers nunca usam fetch global nem leem env (SPEC_INTEGRATIONS §2). */
 export interface ProviderContext {
   fetch: typeof fetch;
@@ -195,4 +275,47 @@ export interface ChannelProvider {
     token: TokenSet,
     externalId: string,
   ): Promise<MetricSeries[]>;
+
+  // Engajamento — todos opcionais; `settings` = settings gravados no canal (ex.: userId).
+  /** escopos exigidos por grupo de operação; a plataforma confere antes de chamar a rede */
+  readonly engagementScopes?: { comments: string; insights: string };
+  listRecentMedia?(
+    ctx: ProviderContext,
+    token: TokenSet,
+    settings: unknown,
+    page: { cursor?: string; limit: number },
+  ): Promise<EngagementPage<EngagementMedia>>;
+  listComments?(
+    ctx: ProviderContext,
+    token: TokenSet,
+    settings: unknown,
+    mediaId: string,
+    page: { cursor?: string; limit: number },
+  ): Promise<EngagementPage<EngagementComment>>;
+  replyToComment?(
+    ctx: ProviderContext,
+    token: TokenSet,
+    settings: unknown,
+    commentId: string,
+    message: string,
+  ): Promise<{ id: string }>;
+  setCommentHidden?(
+    ctx: ProviderContext,
+    token: TokenSet,
+    settings: unknown,
+    commentId: string,
+    hidden: boolean,
+  ): Promise<void>;
+  fetchAccountInsights?(
+    ctx: ProviderContext,
+    token: TokenSet,
+    settings: unknown,
+    range: { since: Date; until: Date },
+  ): Promise<AccountInsights>;
+  fetchMediaInsights?(
+    ctx: ProviderContext,
+    token: TokenSet,
+    settings: unknown,
+    mediaIds: string[],
+  ): Promise<MediaInsights[]>;
 }

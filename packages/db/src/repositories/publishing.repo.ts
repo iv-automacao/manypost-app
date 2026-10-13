@@ -61,6 +61,7 @@ export function makePublishingRepository(db: Db): PublishingRepository {
         const [group] = await tx
           .insert(postGroups)
           .values({
+            ...(d.id ? { id: d.id } : {}),
             orgId: d.orgId,
             authorId: d.authorId,
             baseContent: d.baseContent,

@@ -10,9 +10,8 @@
  * filtros do motor sobre cada comentário gravado — por que ele disparou ou não. Nunca imprime
  * chave, segredo, token nem texto de comentário; usernames só aparecem como "na lista de teste".
  */
-import { CommentAutomationConfigSchema } from '@manypost/contracts';
-import { automationLogic } from '@manypost/core';
-import { createDb } from '@manypost/db';
+import { automationLogic, commentTriggerOf, loadFlow, type LoadedFlow } from '@manypost/core';
+import { createDb, makeAutomationRepository } from '@manypost/db';
 import { parseZernioEvent } from '@manypost/providers';
 
 const [channelId] = process.argv.slice(2);
@@ -87,15 +86,26 @@ console.log('\n== automações do canal');
 const automations = await db.query.commentAutomations.findMany({
   where: (a, { eq, and, isNull }) => and(eq(a.channelId, channelId), isNull(a.deletedAt)),
 });
-const parsedCfg = new Map<string, ReturnType<typeof CommentAutomationConfigSchema.safeParse>>();
+const triggerRows = await makeAutomationRepository(db).listTriggers(automations.map((a) => a.id));
+const loadedById = new Map<string, LoadedFlow | null>();
 for (const a of automations) {
-  const cfg = CommentAutomationConfigSchema.safeParse(a.config);
-  parsedCfg.set(a.id, cfg);
-  const t = cfg.success ? cfg.data.trigger : null;
+  const loaded = loadFlow(a.config);
+  loadedById.set(a.id, loaded);
+  const mine = triggerRows.filter((t) => t.automationId === a.id);
   console.log(
     `- ${a.id} "${a.name}" status=${a.status} contas de teste=${a.testUsernames.length} ` +
-      (t ? `posts=${t.mediaIds.length === 0 ? 'todos' : t.mediaIds.join(',')} palavras=${JSON.stringify(t.keywords)}` : 'CONFIG INVÁLIDA'),
+      (loaded ? `config v${(a.config as { version?: number }).version ?? 1} nós=${loaded.flow.nodes.length}` : 'CONFIG INVÁLIDA'),
   );
+  if (mine.length === 0) {
+    const t = loaded ? commentTriggerOf(a.id, triggerRows, loaded) : null;
+    console.log(`    gatilho: (gatilho da config v1)${t ? ` posts=${t.mediaIds.length === 0 ? 'todos' : t.mediaIds.length} palavras=${JSON.stringify(t.keywords)} respostas públicas=${t.publicReplies.length}` : ''}`);
+  }
+  for (const t of mine) {
+    const c = (t.config ?? {}) as { mediaIds?: string[]; keywords?: string[]; publicReplies?: string[] };
+    console.log(
+      `    gatilho ${t.kind}: posts=${c.mediaIds?.length ? c.mediaIds.length : 'todos'} palavras=${JSON.stringify(c.keywords ?? [])} respostas públicas=${c.publicReplies?.length ?? 0}`,
+    );
+  }
 }
 if (automations.length === 0) console.log('nenhuma automação neste canal');
 
@@ -121,13 +131,13 @@ for (const e of events) {
       const per = automations
         .filter((a) => a.status === 'TEST' || a.status === 'ACTIVE')
         .map((a) => {
-          const cfg = parsedCfg.get(a.id);
-          if (!cfg?.success) return `"${a.name}": config inválida`;
+          const loaded = loadedById.get(a.id);
+          const t = loaded ? commentTriggerOf(a.id, triggerRows, loaded) : null;
+          if (!t) return `"${a.name}": config ou gatilho inválido`;
           if (a.status === 'TEST' && !(author && a.testUsernames.includes(author)))
             return `"${a.name}": autor ${author ? 'fora da lista de teste' : 'SEM username no evento'}`;
-          const t = cfg.data.trigger;
           if (t.mediaIds.length > 0 && !t.mediaIds.includes(p.mediaId)) return `"${a.name}": post ${p.mediaId} fora da lista`;
-          if (!automationLogic.matchesTrigger(cfg.data, { mediaId: p.mediaId, text: p.text })) return `"${a.name}": palavra-chave não bateu`;
+          if (!automationLogic.matchesCommentTrigger(t, { mediaId: p.mediaId, text: p.text })) return `"${a.name}": palavra-chave não bateu`;
           return `"${a.name}": BATEU`;
         });
       why = per.length ? per.join(' · ') : 'nenhuma automação em Teste/Ativa';
@@ -150,7 +160,7 @@ const runs = await db.query.automationRuns.findMany({
 if (runs.length === 0) console.log('nenhuma execução');
 for (const r of runs) {
   console.log(
-    `- ${r.createdAt.toISOString()} status=${r.status} passo=${r.step} pública=${r.publicReply} privada=${r.privateReply}` +
+    `- ${r.createdAt.toISOString()} status=${r.status} passo=${r.step} nó=${r.nodeId ?? '-'} cursor=${r.cursor} enviado=${r.sentCursor} pública=${r.publicReply} privada=${r.privateReply}` +
       (r.lastError ? ` erro=${r.lastError.slice(0, 200)}` : ''),
   );
 }

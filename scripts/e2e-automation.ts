@@ -19,6 +19,8 @@ const FAKE_PORT = 3999;
 const API = `http://localhost:${API_PORT}`;
 const SECRET = 'e2e-segredo-do-webhook-com-mais-de-32-caracteres';
 const IG_USER = `17841${Date.now()}`;
+// id fixo por execução: o evento é deduplicado no banco, então o script precisa poder rodar de novo
+const COMMENT_EVENT_ID = `e2e-comment-fixo-${Date.now()}`;
 
 let failures = 0;
 function check(cond: unknown, msg: string) {
@@ -112,6 +114,33 @@ const automation = await makeAutomationRepository(db).create({
     disclosure: true,
   },
 });
+// fluxo v2 (canvas) com o gatilho na tabela; a automação v1 acima não tem linha de gatilho
+// e por isso também prova a queda para `config.trigger`
+const P = { x: 0, y: 0 };
+const ed = (source: string, sourceHandle: string, target: string) => ({ id: `e-${source}-${sourceHandle}`, source, sourceHandle, target });
+const automationV2 = await makeAutomationRepository(db).create({
+  orgId,
+  channelId: channel!.id,
+  name: 'E2E canvas',
+  status: 'ACTIVE',
+  testUsernames: [],
+  createdBy: null,
+  config: {
+    version: 2,
+    nodes: [
+      { id: 'opening', type: 'opening', position: P, data: { text: 'Oi!', mode: 'text', buttonTitle: 'Quero!', disclosure: true } },
+      { id: 'tipo', type: 'message', position: P, data: { text: 'Para quem?', format: 'buttons', options: [{ id: 'pf', title: 'Pessoa física' }, { id: 'pj', title: 'Minha empresa' }], saveTo: 'tipo', onTyped: 'reask' } },
+      { id: 'info', type: 'message', position: P, data: { text: 'Empresarial tem condições especiais.', format: 'none', options: [], onTyped: 'reask' } },
+      { id: 'nome', type: 'question', position: P, data: { text: 'Seu nome?', field: 'nome', validate: 'name' } },
+      { id: 'c', type: 'condition', position: P, data: { field: 'tipo', op: 'equals', value: 'minha empresa' } },
+      { id: 'wa', type: 'link', position: P, data: { text: 'Fale com a gente', buttonTitle: 'WhatsApp', target: { kind: 'whatsapp', phone: '5592999990000', message: 'Sou {nome}' } } },
+      { id: 'seguir', type: 'link', position: P, data: { text: 'Segue a gente', buttonTitle: 'Seguir', target: { kind: 'url', url: 'https://instagram.com/e2e.conta' } } },
+      { id: 'fim', type: 'end', position: P, data: { text: 'Obrigado, {nome}!' } },
+    ],
+    edges: [ed('opening', 'next', 'tipo'), ed('tipo', 'pf', 'nome'), ed('tipo', 'pj', 'info'), ed('info', 'next', 'nome'), ed('nome', 'next', 'c'), ed('c', 'yes', 'wa'), ed('c', 'no', 'fim'), ed('wa', 'next', 'seguir')],
+  },
+  triggers: [{ kind: 'comment', config: { mediaIds: [], keywords: ['empresarial'], publicReplies: [] }, position: null }],
+});
 await makeWebhookRepository(db).create({
   orgId,
   name: 'e2e',
@@ -184,7 +213,7 @@ try {
       parentCommentId: null,
     },
   };
-  const first = await send('comment.received', commentEvent, { id: 'e2e-comment-fixo' });
+  const first = await send('comment.received', commentEvent, { id: COMMENT_EVENT_ID });
   check(first.status === 200, 'evento assinado → 200');
   const pr = await until(() => calls.find((c) => c.path.endsWith('/c-e2e-1/private-reply')), 'resposta privada');
   const pub = calls.find((c) => c.method === 'POST' && c.path === '/api/v1/inbox/comments/1801');
@@ -192,25 +221,25 @@ try {
   const prButtons = pr.body.buttons as Array<{ payload: string }>;
   check(String(pr.body.message).endsWith('Mensagem automática.'), 'abertura com aviso de automação');
   const run = await until(runRow, 'execução gravada');
-  check(prButtons?.[0]?.payload === `mp1:${run.id}:o:0`, 'botão da abertura carrega o id da execução');
+  check(prButtons?.[0]?.payload === `mp2:${run.id}:opening:next`, 'botão da abertura carrega o id da execução');
 
   const before = calls.length;
-  await send('comment.received', commentEvent, { id: 'e2e-comment-fixo' });
+  await send('comment.received', commentEvent, { id: COMMENT_EVENT_ID });
   await send('comment.received', commentEvent);
   await sleep(1500);
   check(calls.filter((c) => c.method !== 'GET').length === calls.slice(0, before).filter((c) => c.method !== 'GET').length, 'reentrega e evento repetido não enviam nada');
 
   console.log('direct');
-  await send('message.received', message({ text: 'Quero!' }, { postbackPayload: `mp1:${run.id}:o:0` }));
+  await send('message.received', message({ text: 'Quero!' }, { postbackPayload: `mp2:${run.id}:opening:next` }));
   const q1 = await until(() => sends()[0], 'pergunta 1');
-  check(q1.idem === `${run.id}:0:0`, 'pergunta enviada com Idempotency-Key');
+  check(q1.idem === `${run.id}:c1:0`, 'pergunta enviada com Idempotency-Key');
   check(JSON.stringify(q1.body.buttons).includes('Saúde'), 'opções como botões');
 
-  await send('message.received', message({ text: 'Vida' }, { postbackPayload: `mp1:${run.id}:0:1` }));
+  await send('message.received', message({ text: 'Vida' }, { postbackPayload: `mp2:${run.id}:q0:o1` }));
   await until(() => sends()[1], 'pergunta 2');
   await send('message.received', message({ text: 'não sei' }));
   const reask = await until(() => sends()[2], 're-pergunta');
-  check(reask.idem === `${run.id}:1:1`, 'telefone inválido re-pergunta com chave nova');
+  check(reask.idem === `${run.id}:c2:1`, 'telefone inválido re-pergunta com chave nova');
   await send('message.received', message({ text: '(92) 98888-7777' }));
   const fim = await until(() => sends()[3], 'mensagem final');
   check(
@@ -229,6 +258,37 @@ try {
   const hook = await until(() => hooks.find((h) => h.event === 'lead.captured'), 'webhook lead.captured', 30_000);
   check(hook.signature?.startsWith('t=') && hook.signature.includes(',v1='), 'lead.captured assinado');
   check((hook.body.data as { runId?: string })?.runId === run.id, 'lead.captured com o runId');
+
+  console.log('fluxo v2 (canvas)');
+  const message2 = (over: Record<string, unknown>, metadata: Record<string, unknown> = {}) => ({
+    message: { conversationId: 'conv-e2e-2', platform: 'instagram', direction: 'incoming', text: '', sender: { id: 'igsid-e2e-2', username: 'empresa.e2e' }, ...over },
+    conversation: { id: 'conv-e2e-2', participantId: 'igsid-e2e-2' },
+    metadata,
+  });
+  const sends2 = () => calls.filter((c) => c.path === '/api/v1/inbox/conversations/conv-e2e-2/messages');
+  await send('comment.received', {
+    comment: { id: 'c-e2e-2', platformPostId: '1802', platform: 'instagram', text: 'plano EMPRESARIAL', author: { id: 'igsid-e2e-2', username: 'empresa.e2e', isOwnAccount: false }, isReply: false, parentCommentId: null },
+  });
+  const pr2 = await until(() => calls.find((c) => c.path.endsWith('/c-e2e-2/private-reply')), 'resposta privada v2');
+  check(!pr2.body.buttons && String(pr2.body.message).includes('Responda esta mensagem para continuar.'), 'abertura v2 em texto, sem botão');
+  const run2 = await until(() => db.query.automationRuns.findFirst({ where: (r, { eq }) => eq(r.automationId, automationV2.id) }), 'execução v2');
+  await send('message.received', message2({ text: 'oi' }));
+  await until(() => sends2()[0], 'botões v2');
+  await send('message.received', message2({ text: 'Minha empresa' }, { postbackPayload: `mp2:${run2.id}:tipo:pj` }));
+  await until(() => sends2()[2], 'info + nome');
+  check(sends2()[1]?.body.message === 'Empresarial tem condições especiais.' && sends2()[2]?.body.message === 'Seu nome?', 'mensagens encadeadas no mesmo evento');
+  await send('message.received', message2({ text: 'Ana' }));
+  await until(() => sends2()[4], 'WhatsApp + seguir');
+  check(JSON.stringify(sends2()[3]?.body.buttons).includes(encodeURIComponent('Sou Ana')), 'link do WhatsApp preenchido');
+  check(JSON.stringify(sends2()[4]?.body.buttons).includes('instagram.com/e2e.conta'), 'pedir para seguir depois do WhatsApp');
+  const done2 = await until(async () => {
+    const r = await db.query.automationRuns.findFirst({ where: (x, { eq }) => eq(x.automationId, automationV2.id) });
+    return r?.status === 'COMPLETED' && r.leadEmittedAt ? r : null;
+  }, 'execução v2 completa');
+  // jsonb não preserva a ordem das chaves: compara os campos
+  const ans2 = done2.answers as Record<string, string>;
+  check(Object.keys(ans2).length === 2 && ans2.tipo === 'Minha empresa' && ans2.nome === 'Ana', 'respostas v2 gravadas');
+  await until(() => hooks.find((h) => (h.body.data as { runId?: string })?.runId === run2.id), 'lead.captured v2', 30_000);
 } catch (e) {
   failures++;
   console.error(`  FALHOU: ${(e as Error).message}`);

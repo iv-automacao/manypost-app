@@ -686,11 +686,270 @@
           "items"
         ]
       },
+      "CommentAutomation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "TEST",
+              "ACTIVE",
+              "PAUSED"
+            ]
+          },
+          "config": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "version": {
+                "type": "number",
+                "enum": [
+                  1
+                ],
+                "default": 1
+              },
+              "trigger": {
+                "type": "object",
+                "properties": {
+                  "mediaIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^\\d{1,32}$"
+                    },
+                    "maxItems": 50,
+                    "default": []
+                  },
+                  "keywords": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    },
+                    "maxItems": 20,
+                    "default": []
+                  }
+                }
+              },
+              "publicReplies": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                },
+                "maxItems": 10,
+                "default": []
+              },
+              "opening": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 600
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "button",
+                      "text"
+                    ],
+                    "default": "button"
+                  },
+                  "buttonTitle": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20,
+                    "default": "Quero!"
+                  }
+                },
+                "required": [
+                  "text"
+                ]
+              },
+              "questions": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "choice"
+                          ]
+                        },
+                        "field": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                        },
+                        "prompt": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 600
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "title": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 20
+                              }
+                            },
+                            "required": [
+                              "title"
+                            ]
+                          },
+                          "minItems": 1,
+                          "maxItems": 13
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "field",
+                        "prompt",
+                        "options"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "text"
+                          ]
+                        },
+                        "field": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                        },
+                        "prompt": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 600
+                        },
+                        "validate": {
+                          "type": "string",
+                          "enum": [
+                            "name",
+                            "phone",
+                            "email",
+                            "free"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "field",
+                        "prompt",
+                        "validate"
+                      ]
+                    }
+                  ]
+                },
+                "maxItems": 5,
+                "default": []
+              },
+              "finish": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 600
+                  },
+                  "whatsapp": {
+                    "type": "object",
+                    "properties": {
+                      "phone": {
+                        "type": "string",
+                        "pattern": "^\\d{10,15}$"
+                      },
+                      "message": {
+                        "type": "string",
+                        "maxLength": 500,
+                        "default": ""
+                      },
+                      "buttonTitle": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 20,
+                        "default": "Falar no WhatsApp"
+                      }
+                    },
+                    "required": [
+                      "phone"
+                    ]
+                  }
+                },
+                "required": [
+                  "text"
+                ]
+              },
+              "disclosure": {
+                "type": "boolean",
+                "default": true
+              }
+            },
+            "required": [
+              "trigger",
+              "opening",
+              "finish"
+            ],
+            "description": "`null` = configuração gravada não passa mais na validação"
+          },
+          "testUsernames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "channelId",
+          "name",
+          "status",
+          "config",
+          "testUsernames",
+          "createdBy",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
       "CommentAutomationConfig": {
-        "type": [
-          "object",
-          "null"
-        ],
+        "type": "object",
         "properties": {
           "version": {
             "type": "number",
@@ -893,62 +1152,6 @@
           "trigger",
           "opening",
           "finish"
-        ],
-        "description": "`null` = configuração gravada não passa mais na validação"
-      },
-      "CommentAutomation": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "channelId": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "DRAFT",
-              "TEST",
-              "ACTIVE",
-              "PAUSED"
-            ]
-          },
-          "config": {
-            "$ref": "#/components/schemas/CommentAutomationConfig"
-          },
-          "testUsernames": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "createdBy": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "createdAt": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "channelId",
-          "name",
-          "status",
-          "config",
-          "testUsernames",
-          "createdBy",
-          "createdAt",
-          "updatedAt"
         ]
       },
       "AutomationLead": {
@@ -5557,14 +5760,7 @@
                     "maxLength": 80
                   },
                   "config": {
-                    "allOf": [
-                      {
-                        "$ref": "#/components/schemas/CommentAutomationConfig"
-                      },
-                      {
-                        "type": "object"
-                      }
-                    ]
+                    "$ref": "#/components/schemas/CommentAutomationConfig"
                   },
                   "testUsernames": {
                     "type": "array",
@@ -5861,14 +6057,7 @@
                     "maxLength": 80
                   },
                   "config": {
-                    "allOf": [
-                      {
-                        "$ref": "#/components/schemas/CommentAutomationConfig"
-                      },
-                      {
-                        "type": "object"
-                      }
-                    ]
+                    "$ref": "#/components/schemas/CommentAutomationConfig"
                   },
                   "testUsernames": {
                     "type": "array",

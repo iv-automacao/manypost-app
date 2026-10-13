@@ -6,6 +6,7 @@ import {
   ChartColumn,
   CreditCard,
   Factory,
+  House,
   Image as ImageIcon,
   LogOut,
   MessageSquare,
@@ -13,9 +14,10 @@ import {
   PanelLeftOpen,
   PenSquare,
   Plug,
-  House,
   Settings,
   SquareKanban,
+  Users,
+  Workflow,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
@@ -48,6 +50,8 @@ const MAIN_NAV: Array<{ href: string; key: string; icon: IconType }> = [
   { href: '/kanban', key: 'kanban', icon: SquareKanban },
   { href: '/comentarios', key: 'comments', icon: MessageSquare },
   { href: '/insights', key: 'insights', icon: ChartColumn },
+  { href: '/automacoes', key: 'automations', icon: Workflow },
+  { href: '/leads', key: 'leads', icon: Users },
   { href: '/maquina', key: 'maquina', icon: Factory },
   { href: '/midia', key: 'media', icon: ImageIcon },
   { href: '/conexoes', key: 'connections', icon: Plug },

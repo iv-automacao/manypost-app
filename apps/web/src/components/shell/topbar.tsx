@@ -17,6 +17,8 @@ import {
   Search,
   Settings,
   SquareKanban,
+  Users,
+  Workflow,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
@@ -45,6 +47,8 @@ const MOBILE_NAV = [
   { href: '/kanban', key: 'kanban', icon: SquareKanban },
   { href: '/comentarios', key: 'comments', icon: MessageSquare },
   { href: '/insights', key: 'insights', icon: ChartColumn },
+  { href: '/automacoes', key: 'automations', icon: Workflow },
+  { href: '/leads', key: 'leads', icon: Users },
   { href: '/maquina', key: 'maquina', icon: Factory },
   { href: '/conexoes', key: 'connections', icon: Plug },
   { href: '/midia', key: 'media', icon: ImageIcon },
@@ -59,6 +63,8 @@ const ROUTE_KEYS = [
   ['/kanban', 'kanban'],
   ['/comentarios', 'comments'],
   ['/insights', 'insights'],
+  ['/automacoes', 'automations'],
+  ['/leads', 'leads'],
   ['/maquina', 'maquina'],
   ['/midia', 'media'],
   ['/conexoes', 'connections'],

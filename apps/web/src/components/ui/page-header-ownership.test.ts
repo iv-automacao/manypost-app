@@ -12,6 +12,8 @@ describe('um único dono do cabeçalho por tela', () => {
     ['planos', 'features/billing/plans-view.tsx'],
     ['comentarios', 'features/engagement/comments-view.tsx'],
     ['insights', 'features/engagement/insights-view.tsx'],
+    ['automacoes', 'features/automation/automations-view.tsx'],
+    ['leads', 'features/automation/leads-view.tsx'],
   ])('%s deixa o PageHeader com a feature view, sem duplicá-lo na rota', async (route, view) => {
     const page = await source(`app/(app)/${route}/page.tsx`);
     const feature = await source(view);

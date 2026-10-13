@@ -52,6 +52,20 @@ export const TELAS: EntradaDoCatalogo[] = [
     href: '/insights',
   },
   {
+    id: 'automations',
+    tipo: 'page',
+    chaveDeRotulo: 'automations',
+    termos: 'automacoes automacao direct dm comentario palavra chave manychat fluxo whatsapp',
+    href: '/automacoes',
+  },
+  {
+    id: 'leads',
+    tipo: 'page',
+    chaveDeRotulo: 'leads',
+    termos: 'leads contatos respostas captura automacao',
+    href: '/leads',
+  },
+  {
     id: 'maquina',
     tipo: 'page',
     chaveDeRotulo: 'maquina',

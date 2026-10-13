@@ -1382,7 +1382,7 @@ export type paths = {
                         /** Format: uuid */
                         channelId: string;
                         name: string;
-                        config: components["schemas"]["CommentAutomationConfig"] & Record<string, never>;
+                        config: components["schemas"]["CommentAutomationConfig"];
                         testUsernames?: string[];
                     };
                 };
@@ -1661,7 +1661,7 @@ export type paths = {
                 content: {
                     "application/json": {
                         name?: string;
-                        config?: components["schemas"]["CommentAutomationConfig"] & Record<string, never>;
+                        config?: components["schemas"]["CommentAutomationConfig"];
                         testUsernames?: string[];
                     };
                 };
@@ -7545,7 +7545,72 @@ export type components = {
             items: components["schemas"]["MediaWithInsights"][];
             nextCursor?: string;
         };
-        /** @description `null` = configuração gravada não passa mais na validação */
+        CommentAutomation: {
+            id: string;
+            channelId: string;
+            name: string;
+            /** @enum {string} */
+            status: "DRAFT" | "TEST" | "ACTIVE" | "PAUSED";
+            /** @description `null` = configuração gravada não passa mais na validação */
+            config: {
+                /**
+                 * @default 1
+                 * @enum {number}
+                 */
+                version: 1;
+                trigger: {
+                    /** @default [] */
+                    mediaIds: string[];
+                    /** @default [] */
+                    keywords: string[];
+                };
+                /** @default [] */
+                publicReplies: string[];
+                opening: {
+                    text: string;
+                    /**
+                     * @default button
+                     * @enum {string}
+                     */
+                    mode: "button" | "text";
+                    /** @default Quero! */
+                    buttonTitle: string;
+                };
+                /** @default [] */
+                questions: ({
+                    /** @enum {string} */
+                    kind: "choice";
+                    field: string;
+                    prompt: string;
+                    options: {
+                        title: string;
+                    }[];
+                } | {
+                    /** @enum {string} */
+                    kind: "text";
+                    field: string;
+                    prompt: string;
+                    /** @enum {string} */
+                    validate: "name" | "phone" | "email" | "free";
+                })[];
+                finish: {
+                    text: string;
+                    whatsapp?: {
+                        phone: string;
+                        /** @default  */
+                        message: string;
+                        /** @default Falar no WhatsApp */
+                        buttonTitle: string;
+                    };
+                };
+                /** @default true */
+                disclosure: boolean;
+            } | null;
+            testUsernames: string[];
+            createdBy: string | null;
+            createdAt: string;
+            updatedAt: string;
+        };
         CommentAutomationConfig: {
             /**
              * @default 1
@@ -7599,18 +7664,6 @@ export type components = {
             };
             /** @default true */
             disclosure: boolean;
-        } | null;
-        CommentAutomation: {
-            id: string;
-            channelId: string;
-            name: string;
-            /** @enum {string} */
-            status: "DRAFT" | "TEST" | "ACTIVE" | "PAUSED";
-            config: components["schemas"]["CommentAutomationConfig"];
-            testUsernames: string[];
-            createdBy: string | null;
-            createdAt: string;
-            updatedAt: string;
         };
         AutomationLead: {
             id: string;

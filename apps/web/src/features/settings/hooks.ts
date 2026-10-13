@@ -20,7 +20,8 @@ export type WebhookEvent =
   | 'post.failed'
   | 'channel.refresh_required'
   | 'channel.disconnected'
-  | 'mention.received';
+  | 'mention.received'
+  | 'lead.captured';
 
 export function useApiKeys() {
   return useQuery({

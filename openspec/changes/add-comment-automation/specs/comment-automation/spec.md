@@ -74,10 +74,10 @@ automatically; a transient failure before sending MAY be retried by the queue.
 - **THEN** the run continues and records the public reply failure
 
 ### Requirement: Direct messages advance the run and capture the lead
-An incoming direct message from the run's participant within 24 hours of the last interaction SHALL
-advance the run: a tapped option (identified by its payload) or a valid text answer is recorded under
+An incoming direct message from the run's participant within 7 days of the last interaction (the
+private-reply window) SHALL advance the run: a tapped option (identified by its payload) or a valid text answer is recorded under
 the question's field and the next question is sent; an invalid text answer to a text question is
-re-asked once. Messages on the standby path, outgoing messages and messages from participants without
+re-asked once and, after that, the raw text is accepted. Messages on the standby path, outgoing messages and messages from participants without
 an open run MUST be ignored. After the last question the system SHALL send the final message with the
 WhatsApp button (when configured), mark the run completed and emit `lead.captured` once.
 

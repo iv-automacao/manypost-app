@@ -10,6 +10,52 @@
 > **Como manter:** ao fechar uma fatia, adicione a onda nova **no topo** e atualize o STATUS.
 > Cada entrada é auto-contida: o que mudou, onde no código, e a prova de que funciona.
 
+## Onda 45 — 2026-10-12 — automação comentário → direct (ManyChat próprio)
+
+- **O que mudou:** fase 2 do engajamento do Instagram, com as decisões do Iago de 12/10:
+  - **Quem conduz o direct:** o fluxo do manypost. A IA do CRM fica desligada no Instagram e o CRM
+    só registra o histórico via Zernio.
+  - **Destino dos leads:** ficam no manypost e saem em `lead.captured` para o n8n.
+  - **Transporte:** a Zernio agora, com App Review do app próprio em paralelo.
+
+  O fluxo é linear: gatilho por post e palavra-chave → resposta pública sorteada → resposta privada
+  com botão (ou só texto) e aviso de automação → até 5 perguntas → mensagem final com botão do
+  WhatsApp. Há modo teste por username. O motor é retomável e serial e não reenvia em incerteza.
+- **Onde:**
+  - **Contratos:** `packages/contracts/src/automation.ts` (schema v1, `DirectTransport`, evento
+    normalizado) e `events.ts` (`lead.captured`).
+  - **Banco:** `packages/db/src/schema/automation.ts`, migration `0011` e `automation.repo.ts`.
+  - **Core:** `packages/core/src/domain/automation/automation-logic.ts` e
+    `use-cases/comment-automation.ts`.
+  - **Zernio:** `packages/providers/src/zernio/` (resposta privada, mensagem, `accountById`,
+    `bind`, eventos e assinatura).
+  - **API:** `apps/api/src/automation.container.ts`, `automations.routes.ts` e
+    `zernio-webhook.routes.ts`.
+  - **Web:** `apps/web/src/features/automation/` e as rotas `/automacoes`, `/automacoes/nova`,
+    `/automacoes/[id]` e `/leads`.
+  - **Scripts:** `scripts/register-zernio-webhook.ts` e `scripts/e2e-automation.ts`.
+- **Prova:**
+  - **Testes novos:**
+
+    | Área | Testes |
+    |---|---|
+    | Schema | 6 |
+    | Zernio: direct, eventos e assinatura | 9 |
+    | Lógica pura | 14 |
+    | Motor e CRUD | 22 (reentrega, modo teste, consumida/incerta, retomada após 503, toque repetido, fallback por username) |
+    | Rotas | 12 |
+    | Web: lógica e paridade com o contrato | 12 |
+    | Repositório (Postgres real, `TEST_DATABASE_URL`) | 5 |
+
+  - **E2E** (`scripts/e2e-automation.ts`, 13 checagens): API real em `MODE=all` com Zernio falsa,
+    do comentário ao `lead.captured` assinado, inclusive reentrega sem duplicar e assinatura
+    inválida → 401.
+  - **`bun run check`:** 1705 passaram, e as únicas 2 falhas são as já conhecidas de
+    `catalog.test.ts` (espaço no caminho local). A mesma regra, conferida com o caminho
+    decodificado, passou.
+  - **Fronteiras, IA e marca:** ok.
+  - **Build da web:** ok, com as 4 rotas novas.
+
 ## Onda 44 — 2026-10-12 — comentários reais pela ponte Zernio
 
 - **O que mudou:** a verificação em produção da onda 43 mostrou comentários contados e não

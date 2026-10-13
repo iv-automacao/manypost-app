@@ -10,6 +10,13 @@
 > **Como manter:** ao fechar uma fatia, atualize as seções abaixo **e** abra uma entrada nova no
 > topo do changelog. Este arquivo é sobre o presente; o changelog é sobre o passado.
 >
+> **Atualização — automação comentário → direct (2026-10-12, onda 45):** telas `/automacoes`
+> (construtor com pré-visualização) e `/leads`. A Zernio entrega comentários e mensagens por webhook
+> assinado; o motor responde em público e no direct, faz as perguntas, encerra com o botão do
+> WhatsApp e emite `lead.captured`. Para ligar em produção: `ZERNIO_WEBHOOK_SECRET`, rodar
+> `scripts/register-zernio-webhook.ts`, testar no modo teste, desligar a IA do CRM no Instagram e só
+> então ativar. Mudança `add-comment-automation`.
+>
 > **Atualização — ponte de comentários pela Zernio (2026-10-12, onda 44):** a Meta não entrega o
 > conteúdo dos comentários ao app sem Advanced Access. Com `ZERNIO_API_KEY` e `ZERNIO_ORG_IDS`, as
 > organizações listadas leem, respondem e ocultam pela Zernio. O App Review do app próprio segue em

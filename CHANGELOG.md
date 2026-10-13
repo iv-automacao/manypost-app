@@ -8,6 +8,29 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
 
 ### Added
 
+- **Automação comentário → direct (`add-comment-automation`).** Um ManyChat próprio no manypost.
+  - **Telas:** **Automações** (lista e construtor com pré-visualização da conversa) e **Leads**.
+  - **Construtor:**
+    - **Gatilho:** posts escolhidos ou qualquer post, mais palavras-chave (sem acento e caixa, palavra
+      inteira) ou qualquer comentário.
+    - **Resposta pública:** variações sorteadas.
+    - **Abertura no direct:** resposta privada com botão ou só texto, mais o aviso "Mensagem
+      automática.".
+    - **Perguntas:** até 5. As de escolha vão como botões (até 3) ou respostas rápidas (até 13); as
+      de texto validam nome, telefone, e-mail ou texto livre. Resposta inválida é perguntada de novo
+      uma vez.
+    - **Mensagem final:** botão `wa.me` com o texto já preenchido pelas respostas.
+    - **Estados:** rascunho, teste (só as contas listadas disparam), ativa e pausada. Ativar e
+      apagar exigem ADMIN/OWNER.
+  - **Lead:** cada lead completo sai no novo evento assinado `lead.captured`.
+  - **Entrada:** `POST /v1/integrations/zernio/webhook` confere o HMAC em tempo constante, aceita
+    corpo de até 256 KB e grava cada evento uma vez em `inbound_events`. O processamento fica na
+    fila serial `automation-event`.
+  - **Motor:** é retomável. Cada envio é gravado depois de confirmado, as mensagens levam
+    `Idempotency-Key` e a resposta privada incerta nunca é retentada.
+  - **Migration `0011`:** `comment_automations`, `automation_runs` e `inbound_events`.
+  - **Variáveis:** `ZERNIO_WEBHOOK_SECRET`, mais `ZERNIO_API_URL` opcional.
+  - **Scripts:** `scripts/register-zernio-webhook.ts` e `scripts/e2e-automation.ts`.
 - **Ponte de comentários pela Zernio (`add-zernio-comment-bridge`).** Com acesso padrão, a Meta
   conta os comentários mas não entrega o conteúdo ao app próprio: `/{media}/comments` volta `data`
   vazio. Diagnóstico em `scripts/diag-ig-comments.ts`. Com `ZERNIO_API_KEY` e `ZERNIO_ORG_IDS`

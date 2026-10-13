@@ -161,6 +161,31 @@ Com ponte, o token próprio nem é decifrado e o escopo próprio não é exigido
 - **Leitura:** a Zernio guarda a leitura em cache por até 10 min, e as escritas próprias renovam o
   cache.
 
+### 6.3 Automação comentário → direct (change `add-comment-automation`, 2026-10-12)
+
+Um ManyChat próprio sobre a mesma ponte:
+
+- **Entrada:** a Zernio entrega `comment.received` e `message.received` em
+  `POST /v1/integrations/zernio/webhook`.
+  - **Assinatura:** HMAC-SHA256 hex do corpo cru em `X-Zernio-Signature`, com
+    `ZERNIO_WEBHOOK_SECRET`.
+  - **Deduplicação:** por `X-Zernio-Event-Id` em `inbound_events`.
+  - **Prazo:** 2xx em menos de 5 s.
+- **Tradução:** o adaptador traduz o payload para um evento normalizado
+  (`InboundAutomationEvent`, em contracts).
+- **Motor:** `makeAutomationEngine`, no core, roda na fila serial `automation-event` e conversa
+  com a ponte por duas interfaces:
+  - `CommentTransport`: resposta pública.
+  - `DirectTransport`: `privateReply`, uma por comentário em até 7 dias, sem chave de idempotência
+    e por isso nunca retentada às cegas; e `sendMessage`, com `Idempotency-Key`.
+- **Botões:** o payload `mp1:<runId>:<passo>:<opção>` localiza a execução sem depender do id do
+  remetente; o IGSID e, como reserva, o username cobrem o texto livre.
+- **Leads:** saem em `lead.captured`, com pelo menos uma entrega; `runId` é a chave de
+  deduplicação de quem recebe.
+- **Troca de transporte:** quando o App Review do app próprio sair, um transporte Meta direto
+  implementa as mesmas duas interfaces e a assinatura `X-Hub-Signature-256` entra num adaptador
+  irmão.
+
 ## 7. Suíte de contrato de provider (qualidade)
 
 Todo provider passa pela mesma suíte (`packages/providers/test-kit`):

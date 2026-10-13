@@ -523,6 +523,26 @@ THREADS_APP_SECRET=...
   ```
 
   Reinicie: os comentários passam a vir pela Zernio. Para voltar ao caminho direto, apague a chave.
+- **Automação comentário → direct (tela Automações):** usa a mesma Zernio e precisa de mais uma
+  variável:
+
+  ```env
+  ZERNIO_WEBHOOK_SECRET=uma-frase-secreta-com-pelo-menos-32-caracteres
+  ```
+
+  Gere com `openssl rand -hex 32`. Reinicie e, no console do servidor, rode:
+
+  ```
+  bun run scripts/register-zernio-webhook.ts <id-do-canal>
+  ```
+
+  O script cria o webhook na Zernio com o mesmo segredo e confere se a rota responde. Depois:
+
+  1. Monte a automação em **Automações** e coloque sua conta em "Contas de teste".
+  2. Mude para **Teste** e comente no post com a sua conta.
+  3. Confira a conversa no direct e o lead em **Leads**.
+  4. Antes de **Ativar**, desligue qualquer outra automação ou IA que responda o direct dessa conta.
+     Senão a pessoa recebe resposta em dobro.
 - **Um escopo desmarcado no diálogo derruba a conexão.** Se você clicou em "Editar acesso" e tirou alguma permissão, reconecte marcando tudo.
 
 ### 5.3 TikTok — auditoria obrigatória para post público
@@ -572,6 +592,7 @@ O acesso à API do Google Business Profile depende de um **formulário de solici
 | Instagram (login direto) | `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` | §5.2 |
 | Threads | `THREADS_APP_ID`, `THREADS_APP_SECRET` | §5.2 |
 | Comentários do Instagram pela Zernio (opcional) | `ZERNIO_API_KEY`, `ZERNIO_ORG_IDS` | §5.2 (pegadinhas) |
+| Automação comentário → direct (opcional) | `ZERNIO_WEBHOOK_SECRET` (+ as duas acima) | §5.2 (pegadinhas) |
 | TikTok | `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` | §5.3 |
 
 Depois de editar o `.env`: reinicie o manypost → a rede aparece em **Conexões** → clique em conectar → autorize → publique um post de teste.

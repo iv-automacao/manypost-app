@@ -83,7 +83,7 @@ finish:   { text (1..600), whatsapp?: { phone (10..15 dígitos), message (≤500
 disclosure: boolean (padrão true → acrescenta "Mensagem automática." à abertura)
 ```
 
-A API e a web usam o mesmo schema. `field` usa o padrão `^[a-z][a-z0-9_]{0,31}$` e é único entre
+A API valida com este schema. A web não carrega `@manypost/contracts` no bundle: repete os limites em `features/automation/logic.ts` e a paridade é assertada no teste dela. `field` usa o padrão `^[a-z][a-z0-9_]{0,31}$` e é único entre
 as perguntas.
 
 ### 3. Abertura com um botão (ou texto) e perguntas depois
@@ -104,7 +104,9 @@ O payload de cada botão é `mp1:<runId>:<step>:<option>`, com `step` = `o` para
 mensagem com payload localiza a execução direto pelo id, conferindo canal e org. Sem payload (texto
 livre), a execução é localizada pela execução aberta mais recente do canal com
 `participant_id = sender.id` (IGSID), e o username serve de reserva. Payload de passo anterior ao
-atual é tratado como repetição e ignorado.
+atual é tratado como repetição e ignorado. A execução aberta vale por 7 dias desde a última
+interação (a janela da resposta privada); a mensagem da própria pessoa reabre a janela de 24 h da
+Meta para os envios seguintes.
 
 ### 5. Motor retomável
 `step = -1` aguarda a abertura; `0..n-1` aguarda a pergunta i; `n` encerra.
@@ -204,6 +206,12 @@ ids e status, nunca texto, username nem respostas.
 - **Logs:** `automation.event` (tipo, ação, ms), `automation.run` (id, status, passo) e
   `automation.send.failed` (id, status, classe).
 - **`inbound_events`:** `attempts` e `last_error` permitem auditar a ingestão.
+
+## Testes de ponta a ponta
+
+`scripts/e2e-automation.ts` sobe uma Zernio falsa, prepara o banco e inicia a API real
+(`ZERNIO_API_URL` aponta para a falsa). O fluxo completo vai do comentário ao `lead.captured`
+assinado, inclusive com reentrega e assinatura inválida.
 
 ## Generated files
 

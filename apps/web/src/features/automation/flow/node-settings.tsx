@@ -35,17 +35,17 @@ export function NodeSettings({ node }: { node: NodeOf<'opening'> | NodeOf<'messa
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-1 text-compact font-medium text-ink">{t('settingsPanel.openingMode')}</legend>
               <RadioGroup value={node.data.mode} onValueChange={(v) => set({ mode: v })}>
-                {(['text', 'button'] as const).map((m) => (
+                {(['text', 'quick', 'button'] as const).map((m) => (
                   <Label key={m} className="flex cursor-pointer items-center gap-2 text-compact">
                     <RadioGroupItem value={m} />
-                    {t(m === 'text' ? 'settingsPanel.modeText' : 'settingsPanel.modeButton')}
+                    {t(m === 'text' ? 'settingsPanel.modeText' : m === 'quick' ? 'settingsPanel.modeQuick' : 'settingsPanel.modeButton')}
                   </Label>
                 ))}
               </RadioGroup>
             </fieldset>
-            {node.data.mode === 'button' ? (
+            {node.data.mode !== 'text' ? (
               <Label className="flex flex-col gap-1 text-compact">
-                {t('settingsPanel.buttonTitle')}
+                {t(node.data.mode === 'quick' ? 'settingsPanel.quickTitle' : 'settingsPanel.buttonTitle')}
                 <Input value={node.data.buttonTitle} maxLength={LIMITS.buttonTitle} onChange={(e) => a.update(node.id, { buttonTitle: e.target.value }, { merge: true })} onBlur={a.seal} />
               </Label>
             ) : null}

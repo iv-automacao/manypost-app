@@ -92,6 +92,14 @@ describe('validateFlow', () => {
     expect(hasErrors(validateFlow(f))).toBe(false);
   });
 
+  test('abertura em resposta rápida não gera aviso', () => {
+    const f = parse({
+      nodes: [{ ...opening, data: { text: 'Oi', mode: 'quick', buttonTitle: 'Quero ver' } }, end],
+      edges: [e('opening', 'next', 'fim')],
+    });
+    expect(codes(f)).toEqual([]);
+  });
+
   test('link sem saída conta como fim', () => {
     const f = parse({
       nodes: [

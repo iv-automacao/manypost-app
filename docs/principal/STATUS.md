@@ -10,6 +10,10 @@
 > **Como manter:** ao fechar uma fatia, atualize as seções abaixo **e** abra uma entrada nova no
 > topo do changelog. Este arquivo é sobre o presente; o changelog é sobre o passado.
 >
+> **Atualização — abertura com resposta rápida (2026-10-13, onda 47):** a abertura da automação
+> aceita o modo `quick` (texto + dica + uma resposta rápida). Falta o deploy e o teste em produção
+> com conta que não segue. Mudança `openspec/changes/add-opening-quick-reply`.
+>
 > **Atualização — construtor de fluxo em canvas (2026-10-13, onda 46):** o editor de automação
 > agora é um canvas de balões (abertura, mensagem com botões, pergunta, condição, link ou WhatsApp,
 > pedir para seguir, fim), com simulador e gatilho separado do fluxo. O motor percorre o grafo; a

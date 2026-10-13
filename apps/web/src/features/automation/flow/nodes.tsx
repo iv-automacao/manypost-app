@@ -188,6 +188,13 @@ function OpeningView({ id, data, selected }: P<'opening'>) {
         <OutputRow handleId="next">
           <Chip>{n.data.buttonTitle}</Chip>
         </OutputRow>
+      ) : n.data.mode === 'quick' ? (
+        <>
+          <p className="text-meta text-graphite">{t('openingHintQuick')}</p>
+          <OutputRow handleId="next">
+            <Chip>{n.data.buttonTitle}</Chip>
+          </OutputRow>
+        </>
       ) : (
         <>
           <p className="text-meta text-graphite">{t('openingHint')}</p>

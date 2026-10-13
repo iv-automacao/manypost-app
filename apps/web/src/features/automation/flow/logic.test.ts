@@ -244,3 +244,33 @@ describe('telefone do WhatsApp com +55', () => {
     expect(brPhoneStore('(92) 98171-8317')).toBe('5592981718317');
   });
 });
+
+describe('abertura em resposta rápida', () => {
+  const quickFlow = () => {
+    const f = emptyFlow(TEXTS);
+    const opening = f.nodes.find((n) => n.type === 'opening')!;
+    return updateNodeData(f, opening.id, { mode: 'quick', buttonTitle: 'Quero ver as opções' });
+  };
+
+  test('passa no schema, sem aviso, e o simulador mostra a sugestão com a dica', async () => {
+    const { startSim } = await import('./logic');
+    const f = quickFlow();
+    expect(FlowV2Schema.safeParse(f).success).toBe(true);
+    expect(validateFlow(f)).toEqual([]);
+    const first = startSim(f).transcript[0]!.msg;
+    expect(first.quick).toEqual(['Quero ver as opções']);
+    expect(first.buttons).toBeUndefined();
+    expect(first.text).toContain('Responda esta mensagem para continuar.');
+  });
+
+  test('tocar na sugestão avança e aparece na conversa com o título', async () => {
+    const { startSim, sendSim, tapForTitle } = await import('./logic');
+    const f = quickFlow();
+    const s0 = startSim(f);
+    const tap = tapForTitle(f, s0.nodeId, 'Quero ver as opções');
+    expect(tap).toBe('next');
+    const s1 = sendSim(s0, { tap: tap! });
+    expect(s1.nodeId).not.toBe(s0.nodeId);
+    expect(s1.transcript.find((x) => x.from === 'user')?.msg.text).toBe('Quero ver as opções');
+  });
+});

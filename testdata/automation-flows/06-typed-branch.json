@@ -1,0 +1,27 @@
+{
+  "name": "texto fora das opções sai por 'digitou outra coisa' no modo branch",
+  "flow": {
+    "version": 2,
+    "nodes": [
+      { "id": "opening", "type": "opening", "position": { "x": 0, "y": 0 }, "data": { "text": "Olá!" } },
+      { "id": "m", "type": "message", "position": { "x": 0, "y": 160 }, "data": { "text": "Como posso ajudar?", "options": [{ "id": "cot", "title": "Cotação" }], "saveTo": "assunto", "onTyped": "branch" } },
+      { "id": "x", "type": "end", "position": { "x": -200, "y": 320 }, "data": { "text": "Vamos cotar" } },
+      { "id": "y", "type": "end", "position": { "x": 200, "y": 320 }, "data": { "text": "Recebi: {assunto}" } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "opening", "sourceHandle": "next", "target": "m" },
+      { "id": "e2", "source": "m", "sourceHandle": "cot", "target": "x" },
+      { "id": "e3", "source": "m", "sourceHandle": "typed", "target": "y" }
+    ]
+  },
+  "inputs": [{ "text": "oi" }, { "text": "quero falar de sinistro" }],
+  "expect": {
+    "messages": [
+      { "text": "Olá!\n\nResponda esta mensagem para continuar.\n\nMensagem automática." },
+      { "text": "Como posso ajudar?", "buttons": ["Cotação"] },
+      { "text": "Recebi: quero falar de sinistro" }
+    ],
+    "status": "completed",
+    "answers": { "assunto": "quero falar de sinistro" }
+  }
+}

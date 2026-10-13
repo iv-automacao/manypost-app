@@ -1,0 +1,28 @@
+{
+  "name": "pedir para seguir depois do WhatsApp não espera resposta e fecha o lead",
+  "flow": {
+    "version": 2,
+    "nodes": [
+      { "id": "opening", "type": "opening", "position": { "x": 0, "y": 0 }, "data": { "text": "Olá!" } },
+      { "id": "nome", "type": "question", "position": { "x": 0, "y": 160 }, "data": { "text": "Qual é o seu nome?", "field": "nome", "validate": "name" } },
+      { "id": "wa", "type": "link", "position": { "x": 0, "y": 320 }, "data": { "text": "Fale com a gente, {nome}", "buttonTitle": "WhatsApp", "target": { "kind": "whatsapp", "phone": "5592999990000", "message": "Sou {nome}" } } },
+      { "id": "seguir", "type": "link", "position": { "x": 0, "y": 480 }, "data": { "text": "Segue a gente para mais dicas", "buttonTitle": "Seguir", "target": { "kind": "url", "url": "https://instagram.com/sua.conta" } } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "opening", "sourceHandle": "next", "target": "nome" },
+      { "id": "e2", "source": "nome", "sourceHandle": "next", "target": "wa" },
+      { "id": "e3", "source": "wa", "sourceHandle": "next", "target": "seguir" }
+    ]
+  },
+  "inputs": [{ "text": "oi" }, { "text": "Ana" }],
+  "expect": {
+    "messages": [
+      { "text": "Olá!\n\nResponda esta mensagem para continuar.\n\nMensagem automática." },
+      { "text": "Qual é o seu nome?" },
+      { "text": "Fale com a gente, Ana", "buttons": ["WhatsApp"], "urls": ["https://wa.me/5592999990000?text=Sou%20Ana"] },
+      { "text": "Segue a gente para mais dicas", "buttons": ["Seguir"], "urls": ["https://instagram.com/sua.conta"] }
+    ],
+    "status": "completed",
+    "answers": { "nome": "Ana" }
+  }
+}

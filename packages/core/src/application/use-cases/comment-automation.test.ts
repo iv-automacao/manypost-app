@@ -495,3 +495,63 @@ describe('CRUD', () => {
     );
   });
 });
+
+describe('sequência dourada da v1 (equivalência v1 × grafo convertido)', () => {
+  /** mensagem sem payload/chave: o que a pessoa vê */
+  const visto = (s: Sent) => ({
+    op: s.op,
+    text: s.msg?.text ?? s.text,
+    buttons: s.msg?.buttons?.map((b) => b.title + (b.url ? ` → ${b.url}` : '')) ?? [],
+    quick: s.msg?.quickReplies?.map((q) => q.title) ?? [],
+  });
+  /** toca o botão pelo título usando o payload que a própria mensagem levou (mp1 hoje, mp2 depois) */
+  const tocar = (h: ReturnType<typeof harness>, title: string) => {
+    for (const s of [...h.sent].reverse()) {
+      const all = [...(s.msg?.buttons ?? []), ...(s.msg?.quickReplies ?? [])] as Array<{ title: string; payload?: string }>;
+      const b = all.find((x) => x.title === title && x.payload);
+      if (b) return h.message({ payload: b.payload!, text: title });
+    }
+    throw new Error(`botão ${title} não encontrado`);
+  };
+
+  test('toque, opção, telefone inválido, telefone e fim', async () => {
+    const h = harness();
+    await h.seedAutomation();
+    await h.deliver(h.comment());
+    await h.deliver(tocar(h, 'Quero!'));
+    await h.deliver(tocar(h, 'Vida'));
+    await h.deliver(h.message({ text: 'não sei' }));
+    await h.deliver(h.message({ text: '(92) 98888-7777' }));
+    expect(h.sent.map(visto)).toEqual([
+      { op: 'public', text: 'Te chamei no direct!', buttons: [], quick: [] },
+      { op: 'private', text: 'Oi! Toque abaixo.\n\nMensagem automática.', buttons: ['Quero!'], quick: [] },
+      { op: 'send', text: 'Qual plano?', buttons: ['Saúde', 'Vida'], quick: [] },
+      { op: 'send', text: 'Seu WhatsApp?', buttons: [], quick: [] },
+      { op: 'send', text: 'Seu WhatsApp?', buttons: [], quick: [] },
+      {
+        op: 'send',
+        text: 'Valeu!',
+        buttons: [`Falar no WhatsApp → https://wa.me/5592999990000?text=${encodeURIComponent('Quero Vida')}`],
+        quick: [],
+      },
+    ]);
+    expect(h.runs[0]).toMatchObject({ status: 'COMPLETED', answers: { plano: 'Vida', whatsapp: '92988887777' } });
+    expect(h.emitted).toHaveLength(1);
+    expect(h.emitted[0]!.data.whatsappUrl).toBe(`https://wa.me/5592999990000?text=${encodeURIComponent('Quero Vida')}`);
+  });
+
+  test('opção digitada e texto inválido duas vezes na escolha', async () => {
+    const h = harness();
+    await h.seedAutomation();
+    await h.deliver(h.comment());
+    await h.deliver(tocar(h, 'Quero!'));
+    await h.deliver(h.message({ text: 'sei lá' }));
+    await h.deliver(h.message({ text: 'talvez' }));
+    expect(h.sent.slice(2).map(visto)).toEqual([
+      { op: 'send', text: 'Qual plano?', buttons: ['Saúde', 'Vida'], quick: [] },
+      { op: 'send', text: 'Qual plano?', buttons: ['Saúde', 'Vida'], quick: [] },
+      { op: 'send', text: 'Seu WhatsApp?', buttons: [], quick: [] },
+    ]);
+    expect(h.runs[0]!.answers).toEqual({ plano: 'talvez' });
+  });
+});

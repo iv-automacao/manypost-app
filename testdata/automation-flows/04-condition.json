@@ -1,0 +1,30 @@
+{
+  "name": "condição compara sem caixa nem acento; texto igual ao título vale como toque",
+  "flow": {
+    "version": 2,
+    "nodes": [
+      { "id": "opening", "type": "opening", "position": { "x": 0, "y": 0 }, "data": { "text": "Olá!" } },
+      { "id": "m", "type": "message", "position": { "x": 0, "y": 160 }, "data": { "text": "Para quem?", "options": [{ "id": "pf", "title": "Pessoa física" }, { "id": "pj", "title": "Minha Empresa" }], "saveTo": "plano" } },
+      { "id": "c", "type": "condition", "position": { "x": 0, "y": 320 }, "data": { "field": "plano", "op": "equals", "value": "minha empresa" } },
+      { "id": "a", "type": "end", "position": { "x": -200, "y": 480 }, "data": { "text": "Caminho empresa" } },
+      { "id": "b", "type": "end", "position": { "x": 200, "y": 480 }, "data": { "text": "Caminho pessoa" } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "opening", "sourceHandle": "next", "target": "m" },
+      { "id": "e2", "source": "m", "sourceHandle": "pf", "target": "c" },
+      { "id": "e3", "source": "m", "sourceHandle": "pj", "target": "c" },
+      { "id": "e4", "source": "c", "sourceHandle": "yes", "target": "a" },
+      { "id": "e5", "source": "c", "sourceHandle": "no", "target": "b" }
+    ]
+  },
+  "inputs": [{ "text": "oi" }, { "text": "MINHA EMPRESA" }],
+  "expect": {
+    "messages": [
+      { "text": "Olá!\n\nResponda esta mensagem para continuar.\n\nMensagem automática." },
+      { "text": "Para quem?", "buttons": ["Pessoa física", "Minha Empresa"] },
+      { "text": "Caminho empresa" }
+    ],
+    "status": "completed",
+    "answers": { "plano": "Minha Empresa" }
+  }
+}

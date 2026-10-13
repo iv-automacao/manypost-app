@@ -1,0 +1,30 @@
+{
+  "name": "cada botão leva a um caminho",
+  "flow": {
+    "version": 2,
+    "nodes": [
+      { "id": "opening", "type": "opening", "position": { "x": 0, "y": 0 }, "data": { "text": "Olá!" } },
+      { "id": "tipo", "type": "message", "position": { "x": 0, "y": 160 }, "data": { "text": "Para quem é o plano?", "options": [{ "id": "pf", "title": "Pessoa física" }, { "id": "pj", "title": "Minha empresa" }], "saveTo": "tipo" } },
+      { "id": "fimpf", "type": "end", "position": { "x": -200, "y": 320 }, "data": { "text": "Plano individual" } },
+      { "id": "vidas", "type": "question", "position": { "x": 200, "y": 320 }, "data": { "text": "Quantas vidas?", "field": "vidas", "validate": "free" } },
+      { "id": "fimpj", "type": "end", "position": { "x": 200, "y": 480 }, "data": { "text": "Plano empresarial para {vidas} vidas" } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "opening", "sourceHandle": "next", "target": "tipo" },
+      { "id": "e2", "source": "tipo", "sourceHandle": "pf", "target": "fimpf" },
+      { "id": "e3", "source": "tipo", "sourceHandle": "pj", "target": "vidas" },
+      { "id": "e4", "source": "vidas", "sourceHandle": "next", "target": "fimpj" }
+    ]
+  },
+  "inputs": [{ "text": "oi" }, { "tap": "pj" }, { "text": "12" }],
+  "expect": {
+    "messages": [
+      { "text": "Olá!\n\nResponda esta mensagem para continuar.\n\nMensagem automática." },
+      { "text": "Para quem é o plano?", "buttons": ["Pessoa física", "Minha empresa"] },
+      { "text": "Quantas vidas?" },
+      { "text": "Plano empresarial para 12 vidas" }
+    ],
+    "status": "completed",
+    "answers": { "tipo": "Minha empresa", "vidas": "12" }
+  }
+}

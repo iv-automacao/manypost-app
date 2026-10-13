@@ -568,6 +568,13 @@ export function uniqueId(base: string, taken: Iterable<string>): string {
   }
 }
 
+/** WhatsApp no editor: a pessoa digita DDD + número; o valor gravado leva o +55 */
+export const brPhoneDisplay = (stored: string) => (/^55\d{10,11}$/.test(stored) ? stored.slice(2) : stored);
+export const brPhoneStore = (typed: string) => {
+  const d = typed.replace(/\D/g, '').slice(0, 11);
+  return d ? `55${d}` : '';
+};
+
 export const profileUrl = (username: string | null) => {
   const u = (username ?? '').replace(/^@/, '').trim();
   return `https://instagram.com/${u}`;

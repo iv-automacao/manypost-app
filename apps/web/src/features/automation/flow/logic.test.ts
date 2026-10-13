@@ -227,3 +227,20 @@ describe('modelos de resposta pública', () => {
     expect(defaultTrigger().publicReplies).toEqual(PUBLIC_REPLY_TEMPLATES.slice(0, 3));
   });
 });
+
+describe('telefone do WhatsApp com +55', () => {
+  test('exibe sem o 55 e grava com o 55, digitando aos poucos', async () => {
+    const { brPhoneDisplay, brPhoneStore } = await import('./logic');
+    let stored = '';
+    let text = '';
+    for (const ch of '92981718317') {
+      text = (text + ch).replace(/\D/g, '');
+      stored = brPhoneStore(text);
+    }
+    expect(stored).toBe('5592981718317');
+    expect(brPhoneDisplay(stored)).toBe('92981718317');
+    expect(brPhoneDisplay('92981718317')).toBe('92981718317');
+    expect(brPhoneStore('')).toBe('');
+    expect(brPhoneStore('(92) 98171-8317')).toBe('5592981718317');
+  });
+});

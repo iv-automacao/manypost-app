@@ -23,4 +23,4 @@
 ## 5. Fechamento
 
 - [x] 5.1 CHANGELOG, CHANGELOG_ONDAS, STATUS, SPEC_INTEGRATIONS, `docs/principal/INTEGRATIONS_SETUP.md` (variáveis)
-- [ ] 5.2 Verificação em produção com a Invista (leitura; resposta só com autorização explícita)
+- [ ] 5.2 Verificação em produção com a Invista: leitura ✓ em 12/10/2026 (`check-zernio-bridge.ts`: Meta conta 5, ponte devolveu 5); responder/ocultar pela tela pendente (feito pelo Iago)

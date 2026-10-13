@@ -111,6 +111,15 @@ export function renderTemplate(tpl: string, answers: Record<string, string>, use
   );
 }
 
+/**
+ * Dígitos do WhatsApp para o `wa.me`: o padrão é Brasil (+55). Número salvo sem DDI
+ * (10 ou 11 dígitos: DDD + número) ganha o prefixo 55; os demais ficam como estão.
+ */
+export function whatsappDigits(phone: string): string {
+  const d = phone.replace(/\D/g, '');
+  return d.length === 10 || d.length === 11 ? `55${d}` : d;
+}
+
 export function whatsappUrl(
   cfg: CommentAutomationConfig,
   answers: Record<string, string>,
@@ -119,7 +128,7 @@ export function whatsappUrl(
   const wa = cfg.finish.whatsapp;
   if (!wa) return null;
   const msg = renderTemplate(wa.message, answers, username).trim();
-  return `https://wa.me/${wa.phone}${msg ? `?text=${encodeURIComponent(msg)}` : ''}`;
+  return `https://wa.me/${whatsappDigits(wa.phone)}${msg ? `?text=${encodeURIComponent(msg)}` : ''}`;
 }
 
 export function finishMessage(

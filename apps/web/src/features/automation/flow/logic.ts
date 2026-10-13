@@ -341,11 +341,17 @@ interface Ctx {
   username: string | null;
 }
 
+/** espelho de `whatsappDigits` do core: sem DDI (10 ou 11 dígitos) ganha 55 */
+function whatsappDigits(phone: string): string {
+  const d = phone.replace(/\D/g, '');
+  return d.length === 10 || d.length === 11 ? `55${d}` : d;
+}
+
 function linkUrl(n: NodeOf<'link'>, ctx: Ctx): string {
   const t = n.data.target;
   if (t.kind === 'url') return t.url;
   const msg = renderTemplate(t.message, ctx.answers, ctx.username).trim();
-  return `https://wa.me/${t.phone}${msg ? `?text=${encodeURIComponent(msg)}` : ''}`;
+  return `https://wa.me/${whatsappDigits(t.phone)}${msg ? `?text=${encodeURIComponent(msg)}` : ''}`;
 }
 
 export function messageFor(n: FlowNode, ctx: Ctx): SimMessage | null {
@@ -562,6 +568,13 @@ export function uniqueId(base: string, taken: Iterable<string>): string {
   }
 }
 
+/** WhatsApp no editor: a pessoa digita DDD + número; o valor gravado leva o +55 */
+export const brPhoneDisplay = (stored: string) => (/^55\d{10,11}$/.test(stored) ? stored.slice(2) : stored);
+export const brPhoneStore = (typed: string) => {
+  const d = typed.replace(/\D/g, '').slice(0, 11);
+  return d ? `55${d}` : '';
+};
+
 export const profileUrl = (username: string | null) => {
   const u = (username ?? '').replace(/^@/, '').trim();
   return `https://instagram.com/${u}`;
@@ -582,7 +595,31 @@ export function emptyFlow(t: NodeTexts): Flow {
   };
 }
 
-export const defaultTrigger = (): TriggerConfig => ({ mediaIds: [], keywords: ['quero'], publicReplies: ['Te chamei no direct!'] });
+/** Modelos prontos de resposta pública: avisam quem não segue para olhar em "Solicitações de mensagem". */
+export const PUBLIC_REPLY_TEMPLATES: readonly string[] = [
+  'Te chamei no direct! Se não aparecer, olha em Solicitações de mensagem.',
+  'Acabei de te mandar uma mensagem. Confere o direct, pode estar em Solicitações.',
+  'Enviei os detalhes no seu direct. Se não achar, procura em Solicitações ou na pasta de spam.',
+  'Já te respondi por mensagem! Dá uma olhada no direct, na aba Solicitações.',
+  'Mandei tudo no privado. Não achou? Veja em Solicitações de mensagem.',
+  'Respondi no seu direct. Se não estiver na caixa principal, confira em Solicitações.',
+];
+
+/** Acrescenta os modelos que ainda não estão na lista (sem diferenciar caixa/espaços), respeitando o limite. */
+export function withReplyTemplates(current: string[]): string[] {
+  const key = (r: string) => r.trim().toLowerCase();
+  const seen = new Set(current.map(key));
+  const out = [...current];
+  for (const t of PUBLIC_REPLY_TEMPLATES) {
+    if (out.length >= LIMITS.maxPublicReplies) break;
+    if (seen.has(key(t))) continue;
+    seen.add(key(t));
+    out.push(t);
+  }
+  return out;
+}
+
+export const defaultTrigger = (): TriggerConfig => ({ mediaIds: [], keywords: ['quero'], publicReplies: PUBLIC_REPLY_TEMPLATES.slice(0, 3) });
 
 export function createNode(kind: BlockKind, position: Position, flow: Flow, t: NodeTexts, username: string | null): FlowNode {
   const id = uniqueId(kind === 'follow' ? 'seguir' : kind, flow.nodes.map((n) => n.id));

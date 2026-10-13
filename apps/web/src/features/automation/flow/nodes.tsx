@@ -17,12 +17,12 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { LIMITS } from '../logic';
 import { useFlowActions } from './actions';
-import { CONDITION_OPS, TRIGGER_NODE_ID, type NodeOf, type TriggerConfig } from './logic';
+import { CONDITION_OPS, TRIGGER_NODE_ID, brPhoneDisplay, brPhoneStore, type NodeOf, type TriggerConfig } from './logic';
 import { NodeSettings } from './node-settings';
 
 const INPUT =
@@ -49,6 +49,35 @@ function InlineInput({ value, placeholder, maxLength, onChange }: { value: strin
   if (a.readOnly) return <span className="text-compact text-ink">{value}</span>;
   return (
     <input className={INPUT} value={value} placeholder={placeholder} maxLength={maxLength} onChange={(e) => onChange(e.target.value)} onBlur={a.seal} />
+  );
+}
+
+/**
+ * Telefone do WhatsApp com +55 fixo. O texto digitado vive em estado local: derivar a exibição do valor
+ * gravado a cada tecla fazia o "55" reaparecer no meio da digitação.
+ */
+function BrPhoneInput({ phone, placeholder, onChange }: { phone: string; placeholder: string; onChange: (phone: string) => void }) {
+  const a = useFlowActions();
+  const [text, setText] = useState(() => brPhoneDisplay(phone));
+  // mudança vinda de fora (desfazer, outro campo): realinha o texto local
+  useEffect(() => {
+    setText((cur) => (brPhoneStore(cur) === phone ? cur : brPhoneDisplay(phone)));
+  }, [phone]);
+  if (a.readOnly) return <span className="text-compact text-ink">{brPhoneDisplay(phone)}</span>;
+  return (
+    <input
+      className={INPUT}
+      value={text}
+      inputMode="numeric"
+      placeholder={placeholder}
+      maxLength={11}
+      onChange={(e) => {
+        const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+        setText(digits);
+        onChange(brPhoneStore(digits));
+      }}
+      onBlur={a.seal}
+    />
   );
 }
 
@@ -311,7 +340,12 @@ function LinkView({ id, data, selected }: P<'link'>) {
       ) : null}
       {target.kind === 'whatsapp' ? (
         <>
-          <InlineInput value={target.phone} placeholder={t('placeholder.phone')} maxLength={15} onChange={(v) => setTarget({ ...target, phone: v.replace(/\D/g, '') }, true)} />
+          <div className="nodrag flex items-center gap-1">
+            <span className="shrink-0 text-compact text-graphite">+55</span>
+            <div className="min-w-0 flex-1">
+              <BrPhoneInput phone={target.phone} placeholder={t('placeholder.phone')} onChange={(phone) => setTarget({ ...target, phone }, true)} />
+            </div>
+          </div>
           <InlineInput value={target.message} placeholder={t('placeholder.waMessage')} maxLength={LIMITS.whatsappMessage} onChange={(v) => setTarget({ ...target, message: v }, true)} />
         </>
       ) : (

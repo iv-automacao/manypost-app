@@ -53,6 +53,10 @@ FlowEdge = { id, source: nodeId, sourceHandle: string, target: nodeId }
 | `link` | `text` (≤600), `buttonTitle` (≤20), `target: whatsapp {phone, message} \| url {https}` | `next` (opcional) | não |
 | `end` | `text?` (≤600) | — | não |
 
+**WhatsApp com +55 por padrão:** o editor mostra +55 fixo e grava o número internacional; o motor completa com 55 números de 10 ou 11 dígitos (salvos sem DDI) ao montar o link.
+
+**Modelos de resposta pública:** o painel do gatilho oferece respostas públicas prontas e variadas que avisam quem não segue para olhar em Solicitações de mensagem (ou spam); uma automação nova nasce com 3 delas e o botão "Usar modelos prontos" acrescenta as demais sem repetir, até 10.
+
 Regras de formato (sempre aplicadas, inclusive em rascunho):
 
 - ids únicos;

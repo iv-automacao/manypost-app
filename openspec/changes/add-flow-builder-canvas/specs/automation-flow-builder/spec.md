@@ -87,6 +87,10 @@ the queue.
 - **WHEN** the second of two chained sends fails transiently and the job is retried
 - **THEN** the first message is not sent again and the second is sent once
 
+#### Scenario: WhatsApp number saved without country code
+- **WHEN** a link targets a WhatsApp number with 11 digits
+- **THEN** the sent URL uses wa.me/55<digits>
+
 #### Scenario: Node deleted while waiting
 - **GIVEN** a run waiting on a node that a member deleted
 - **WHEN** the participant replies

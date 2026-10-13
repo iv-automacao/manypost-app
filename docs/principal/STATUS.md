@@ -21,6 +21,9 @@
 > produção com o @ de teste) e a conferência no navegador, que não foi feita (login via Clerk).
 > Roteiro e rollout em [RUNBOOK_FLOW_BUILDER.md](RUNBOOK_FLOW_BUILDER.md). Mudança
 > `add-flow-builder-canvas`.
+> Em produção desde 2026-10-13: automação nova em modo Teste testada com contas que seguem e que não
+> seguem (a abertura em texto chega pela caixa de Solicitações). Depois do teste: WhatsApp com +55 por
+> padrão e modelos prontos de resposta pública que avisam para olhar Solicitações.
 >
 > **Atualização — automação comentário → direct (2026-10-12, onda 45):** telas `/automacoes`
 > (construtor com pré-visualização) e `/leads`. A Zernio entrega comentários e mensagens por webhook

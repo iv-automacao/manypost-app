@@ -39,6 +39,8 @@
   - link sem saída encerra e emite o lead;
   - execução v1 em andamento com payload `mp1`;
   - automação v1 sem linha de gatilho cai para `config.trigger`.
+- [x] 5.1a Link do WhatsApp completa 55 em números de 10 ou 11 dígitos (core e espelho web, fixture 16)
+- [x] 7.3a Modelos prontos de resposta pública no painel do gatilho (avisam sobre Solicitações); automação nova nasce com 3
 - [x] 5.2 Reescrever `use-cases/comment-automation.ts` com `drive` e `onMessage` sobre o grafo; manter `ingest`/`process`; os testes v1 existentes continuam passando
 
 ## 6. API

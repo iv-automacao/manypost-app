@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test';
+import { LIMITS } from '../logic';
 import { readdirSync, readFileSync } from 'node:fs';
 import {
+  CommentTriggerConfigSchema,
   FlowConditionOps,
   FlowMessageFormats,
   FlowNodeTypes,
@@ -16,10 +18,12 @@ import {
   ON_TYPED_MODES,
   OPENING_MODES,
   PROBLEM_CODES,
+  PUBLIC_REPLY_TEMPLATES,
   addOption,
   connect,
   createNode,
   duplicateNode,
+  defaultTrigger,
   emptyFlow,
   normalizeFlow,
   removeNode,
@@ -29,6 +33,7 @@ import {
   simulateFlow,
   updateNodeData,
   validateFlow,
+  withReplyTemplates,
   type NodeTexts,
 } from './logic';
 
@@ -195,5 +200,47 @@ describe('shapeIssues cobre o que a API recusa', () => {
   test('palavra-chave vazia é apontada', () => {
     expect(triggerIssues({ mediaIds: [], keywords: ['quero', '  '], publicReplies: [] })).toEqual(['triggerKeywords']);
     expect(triggerIssues({ mediaIds: [], keywords: ['quero'], publicReplies: [] })).toEqual([]);
+  });
+});
+
+describe('modelos de resposta pública', () => {
+  test('todos cabem no limite e passam no schema do gatilho', () => {
+    for (const t of PUBLIC_REPLY_TEMPLATES) expect(t.length).toBeLessThanOrEqual(LIMITS.publicReply);
+    const r = CommentTriggerConfigSchema.safeParse({ mediaIds: [], keywords: [], publicReplies: [...PUBLIC_REPLY_TEMPLATES] });
+    expect(r.success).toBe(true);
+  });
+  test('lista vazia recebe os 6 modelos', () => {
+    expect(withReplyTemplates([])).toHaveLength(6);
+  });
+  test('deduplica ignorando caixa e espaços, mantendo os existentes primeiro', () => {
+    const out = withReplyTemplates(['minha', `  ${PUBLIC_REPLY_TEMPLATES[0]!.toUpperCase()}  `]);
+    expect(out[0]).toBe('minha');
+    expect(out).toHaveLength(7);
+  });
+  test('limita a 10 itens', () => {
+    const cur = Array.from({ length: 8 }, (_, i) => `resposta ${i}`);
+    const out = withReplyTemplates(cur);
+    expect(out).toHaveLength(LIMITS.maxPublicReplies);
+    expect(out.slice(0, 8)).toEqual(cur);
+  });
+  test('gatilho padrão traz 3 respostas', () => {
+    expect(defaultTrigger().publicReplies).toEqual(PUBLIC_REPLY_TEMPLATES.slice(0, 3));
+  });
+});
+
+describe('telefone do WhatsApp com +55', () => {
+  test('exibe sem o 55 e grava com o 55, digitando aos poucos', async () => {
+    const { brPhoneDisplay, brPhoneStore } = await import('./logic');
+    let stored = '';
+    let text = '';
+    for (const ch of '92981718317') {
+      text = (text + ch).replace(/\D/g, '');
+      stored = brPhoneStore(text);
+    }
+    expect(stored).toBe('5592981718317');
+    expect(brPhoneDisplay(stored)).toBe('92981718317');
+    expect(brPhoneDisplay('92981718317')).toBe('92981718317');
+    expect(brPhoneStore('')).toBe('');
+    expect(brPhoneStore('(92) 98171-8317')).toBe('5592981718317');
   });
 });

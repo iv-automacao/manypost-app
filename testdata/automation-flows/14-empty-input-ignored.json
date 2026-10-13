@@ -1,0 +1,77 @@
+{
+  "name": "entrada vazia em pergunta é ignorada e o fluxo continua esperando",
+  "flow": {
+    "version": 2,
+    "nodes": [
+      {
+        "id": "opening",
+        "type": "opening",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "data": {
+          "text": "Olá!"
+        }
+      },
+      {
+        "id": "q",
+        "type": "question",
+        "position": {
+          "x": 0,
+          "y": 160
+        },
+        "data": {
+          "text": "Qual é o seu nome?",
+          "field": "nome",
+          "validate": "name"
+        }
+      },
+      {
+        "id": "fim",
+        "type": "end",
+        "position": {
+          "x": 0,
+          "y": 320
+        },
+        "data": {
+          "text": "Obrigado, {nome}!"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "opening",
+        "sourceHandle": "next",
+        "target": "q"
+      },
+      {
+        "id": "e2",
+        "source": "q",
+        "sourceHandle": "next",
+        "target": "fim"
+      }
+    ]
+  },
+  "inputs": [
+    {
+      "text": "oi"
+    },
+    {
+      "text": "  "
+    }
+  ],
+  "expect": {
+    "messages": [
+      {
+        "text": "Olá!\n\nResponda esta mensagem para continuar.\n\nMensagem automática."
+      },
+      {
+        "text": "Qual é o seu nome?"
+      }
+    ],
+    "status": "waiting",
+    "answers": {}
+  }
+}

@@ -540,7 +540,20 @@ describe('sequência dourada da v1 (equivalência v1 × grafo convertido)', () =
     expect(h.emitted[0]!.data.whatsappUrl).toBe(`https://wa.me/5592999990000?text=${encodeURIComponent('Quero Vida')}`);
   });
 
-  test('opção digitada e texto inválido duas vezes na escolha', async () => {
+  test('texto igual ao título da opção vale como toque (caixa ignorada, grava o título)', async () => {
+    const h = harness();
+    await h.seedAutomation();
+    await h.deliver(h.comment());
+    await h.deliver(tocar(h, 'Quero!'));
+    await h.deliver(h.message({ text: 'vida' }));
+    expect(h.sent.slice(2).map(visto)).toEqual([
+      { op: 'send', text: 'Qual plano?', buttons: ['Saúde', 'Vida'], quick: [] },
+      { op: 'send', text: 'Seu WhatsApp?', buttons: [], quick: [] },
+    ]);
+    expect(h.runs[0]!.answers).toEqual({ plano: 'Vida' });
+  });
+
+  test('texto inválido duas vezes na escolha segue pela primeira opção com o texto cru', async () => {
     const h = harness();
     await h.seedAutomation();
     await h.deliver(h.comment());

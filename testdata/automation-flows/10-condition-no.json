@@ -1,0 +1,118 @@
+{
+  "name": "condição sem correspondência segue pela saída 'não'",
+  "flow": {
+    "version": 2,
+    "nodes": [
+      {
+        "id": "opening",
+        "type": "opening",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "data": {
+          "text": "Olá!"
+        }
+      },
+      {
+        "id": "q",
+        "type": "question",
+        "position": {
+          "x": 0,
+          "y": 160
+        },
+        "data": {
+          "text": "Qual é o seu nome?",
+          "field": "nome",
+          "validate": "name"
+        }
+      },
+      {
+        "id": "c",
+        "type": "condition",
+        "position": {
+          "x": 0,
+          "y": 320
+        },
+        "data": {
+          "field": "nome",
+          "op": "equals",
+          "value": "maria"
+        }
+      },
+      {
+        "id": "a",
+        "type": "end",
+        "position": {
+          "x": -200,
+          "y": 480
+        },
+        "data": {
+          "text": "É a Maria"
+        }
+      },
+      {
+        "id": "b",
+        "type": "end",
+        "position": {
+          "x": 200,
+          "y": 480
+        },
+        "data": {
+          "text": "Não é a Maria, {nome}"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "opening",
+        "sourceHandle": "next",
+        "target": "q"
+      },
+      {
+        "id": "e2",
+        "source": "q",
+        "sourceHandle": "next",
+        "target": "c"
+      },
+      {
+        "id": "e3",
+        "source": "c",
+        "sourceHandle": "yes",
+        "target": "a"
+      },
+      {
+        "id": "e4",
+        "source": "c",
+        "sourceHandle": "no",
+        "target": "b"
+      }
+    ]
+  },
+  "inputs": [
+    {
+      "text": "oi"
+    },
+    {
+      "text": "Ana"
+    }
+  ],
+  "expect": {
+    "messages": [
+      {
+        "text": "Olá!\n\nResponda esta mensagem para continuar.\n\nMensagem automática."
+      },
+      {
+        "text": "Qual é o seu nome?"
+      },
+      {
+        "text": "Não é a Maria, Ana"
+      }
+    ],
+    "status": "completed",
+    "answers": {
+      "nome": "Ana"
+    }
+  }
+}

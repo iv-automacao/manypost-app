@@ -3,24 +3,91 @@
   "flow": {
     "version": 2,
     "nodes": [
-      { "id": "opening", "type": "opening", "position": { "x": 0, "y": 0 }, "data": { "text": "Olá!" } },
-      { "id": "m", "type": "message", "position": { "x": 0, "y": 160 }, "data": { "text": "Oi {nome}, tudo bem?", "format": "none" } },
-      { "id": "q", "type": "question", "position": { "x": 0, "y": 320 }, "data": { "text": "Nome?", "field": "nome", "validate": "name" } },
-      { "id": "fim", "type": "end", "position": { "x": 0, "y": 480 }, "data": {} }
+      {
+        "id": "opening",
+        "type": "opening",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "data": {
+          "text": "Olá!"
+        }
+      },
+      {
+        "id": "m",
+        "type": "message",
+        "position": {
+          "x": 0,
+          "y": 160
+        },
+        "data": {
+          "text": "Oi {nome}, tudo bem?",
+          "format": "none"
+        }
+      },
+      {
+        "id": "q",
+        "type": "question",
+        "position": {
+          "x": 0,
+          "y": 320
+        },
+        "data": {
+          "text": "Nome?",
+          "field": "nome",
+          "validate": "name"
+        }
+      },
+      {
+        "id": "fim",
+        "type": "end",
+        "position": {
+          "x": 0,
+          "y": 480
+        },
+        "data": {}
+      }
     ],
     "edges": [
-      { "id": "e1", "source": "opening", "sourceHandle": "next", "target": "m" },
-      { "id": "e2", "source": "m", "sourceHandle": "next", "target": "q" },
-      { "id": "e3", "source": "q", "sourceHandle": "next", "target": "fim" }
+      {
+        "id": "e1",
+        "source": "opening",
+        "sourceHandle": "next",
+        "target": "m"
+      },
+      {
+        "id": "e2",
+        "source": "m",
+        "sourceHandle": "next",
+        "target": "q"
+      },
+      {
+        "id": "e3",
+        "source": "q",
+        "sourceHandle": "next",
+        "target": "fim"
+      }
     ]
   },
-  "inputs": [{ "text": "oi" }],
+  "inputs": [
+    {
+      "text": "oi"
+    }
+  ],
   "expect": {
     "messages": [
-      { "text": "Olá!\n\nResponda esta mensagem para continuar.\n\nMensagem automática." },
-      { "text": "Oi , tudo bem?" },
-      { "text": "Nome?" }
+      {
+        "text": "Olá!\n\nResponda esta mensagem para continuar.\n\nMensagem automática."
+      },
+      {
+        "text": "Oi , tudo bem?"
+      },
+      {
+        "text": "Nome?"
+      }
     ],
-    "status": "waiting"
+    "status": "waiting",
+    "answers": {}
   }
 }

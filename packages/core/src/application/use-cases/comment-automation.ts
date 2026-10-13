@@ -4,24 +4,32 @@ import type {
   AutomationStatus,
   CommentAutomationConfig,
   CommentTransport,
+  CommentTriggerConfig,
   DirectMessage,
   DirectTransport,
+  FlowV2,
   InboundCommentEvent,
   InboundMessageEvent,
   ProviderFailure,
 } from '@manypost/contracts';
-import { CommentAutomationConfigSchema, ErrorCodes, WebhookEvents } from '@manypost/contracts';
 import {
-  decodePayload,
-  finishMessage,
-  matchesTrigger,
-  matchOption,
-  openingMessage,
-  pickPublicReply,
-  promptMessage,
-  validateAnswer,
-  whatsappUrl,
-} from '../../domain/automation/automation-logic';
+  AnyAutomationConfigSchema,
+  CommentAutomationConfigSchema,
+  CommentTriggerConfigSchema,
+  ErrorCodes,
+  WebhookEvents,
+} from '@manypost/contracts';
+import { decodePayload, matchesCommentTrigger } from '../../domain/automation/automation-logic';
+import { flowFromV1, nodeForV1Step, tapFromV1, triggerFromV1 } from '../../domain/automation/flow-from-v1';
+import { nodeById, openingOf, targetOf, waits } from '../../domain/automation/flow-graph';
+import {
+  MAX_AUTO_STEPS,
+  autoNext,
+  decideInput,
+  decodePayloadV2,
+  leadWhatsappUrl,
+  messageFor,
+} from '../../domain/automation/flow-step';
 import { DomainError } from '../../domain/shared/result';
 import type { AuditLogRepository } from '../ports/approvals';
 import type {
@@ -30,6 +38,7 @@ import type {
   AutomationRepository,
   AutomationRunPatch,
   AutomationRunRecord,
+  AutomationTriggerRecord,
 } from '../ports/automation';
 import type { EventPublisher } from '../ports/events';
 import type { JobScheduler } from '../ports/job-scheduler';
@@ -49,7 +58,6 @@ export const AUTOMATION_EVENT_QUEUE = 'automation-event';
 export const AUTOMATION_PROVIDERS = ['instagram-standalone', 'instagram'] as const;
 /** a resposta privada vale 7 dias; depois disso a execução aberta não é mais retomada */
 const RUN_WINDOW_MS = 7 * 86_400_000;
-const MAX_REASKS = 1;
 
 // ---------------------------------------------------------------- CRUD
 
@@ -226,6 +234,35 @@ export const makeAutomations = (deps: AutomationsDeps) => {
 
 export type Automations = ReturnType<typeof makeAutomations>;
 
+// ---------------------------------------------------------------- fluxo carregado
+
+export interface LoadedFlow {
+  flow: FlowV2;
+  /** configuração v1 original quando a automação ainda não foi salva pelo canvas */
+  legacy: CommentAutomationConfig | null;
+}
+
+/** v2 como está; v1 convertida na leitura, sem gravar (design D4) */
+export function loadFlow(raw: unknown): LoadedFlow | null {
+  const r = AnyAutomationConfigSchema.safeParse(raw);
+  if (!r.success) return null;
+  return r.data.version === 2 ? { flow: r.data, legacy: null } : { flow: flowFromV1(r.data), legacy: r.data };
+}
+
+/** gatilho de comentário da automação: a linha da tabela; sem linha, o `config.trigger` da v1 */
+export function commentTriggerOf(
+  automationId: string,
+  triggers: AutomationTriggerRecord[],
+  loaded: LoadedFlow,
+): CommentTriggerConfig | null {
+  const row = triggers.find((t) => t.automationId === automationId && t.kind === 'comment');
+  if (row) {
+    const p = CommentTriggerConfigSchema.safeParse(row.config);
+    return p.success ? p.data : null;
+  }
+  return loaded.legacy ? triggerFromV1(loaded.legacy) : null;
+}
+
 // ---------------------------------------------------------------- motor
 
 export interface AutomationEngineDeps {
@@ -292,18 +329,35 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
     }
   }
 
-  /** faz só o que falta, na ordem do fluxo; grava cada efeito logo depois de confirmado */
-  async function ensureProgress(
+  /** execução criada pelo motor v1 (sem nó) ganha o nó equivalente; o prompt entregue não sai de novo */
+  async function adoptLegacyRun(run: AutomationRunRecord, flow: FlowV2) {
+    if (run.nodeId !== null || run.privateReply !== 'SENT') return run;
+    const delivered = run.step < 0 || run.promptSentStep >= run.step;
+    return patch(run, { nodeId: nodeForV1Step(flow, run.step), cursor: 1, sentCursor: delivered ? 1 : 0 });
+  }
+
+  /**
+   * Faz só o que falta, na ordem do fluxo, gravando cada efeito logo depois de confirmado (design D6):
+   * resposta pública, resposta privada (abertura), mensagens dos nós até o próximo que espera, fim e
+   * `lead.captured`. Reprocessar o mesmo evento nunca envia duas vezes.
+   */
+  async function drive(
     bound: Bound,
     automation: AutomationRecord,
-    cfg: CommentAutomationConfig,
+    loaded: LoadedFlow,
+    publicReplies: string[],
     start: AutomationRunRecord,
   ) {
+    const { flow } = loaded;
     let run = start;
+    const ctx = () => ({ runId: run.id, answers: run.answers, username: run.participantUsername });
+
     if (run.status === 'OPEN') {
       // 1. resposta pública (não crítica: falhou, segue)
       if (run.publicReply === 'PENDING') {
-        const reply = pickPublicReply(cfg, random());
+        const reply = publicReplies.length
+          ? publicReplies[Math.min(publicReplies.length - 1, Math.floor(random() * publicReplies.length))]!
+          : null;
         if (!reply) run = await patch(run, { publicReply: 'NONE' });
         else {
           try {
@@ -315,11 +369,12 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
         }
       }
 
-      // 2. resposta privada: uma por comentário, sem chave de idempotência → nunca retentada às cegas
+      // 2. resposta privada = abertura; uma por comentário, sem chave de idempotência → nunca retentada às cegas
       if (run.privateReply === 'PENDING') {
+        const opening = openingOf(flow);
         try {
-          await bound.direct.privateReply(run.mediaId, run.commentId, openingMessage(cfg, run.id));
-          run = await patch(run, { privateReply: 'SENT', promptSentStep: -1 });
+          await bound.direct.privateReply(run.mediaId, run.commentId, messageFor(opening, ctx())!);
+          run = await patch(run, { privateReply: 'SENT', promptSentStep: -1, nodeId: opening.id, sentCursor: run.cursor });
         } catch (e) {
           if (isFailure(e) && e.status === 429 && !e.uncertain) throw new RetryableSendError('private_reply');
           const uncertain = !isFailure(e) || e.uncertain === true || (e.status >= 500 && !e.consumed);
@@ -328,43 +383,50 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
             status: uncertain ? 'UNCERTAIN' : 'FAILED',
             lastError: `resposta privada: ${errorText(e)}`,
           });
-          deps.log('warn', 'automation.run', { runId: run.id, status: run.status, step: run.step });
+          deps.log('warn', 'automation.run', { runId: run.id, status: run.status, node: run.nodeId });
           return run;
         }
       }
 
-      const n = cfg.questions.length;
-      // 3. pergunta do passo atual ainda não entregue (inclui re-pergunta: a chave leva `reasks`)
-      if (run.step >= 0 && run.step < n && run.promptSentStep < run.step) {
-        const sent = await sendInConversation(
-          bound,
-          run,
-          promptMessage(cfg, run.id, run.step),
-          `${run.id}:${run.step}:${run.reasks}`,
-          'prompt',
-        );
-        run = sent.ok
-          ? await patch(run, { promptSentStep: run.step })
-          : await patch(run, { status: 'FAILED', lastError: `pergunta: ${sent.error}` });
-      }
-
-      // 4. fim
-      if (run.status === 'OPEN' && run.step >= n && !run.finishSentAt) {
-        const sent = await sendInConversation(
-          bound,
-          run,
-          finishMessage(cfg, run.answers, run.participantUsername),
-          `${run.id}:fim`,
-          'finish',
-        );
-        const at = now();
-        run = sent.ok
-          ? await patch(run, { finishSentAt: at, status: 'COMPLETED', completedAt: at })
-          : await patch(run, { status: 'FAILED', lastError: `fim: ${sent.error}` });
+      // 3. anda pelos nós que não esperam até o próximo que espera
+      let steps = 0;
+      while (run.status === 'OPEN') {
+        const node = nodeById(flow, run.nodeId);
+        if (!node) {
+          run = await patch(run, { status: 'ABANDONED', lastError: 'o passo desta conversa foi removido do fluxo' });
+          break;
+        }
+        if (run.sentCursor < run.cursor) {
+          const msg = messageFor(node, ctx());
+          if (msg) {
+            const sent = await sendInConversation(bound, run, msg, `${run.id}:c${run.cursor}:${run.reasks}`, node.type);
+            if (!sent.ok) {
+              run = await patch(run, { status: 'FAILED', lastError: `${node.type}: ${sent.error}` });
+              break;
+            }
+          }
+          run = await patch(run, { sentCursor: run.cursor });
+        }
+        if (waits(node)) break;
+        if (++steps > MAX_AUTO_STEPS) {
+          run = await patch(run, { status: 'FAILED', lastError: 'limite de passos automáticos seguidos' });
+          break;
+        }
+        const nx = autoNext(flow, node, run.answers);
+        if (nx.kind === 'finish') {
+          const at = now();
+          run = await patch(run, { status: 'COMPLETED', completedAt: at, finishSentAt: at });
+          break;
+        }
+        if (nx.kind === 'dead_end') {
+          run = await patch(run, { status: 'ABANDONED', lastError: `saída sem ligação: ${node.id}.${nx.handle}` });
+          break;
+        }
+        run = await patch(run, { nodeId: nx.to, cursor: run.cursor + 1, reasks: 0 });
       }
     }
 
-    // 5. lead completo emitido pelo menos uma vez (`runId` é a chave de deduplicação de quem recebe)
+    // 4. lead completo emitido pelo menos uma vez (`runId` é a chave de deduplicação de quem recebe)
     if (run.status === 'COMPLETED' && !run.leadEmittedAt) {
       await deps.events?.emit({
         orgId: run.orgId,
@@ -381,24 +443,28 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
           participantId: run.participantId,
           participantUsername: run.participantUsername,
           answers: run.answers,
-          whatsappUrl: whatsappUrl(cfg, run.answers, run.participantUsername),
+          whatsappUrl: leadWhatsappUrl(flow, ctx()),
           completedAt: (run.completedAt ?? now()).toISOString(),
         },
       });
       run = await patch(run, { leadEmittedAt: now() });
     }
-    deps.log('info', 'automation.run', { runId: run.id, status: run.status, step: run.step });
+    deps.log('info', 'automation.run', { runId: run.id, status: run.status, node: run.nodeId, cursor: run.cursor });
     return run;
   }
 
   async function onComment(bound: Bound, c: InboundCommentEvent) {
     if (c.isReply || c.isOwn) return 'ignored';
     const author = c.authorUsername?.toLowerCase() ?? null;
-    for (const automation of await deps.repo.listTriggerable(bound.channel.id)) {
-      const cfg = tryConfig(automation.config);
-      if (!cfg) continue;
+    const automations = await deps.repo.listTriggerable(bound.channel.id);
+    const triggers = automations.length ? await deps.repo.listTriggers(automations.map((a) => a.id)) : [];
+    for (const automation of automations) {
+      const loaded = loadFlow(automation.config);
+      if (!loaded) continue;
+      const trigger = commentTriggerOf(automation.id, triggers, loaded);
+      if (!trigger) continue;
       if (automation.status === 'TEST' && !(author && automation.testUsernames.includes(author))) continue;
-      if (!matchesTrigger(cfg, { mediaId: c.mediaId, text: c.text })) continue;
+      if (!matchesCommentTrigger(trigger, { mediaId: c.mediaId, text: c.text })) continue;
 
       const { run } = await deps.repo.createRun({
         orgId: automation.orgId,
@@ -409,10 +475,10 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
         commentText: c.text.slice(0, 2200),
         participantId: c.authorId,
         participantUsername: c.authorUsername,
-        publicReply: cfg.publicReplies.length ? 'PENDING' : 'NONE',
+        publicReply: trigger.publicReplies.length ? 'PENDING' : 'NONE',
       });
-      // reentrega ou retentativa: `ensureProgress` só faz o que ainda falta
-      await ensureProgress(bound, automation, cfg, run);
+      // reentrega ou retentativa: `drive` só faz o que ainda falta
+      await drive(bound, automation, loaded, trigger.publicReplies, run);
       return 'run';
     }
     return 'no_match';
@@ -421,11 +487,13 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
   async function onMessage(bound: Bound, m: InboundMessageEvent) {
     if (m.outgoing || m.standby) return 'ignored';
     const since = new Date(now().getTime() - RUN_WINDOW_MS);
-    const decoded = decodePayload(m.payload);
+    const v2 = decodePayloadV2(m.payload);
+    const v1 = v2 ? null : decodePayload(m.payload);
+    const tapRunId = v2?.runId ?? v1?.runId ?? null;
 
     let run: AutomationRunRecord | null = null;
-    if (decoded) {
-      const r = await deps.repo.getRun(decoded.runId);
+    if (tapRunId) {
+      const r = await deps.repo.getRun(tapRunId);
       if (r && r.channelId === bound.channel.id && r.status === 'OPEN') run = r;
     }
     run ??= await deps.repo.findOpenRun(bound.channel.id, { participantId: m.senderId }, since);
@@ -434,55 +502,61 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
 
     const automation = await deps.repo.get(run.orgId, run.automationId);
     if (!automation || automation.status === 'PAUSED' || automation.status === 'DRAFT') return 'paused';
-    const cfg = tryConfig(automation.config);
-    if (!cfg) {
+    const loaded = loadFlow(automation.config);
+    if (!loaded) {
       await patch(run, { status: 'FAILED', lastError: 'configuração da automação inválida' });
       return 'invalid_config';
     }
+    const triggers = await deps.repo.listTriggers([automation.id]);
+    const publicReplies = commentTriggerOf(automation.id, triggers, loaded)?.publicReplies ?? [];
 
     const base: AutomationRunPatch = {
       lastInteractionAt: now(),
       ...(run.conversationId ? {} : { conversationId: m.conversationId }),
     };
-    const n = cfg.questions.length;
 
-    // repetição de um passo já respondido (toque duplo, reentrega): só garante o progresso
-    if (decoded && decoded.runId === run.id && decoded.step < run.step) {
+    // resposta privada ainda pendente (429 em retentativa): só garante o progresso
+    if (run.privateReply !== 'SENT') {
       run = await patch(run, base);
-      await ensureProgress(bound, automation, cfg, run);
+      await drive(bound, automation, loaded, publicReplies, run);
+      return 'pending';
+    }
+
+    run = await adoptLegacyRun(run, loaded.flow);
+    const node = nodeById(loaded.flow, run.nodeId);
+    if (!node) {
+      run = await patch(run, base);
+      await drive(bound, automation, loaded, publicReplies, run);
+      return 'abandoned';
+    }
+
+    const tap =
+      v2 && v2.runId === run.id
+        ? { nodeId: v2.nodeId, handle: v2.handle }
+        : v1 && v1.runId === run.id
+          ? tapFromV1(v1.step, v1.option)
+          : null;
+    // toque de outra execução ou de um passo que já passou (toque duplo, botão antigo): só garante o progresso
+    if ((tapRunId && tapRunId !== run.id) || (tap && tap.nodeId !== run.nodeId)) {
+      run = await patch(run, base);
+      await drive(bound, automation, loaded, publicReplies, run);
       return 'duplicate';
     }
 
-    if (run.step === -1) {
-      // abertura: qualquer resposta (botão ou texto) abre a conversa e segue
-      run = await patch(run, { ...base, step: n > 0 ? 0 : n, reasks: 0 });
-    } else if (run.step < n) {
-      const q = cfg.questions[run.step]!;
-      let answer: string | null = null;
-      if (q.kind === 'choice') {
-        const idx =
-          decoded && decoded.runId === run.id && decoded.step === run.step ? decoded.option : matchOption(q, m.text);
-        if (idx >= 0 && idx < q.options.length) answer = q.options[idx]!.title;
-        else if (run.reasks >= MAX_REASKS && m.text.trim()) answer = m.text.trim().slice(0, 200);
-      } else {
-        const v = validateAnswer(q.validate, m.text);
-        if (v.ok) answer = v.value;
-        else if (run.reasks >= MAX_REASKS && m.text.trim()) answer = m.text.trim().slice(0, 500);
-      }
-      run =
-        answer === null
-          ? // re-pergunta uma vez: `promptSentStep` volta e a chave nova (reasks+1) permite reenviar
-            await patch(run, { ...base, reasks: run.reasks + 1, promptSentStep: run.step - 1 })
-          : await patch(run, {
-              ...base,
-              answers: { ...run.answers, [q.field]: answer },
-              step: run.step + 1,
-              reasks: 0,
-            });
-    } else {
+    const d = decideInput(loaded.flow, node, { handle: tap?.handle ?? null, text: m.text }, run.reasks);
+    if (d.kind === 'ignore') {
       run = await patch(run, base);
+    } else if (d.kind === 'reask') {
+      // a chave nova (reasks+1) permite reenviar a mesma mensagem
+      run = await patch(run, { ...base, reasks: run.reasks + 1, sentCursor: run.cursor - 1 });
+    } else {
+      const to = targetOf(loaded.flow, node.id, d.handle);
+      const answers = d.save ? { ...run.answers, [d.save.field]: d.save.value } : run.answers;
+      run = to
+        ? await patch(run, { ...base, answers, nodeId: to, cursor: run.cursor + 1, reasks: 0 })
+        : await patch(run, { ...base, answers, status: 'ABANDONED', lastError: `saída sem ligação: ${node.id}.${d.handle}` });
     }
-    await ensureProgress(bound, automation, cfg, run);
+    await drive(bound, automation, loaded, publicReplies, run);
     return 'advanced';
   }
 

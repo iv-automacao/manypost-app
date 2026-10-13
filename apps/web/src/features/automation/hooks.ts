@@ -4,12 +4,17 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { api } from '@/lib/api/client';
 import { unwrap } from '@/lib/api/unwrap';
 import type { RunStatus, Status } from './logic';
-import type { configFromDraft } from './logic';
+import type { Flow, Position, TriggerConfig } from './flow/logic';
 
 const AUTOMATIONS = 'automations';
 const LEADS = 'automation-leads';
 
-type ConfigBody = ReturnType<typeof configFromDraft>;
+export interface AutomationBody {
+  name: string;
+  flow: Flow;
+  triggers: Array<{ kind: 'comment'; config: TriggerConfig; position: Position | null }>;
+  testUsernames: string[];
+}
 
 export function useAutomations() {
   return useQuery({
@@ -29,8 +34,9 @@ export function useAutomation(id: string | undefined) {
 export function useCreateAutomation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: { channelId: string; name: string; config: ConfigBody; testUsernames: string[] }) =>
-      unwrap(await api.POST('/v1/automations', { body })),
+    // o tipo gerado do grafo é a união do OpenAPI; a paridade do formato é provada em flow/logic.test.ts
+    mutationFn: async (body: AutomationBody & { channelId: string }) =>
+      unwrap(await api.POST('/v1/automations', { body: body as never })),
     onSuccess: () => qc.invalidateQueries({ queryKey: [AUTOMATIONS] }),
   });
 }
@@ -38,8 +44,8 @@ export function useCreateAutomation() {
 export function useUpdateAutomation(id: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: { name: string; config: ConfigBody; testUsernames: string[] }) =>
-      unwrap(await api.PATCH('/v1/automations/{id}', { params: { path: { id: id! } }, body })),
+    mutationFn: async (body: AutomationBody) =>
+      unwrap(await api.PATCH('/v1/automations/{id}', { params: { path: { id: id! } }, body: body as never })),
     onSuccess: () => qc.invalidateQueries({ queryKey: [AUTOMATIONS] }),
   });
 }

@@ -37,7 +37,7 @@ export function LeadsView() {
   };
   const order = (id: string) => {
     const a = automations.data?.items.find((x) => x.id === id);
-    return a?.config?.questions?.map((q) => q.field) ?? [];
+    return a?.flow?.nodes.flatMap((n) => (n.type === 'question' ? [n.data.field] : [])) ?? [];
   };
   const items = leads.data?.pages.flatMap((p) => p.items) ?? [];
 

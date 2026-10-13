@@ -54,9 +54,9 @@ export function AutomationsView() {
       ) : (
         <ul className="flex flex-col gap-3">
           {automations.data.items.map((a) => {
-            const keywords = a.config?.trigger?.keywords ?? [];
-            const media = a.config?.trigger?.mediaIds ?? [];
-            const questions = a.config?.questions?.length ?? 0;
+            const keywords = a.triggers[0]?.config.keywords ?? [];
+            const media = a.triggers[0]?.config.mediaIds ?? [];
+            const blocks = a.flow?.nodes.length ?? 0;
             return (
               <li key={a.id}>
                 <Card className="flex flex-wrap items-center justify-between gap-4 p-5">
@@ -75,13 +75,13 @@ export function AutomationsView() {
                         handle(a.channelId),
                         media.length ? t('summaryPosts', { count: media.length }) : t('summaryAnyPost'),
                         keywords.length ? t('summaryKeywords', { list: keywords.slice(0, 3).join(', ') }) : t('summaryAnyComment'),
-                        t('summaryQuestions', { count: questions }),
+                        t('summaryBlocks', { count: blocks }),
                         t('updated', { when: relativeTime(a.updatedAt, locale) }),
                       ]
                         .filter(Boolean)
                         .join(' · ')}
                     </p>
-                    {a.config === null ? <p className="text-meta text-state-failed">{t('invalidConfig')}</p> : null}
+                    {a.flow === null ? <p className="text-meta text-state-failed">{t('invalidConfig')}</p> : null}
                   </div>
                   <div className="flex items-center gap-2">
                     <Button asChild variant="ghost" size="sm">

@@ -93,3 +93,52 @@ describe('AnyAutomationConfigSchema', () => {
     expect(v2.version).toBe(2);
   });
 });
+
+describe('atraso e lembrete', () => {
+  const q = (delaySec?: unknown) => ({
+    id: 'q',
+    type: 'question',
+    position: { x: 0, y: 100 },
+    data: { text: 'Nome?', field: 'nome', validate: 'name', ...(delaySec === undefined ? {} : { delaySec }) },
+  });
+  const base = (extra: Record<string, unknown> = {}, node: unknown = q()) => ({
+    ...flow([opening, node, end], [edge('opening', 'next', 'q'), edge('q', 'next', 'fim')]),
+    ...extra,
+  });
+
+  test('delaySec de 0 a 60 inteiro nos balões que enviam; fora disso é recusado', () => {
+    expect(FlowV2Schema.safeParse(base({}, q(0))).success).toBe(true);
+    expect(FlowV2Schema.safeParse(base({}, q(60))).success).toBe(true);
+    expect(FlowV2Schema.safeParse(base({}, q(61))).success).toBe(false);
+    expect(FlowV2Schema.safeParse(base({}, q(-1))).success).toBe(false);
+    expect(FlowV2Schema.safeParse(base({}, q(2.5))).success).toBe(false);
+    const delayed = (type: string, data: Record<string, unknown>) =>
+      FlowV2Schema.safeParse(flow([opening, { id: 'x', type, position: { x: 0, y: 0 }, data: { ...data, delaySec: 5 } }], [edge('opening', 'next', 'x')]));
+    expect(delayed('message', { text: 'Oi', format: 'none' }).success).toBe(true);
+    expect(delayed('link', { text: 'Toque', target: { kind: 'url', url: 'https://x.com' } }).success).toBe(true);
+    expect(delayed('end', { text: 'Tchau' }).success).toBe(true);
+  });
+
+  test('sem delaySec continua válido (fluxos já salvos)', () => {
+    const r = FlowV2Schema.parse(base());
+    expect(r.nodes[1]).not.toHaveProperty('data.delaySec');
+  });
+
+  test('a abertura não tem atraso', () => {
+    const r = FlowV2Schema.parse(base({}, q()));
+    const o = FlowV2Schema.parse(flow([{ ...opening, data: { text: 'Oi', delaySec: 5 } }, end], [edge('opening', 'next', 'fim')]));
+    expect(r.nodes[0]).not.toHaveProperty('data.delaySec');
+    expect(o.nodes[0]).not.toHaveProperty('data.delaySec');
+  });
+
+  test('lembrete: 5 a 1380 minutos e texto de 1 a 300; ausente é aceito', () => {
+    const ok = (reminder: unknown) => FlowV2Schema.safeParse(base({ reminder })).success;
+    expect(FlowV2Schema.safeParse(base()).success).toBe(true);
+    expect(ok({ afterMinutes: 5, text: 'Oi, {nome}?' })).toBe(true);
+    expect(ok({ afterMinutes: 1380, text: 'Oi' })).toBe(true);
+    expect(ok({ afterMinutes: 4, text: 'Oi' })).toBe(false);
+    expect(ok({ afterMinutes: 1381, text: 'Oi' })).toBe(false);
+    expect(ok({ afterMinutes: 60, text: '' })).toBe(false);
+    expect(ok({ afterMinutes: 60, text: 'x'.repeat(301) })).toBe(false);
+  });
+});

@@ -22,7 +22,7 @@ import {
   WebhookEvents,
 } from '@manypost/contracts';
 import { z } from 'zod';
-import { decodePayload, matchesCommentTrigger } from '../../domain/automation/automation-logic';
+import { decodePayload, matchesCommentTrigger, renderTemplate } from '../../domain/automation/automation-logic';
 import { flowFromV1, nodeForV1Step, tapFromV1, triggerFromV1 } from '../../domain/automation/flow-from-v1';
 import { nodeById, openingOf, targetOf, waits } from '../../domain/automation/flow-graph';
 import {
@@ -30,6 +30,7 @@ import {
   autoNext,
   decideInput,
   decodePayloadV2,
+  delayOf,
   leadWhatsappUrl,
   messageFor,
 } from '../../domain/automation/flow-step';
@@ -63,6 +64,21 @@ export const AUTOMATION_EVENT_QUEUE = 'automation-event';
 export const AUTOMATION_PROVIDERS = ['instagram-standalone', 'instagram'] as const;
 /** a resposta privada vale 7 dias; depois disso a execução aberta não é mais retomada */
 const RUN_WINDOW_MS = 7 * 86_400_000;
+/** o lembrete sai no máximo 23 h depois da última mensagem da pessoa (janela de 24 h da Meta) */
+const REMINDER_CAP_MS = 23 * 3_600_000;
+/** folga para a fila atrasar o job sem estourar a janela */
+const REMINDER_GRACE_MS = 30 * 60_000;
+
+/**
+ * Job de tempo (add-flow-delay-reminder): vai na mesma fila serial dos eventos, então nunca corre em
+ * paralelo com outro evento da mesma conversa. `accountRef` monta o transporte pela ponte.
+ */
+export interface AutomationTimerJob {
+  timer: 'resume' | 'reminder';
+  runId: string;
+  cursor: number;
+  accountRef: string;
+}
 
 // ---------------------------------------------------------------- fluxo carregado
 
@@ -401,6 +417,8 @@ interface Bound {
   channel: { id: string; orgId: string };
   comments: CommentTransport;
   direct: DirectTransport;
+  /** conta da ponte que gerou o evento (vai nos jobs de tempo) */
+  accountRef: string;
 }
 
 export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
@@ -432,6 +450,69 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
     if (run.nodeId !== null || run.privateReply !== 'SENT') return run;
     const delivered = run.step < 0 || run.promptSentStep >= run.step;
     return patch(run, { nodeId: nodeForV1Step(flow, run.step), cursor: 1, sentCursor: delivered ? 1 : 0 });
+  }
+
+  /** agenda um job de tempo; a chave inclui a hora, então reagendar a mesma hora não duplica */
+  async function scheduleTimer(timer: AutomationTimerJob['timer'], run: AutomationRunRecord, bound: Bound, at: Date) {
+    const job: AutomationTimerJob = { timer, runId: run.id, cursor: run.cursor, accountRef: bound.accountRef };
+    await deps.scheduler.enqueue(AUTOMATION_EVENT_QUEUE, job, {
+      startAfter: at,
+      singletonKey: `${run.id}:${timer}:${run.cursor}:${at.getTime()}`,
+      retryLimit: 3,
+      retryBackoffSec: 20,
+    });
+  }
+
+  /** "digitando…" é cortesia: falhou, só registra */
+  async function typing(bound: Bound, run: AutomationRunRecord) {
+    if (!run.conversationId || !bound.direct.typing) return;
+    try {
+      await bound.direct.typing(run.conversationId);
+    } catch {
+      deps.log('warn', 'automation.typing.failed', { runId: run.id });
+    }
+  }
+
+  /** hora em que o lembrete vence, contada da última mensagem da pessoa e limitada a 23 h */
+  function reminderDue(flow: FlowV2, run: AutomationRunRecord): number | null {
+    if (!flow.reminder || !run.lastInboundAt) return null;
+    const base = run.lastInboundAt.getTime();
+    return Math.min(base + flow.reminder.afterMinutes * 60_000, base + REMINDER_CAP_MS);
+  }
+
+  /** nó em que o lembrete pode sair: já enviado, espera resposta e não é a abertura */
+  function remindableNode(flow: FlowV2, run: AutomationRunRecord) {
+    const node = nodeById(flow, run.nodeId);
+    if (!node || node.type === 'opening' || !waits(node) || run.sentCursor !== run.cursor) return null;
+    return node;
+  }
+
+  /** arma o lembrete único quando a conversa fica parada esperando a pessoa */
+  async function armReminder(bound: Bound, flow: FlowV2, run: AutomationRunRecord) {
+    if (run.status !== 'OPEN' || run.reminderSentAt || !remindableNode(flow, run)) return;
+    const due = reminderDue(flow, run);
+    if (due === null || due <= now().getTime()) return;
+    await scheduleTimer('reminder', run, bound, new Date(due));
+  }
+
+  async function sendReminder(bound: Bound, flow: FlowV2, run: AutomationRunRecord) {
+    const reminder = flow.reminder;
+    if (!reminder) return 'off';
+    const node = remindableNode(flow, run);
+    const due = reminderDue(flow, run);
+    if (run.reminderSentAt || !node || due === null) return 'stale';
+    const t = now().getTime();
+    // um job armado antes de uma resposta mais nova: o que foi armado depois dela cuida
+    if (t < due - 1000) return 'stale';
+    if (t > run.lastInboundAt!.getTime() + REMINDER_CAP_MS + REMINDER_GRACE_MS) return 'window_closed';
+    const msg = messageFor(node, { runId: run.id, answers: run.answers, username: run.participantUsername });
+    if (!msg) return 'stale';
+    const text = `${renderTemplate(reminder.text, run.answers, run.participantUsername)}\n\n${msg.text}`;
+    const sent = await sendInConversation(bound, run, { ...msg, text }, `${run.id}:rem${run.cursor}`, 'reminder');
+    // lembrete recusado não derruba a conversa: só não tenta de novo
+    await patch(run, sent.ok ? { reminderSentAt: now() } : { reminderSentAt: now(), lastError: `lembrete: ${sent.error}` });
+    deps.log('info', 'automation.reminder', { runId: run.id, cursor: run.cursor, ok: sent.ok });
+    return sent.ok ? 'reminded' : 'failed';
   }
 
   /**
@@ -498,6 +579,18 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
           break;
         }
         if (run.sentCursor < run.cursor) {
+          // atraso: marca a hora, mostra "digitando…" e deixa a continuação para o job de tempo
+          const delay = delayOf(node);
+          if (delay > 0) {
+            if (!run.resumeAt) {
+              run = await patch(run, { resumeAt: new Date(now().getTime() + delay * 1000) });
+              await typing(bound, run);
+            }
+            if (now().getTime() < run.resumeAt!.getTime() - 1000) {
+              await scheduleTimer('resume', run, bound, run.resumeAt!);
+              break;
+            }
+          }
           const msg = messageFor(node, ctx());
           if (msg) {
             const sent = await sendInConversation(bound, run, msg, `${run.id}:c${run.cursor}:${run.reasks}`, node.type);
@@ -506,7 +599,7 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
               break;
             }
           }
-          run = await patch(run, { sentCursor: run.cursor });
+          run = await patch(run, { sentCursor: run.cursor, ...(run.resumeAt ? { resumeAt: null } : {}) });
         }
         if (waits(node)) break;
         if (++steps > MAX_AUTO_STEPS) {
@@ -613,6 +706,7 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
 
     const base: AutomationRunPatch = {
       lastInteractionAt: now(),
+      lastInboundAt: now(),
       ...(run.conversationId ? {} : { conversationId: m.conversationId }),
     };
 
@@ -665,6 +759,7 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
         : await patch(run, { ...base, answers, status: 'ABANDONED', lastError: `saída sem ligação: ${node.id}.${d.handle}` });
     }
     run = await drive(bound, automation, loaded, publicReplies, run);
+    await armReminder(bound, loaded.flow, run);
     return run.status === 'ABANDONED' ? 'abandoned' : 'advanced';
   }
 
@@ -693,7 +788,8 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
         return 'unknown_account';
       }
       try {
-        const action = parsed.kind === 'comment' ? await onComment(bound, parsed) : await onMessage(bound, parsed);
+        const b: Bound = { ...bound, accountRef: parsed.accountRef };
+        const action = parsed.kind === 'comment' ? await onComment(b, parsed) : await onMessage(b, parsed);
         await deps.repo.markInboundEvent(ev.id, { processed: true });
         deps.log('info', 'automation.event', { type: ev.eventType, action, ms: Date.now() - started });
         return action;
@@ -701,6 +797,27 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
         await deps.repo.markInboundEvent(ev.id, { error: e instanceof Error ? e.message : 'erro' });
         throw e;
       }
+    },
+
+    /** job de tempo: retoma um envio atrasado ou manda o lembrete; lança só quando vale retentar */
+    async processTimer(t: AutomationTimerJob) {
+      const run = await deps.repo.getRun(t.runId);
+      // a conversa andou, fechou ou o job é de outra posição: nada a fazer
+      if (!run || run.status !== 'OPEN' || run.cursor !== t.cursor) return 'stale';
+      const automation = await deps.repo.get(run.orgId, run.automationId);
+      if (!automation || automation.status === 'PAUSED' || automation.status === 'DRAFT') return 'paused';
+      const loaded = loadFlow(automation.config);
+      if (!loaded) return 'invalid_config';
+      const resolved = await deps.gateway.resolve(t.accountRef);
+      if (!resolved || resolved.channel.id !== run.channelId) return 'unknown_account';
+      const bound: Bound = { ...resolved, accountRef: t.accountRef };
+
+      if (t.timer === 'reminder') return sendReminder(bound, loaded.flow, run);
+      const triggers = await deps.repo.listTriggers([automation.id]);
+      const publicReplies = commentTriggerOf(automation.id, triggers, loaded)?.publicReplies ?? [];
+      const after = await drive(bound, automation, loaded, publicReplies, run);
+      await armReminder(bound, loaded.flow, after);
+      return 'resumed';
     },
   };
 };

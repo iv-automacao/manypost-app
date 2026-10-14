@@ -20,6 +20,7 @@ import type {
  * Direct (change add-comment-automation): `POST /v1/inbox/comments/{postId}/{commentId}/private-reply`
  * (uma por comentário, sem chave de idempotência) e `POST /v1/inbox/conversations/{id}/messages`
  * (com `Idempotency-Key`, guardada 24 h pela Zernio).
+ * "Digitando…" (add-flow-delay-reminder): `POST /v1/inbox/conversations/{conversationId}/typing`
  */
 
 const DEFAULT_BASE = 'https://zernio.com/api/v1';
@@ -205,6 +206,10 @@ export function makeZernioBridge(deps: ZernioBridgeDeps) {
           headers: { 'idempotency-key': idempotencyKey },
         })) as { data?: { messageId?: string } };
         return { messageId: out.data?.messageId ?? null };
+      },
+      async typing(conversationId) {
+        // best-effort na Zernio: responde 200 mesmo quando a Meta não mostra
+        await call('POST', `/inbox/conversations/${enc(conversationId)}/typing`, { body: { accountId } });
       },
     };
   }

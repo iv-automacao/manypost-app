@@ -282,4 +282,13 @@ describe('direct (add-comment-automation)', () => {
       quickReplies: [{ title: 'Saúde', payload: 'mp1:r:0:0' }],
     });
   });
+
+  test('digitando… na conversa com a conta no corpo', async () => {
+    const { t, calls } = await direct([
+      (c) => (c.url.pathname === '/api/v1/inbox/conversations/conv-1/typing' ? json({ success: true }) : undefined),
+    ]);
+    await t.typing!('conv-1');
+    expect(calls.at(-1)?.method).toBe('POST');
+    expect(calls.at(-1)?.body).toEqual({ accountId: 'zig' });
+  });
 });

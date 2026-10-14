@@ -65,6 +65,12 @@ export interface AutomationRunRecord {
   finishSentAt: Date | null;
   lastError: string | null;
   lastInteractionAt: Date;
+  /** hora marcada do envio atrasado do nó atual (add-flow-delay-reminder) */
+  resumeAt: Date | null;
+  /** última mensagem da pessoa: base da janela de 24 h do lembrete */
+  lastInboundAt: Date | null;
+  /** o lembrete único já saiu */
+  reminderSentAt: Date | null;
   completedAt: Date | null;
   leadEmittedAt: Date | null;
   createdAt: Date;
@@ -87,6 +93,9 @@ export type AutomationRunPatch = Partial<
     | 'finishSentAt'
     | 'lastError'
     | 'lastInteractionAt'
+    | 'resumeAt'
+    | 'lastInboundAt'
+    | 'reminderSentAt'
     | 'completedAt'
     | 'leadEmittedAt'
   >

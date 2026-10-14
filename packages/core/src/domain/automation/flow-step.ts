@@ -88,6 +88,11 @@ export function conditionHolds(node: FlowNodeOf<'condition'>, answers: Record<st
   }
 }
 
+/** segundos de espera (com "digitando…") antes de enviar o nó; a abertura e a condição não têm */
+export function delayOf(node: FlowNode): number {
+  return 'delaySec' in node.data ? (node.data.delaySec ?? 0) : 0;
+}
+
 export type AutoNext = { kind: 'goto'; to: string } | { kind: 'finish' } | { kind: 'dead_end'; handle: string };
 
 /** saída dos nós que não esperam resposta */

@@ -123,6 +123,9 @@ function memRepo() {
         finishSentAt: null,
         lastError: null,
         lastInteractionAt: new Date('2026-10-12T12:00:00Z'),
+        resumeAt: null,
+        lastInboundAt: null,
+        reminderSentAt: null,
         completedAt: null,
         leadEmittedAt: null,
         createdAt: new Date(),
@@ -182,7 +185,9 @@ function harness(opts: { privateReplyError?: unknown; sendErrors?: unknown[]; st
   const sent: Sent[] = [];
   const emitted: Array<{ event: string; data: Record<string, unknown> }> = [];
   const enqueued: unknown[] = [];
+  const scheduled: Array<{ payload: Record<string, unknown>; startAfter?: Date; singletonKey?: string }> = [];
   const sendErrors = [...(opts.sendErrors ?? [])];
+  let clock = new Date('2026-10-12T12:05:00Z');
 
   const comments: CommentTransport = {
     id: 'fake',
@@ -208,6 +213,9 @@ function harness(opts: { privateReplyError?: unknown; sendErrors?: unknown[]; st
       sent.push({ op: 'send', target: conversationId, msg, key });
       return { messageId: 'm' };
     },
+    async typing(conversationId) {
+      sent.push({ op: 'typing', target: conversationId });
+    },
   };
   const gateway: AutomationGateway = {
     source: 'fake',
@@ -218,8 +226,13 @@ function harness(opts: { privateReplyError?: unknown; sendErrors?: unknown[]; st
     repo: mem.repo,
     gateway,
     scheduler: {
-      async enqueue(_q, payload) {
+      async enqueue(_q, payload, o) {
         enqueued.push(payload);
+        scheduled.push({
+          payload: payload as Record<string, unknown>,
+          ...(o?.startAfter ? { startAfter: o.startAfter } : {}),
+          ...(o?.singletonKey ? { singletonKey: o.singletonKey } : {}),
+        });
         return 'job';
       },
     },
@@ -229,7 +242,7 @@ function harness(opts: { privateReplyError?: unknown; sendErrors?: unknown[]; st
       },
     },
     log: () => {},
-    now: () => new Date('2026-10-12T12:05:00Z'),
+    now: () => clock,
     random: () => 0,
   });
 
@@ -282,7 +295,20 @@ function harness(opts: { privateReplyError?: unknown; sendErrors?: unknown[]; st
     ...over,
   });
 
-  return { ...mem, engine, sent, emitted, enqueued, seedAutomation, deliver, comment, message };
+  /** avança o relógio do motor */
+  const advance = (sec: number) => {
+    clock = new Date(clock.getTime() + sec * 1000);
+  };
+  const timers = (kind: 'resume' | 'reminder') => scheduled.filter((x) => x.payload.timer === kind);
+  /** roda o job de tempo mais recente do tipo (como a fila faria na hora marcada) */
+  const fire = (kind: 'resume' | 'reminder') => {
+    const t = timers(kind).at(-1);
+    if (!t) throw new Error(`nenhum job ${kind} agendado`);
+    return engine.processTimer(t.payload as never);
+  };
+  const failNextSend = (e: unknown) => sendErrors.push(e);
+
+  return { ...mem, engine, sent, emitted, enqueued, scheduled, seedAutomation, deliver, comment, message, advance, timers, fire, failNextSend, now: () => clock };
 }
 
 /** toca o botão pelo título usando o payload que a própria mensagem levou */
@@ -816,5 +842,213 @@ describe('retentativa e reentrega (resumabilidade)', () => {
     expect(h.runs).toHaveLength(1);
     expect(h.runs[0]).toMatchObject({ status: 'OPEN', nodeId: 'q0' });
     expect(h.sent.length).toBe(antes);
+  });
+});
+
+describe('atraso por balão (add-flow-delay-reminder)', () => {
+  const DELAY = {
+    version: 2,
+    nodes: [
+      { id: 'opening', type: 'opening', position: P, data: { text: 'Oi!' } },
+      { id: 'nome', type: 'question', position: P, data: { text: 'Seu nome?', field: 'nome', validate: 'name' } },
+      { id: 'wa', type: 'link', position: P, data: { text: 'Fale com a gente', buttonTitle: 'WhatsApp', target: { kind: 'whatsapp', phone: '5592999990000', message: '' } } },
+      { id: 'seguir', type: 'link', position: P, data: { text: 'Segue a gente', buttonTitle: 'Seguir', target: { kind: 'url', url: 'https://www.instagram.com/x/' }, delaySec: 5 } },
+      { id: 'fim', type: 'end', position: P, data: { text: 'Valeu, {nome}!', delaySec: 2 } },
+    ],
+    edges: [ed('opening', 'next', 'nome'), ed('nome', 'next', 'wa'), ed('wa', 'next', 'seguir'), ed('seguir', 'next', 'fim')],
+  };
+
+  async function ateOLink(h: ReturnType<typeof harness>) {
+    await h.seedAutomation(DELAY, ['iagovieira.ia'], TRIGGER);
+    await h.deliver(h.comment({ text: 'plano' }));
+    await h.deliver(h.message({ text: 'oi' }));
+    await h.deliver(h.message({ text: 'Ana' }));
+    return { ...h.runs[0]! }; // cópia: o repositório em memória muda o objeto depois
+  }
+
+  test('o balão com atraso não sai no mesmo evento: digitando, job agendado e envio na hora', async () => {
+    const h = harness();
+    const run = await ateOLink(h);
+    const t0 = h.now().getTime();
+    expect(h.sent.slice(-2).map((s) => [s.op, s.msg?.text])).toEqual([
+      ['send', 'Fale com a gente'],
+      ['typing', undefined],
+    ]);
+    expect(run).toMatchObject({ nodeId: 'seguir', status: 'OPEN' });
+    expect(run.resumeAt?.getTime()).toBe(t0 + 5000);
+    const job = h.timers('resume').at(-1)!;
+    expect(job.payload).toEqual({ timer: 'resume', runId: run.id, cursor: run.cursor, accountRef: 'acc-1' });
+    expect(job.startAfter?.getTime()).toBe(t0 + 5000);
+
+    h.advance(5);
+    await h.fire('resume');
+    expect(h.sent.filter((s) => s.op === 'send').at(-1)).toMatchObject({ key: `${run.id}:c${run.cursor}:0`, msg: { text: 'Segue a gente' } });
+    expect(h.runs[0]).toMatchObject({ nodeId: 'fim', resumeAt: new Date(t0 + 7000) });
+
+    h.advance(2);
+    await h.fire('resume');
+    expect(h.sent.filter((s) => s.op === 'send').at(-1)?.msg?.text).toBe('Valeu, Ana!');
+    expect(h.runs[0]).toMatchObject({ status: 'COMPLETED', resumeAt: null });
+    expect(h.emitted).toHaveLength(1);
+  });
+
+  test('mensagem da pessoa durante a espera fica registrada e não antecipa o envio', async () => {
+    const h = harness();
+    await ateOLink(h);
+    const enviados = h.sent.length;
+    h.advance(1);
+    await h.deliver(h.message({ text: 'e aí?' }));
+    expect(h.sent.length).toBe(enviados);
+    expect(h.runs[0]!.lastInboundAt?.getTime()).toBe(h.now().getTime());
+    h.advance(4);
+    await h.fire('resume');
+    expect(h.sent.filter((s) => s.msg?.text === 'Segue a gente')).toHaveLength(1);
+  });
+
+  test('job antes da hora não envia e reagenda para a hora marcada', async () => {
+    const h = harness();
+    const run = await ateOLink(h);
+    const antes = h.timers('resume').length;
+    await h.fire('resume');
+    expect(h.sent.some((s) => s.msg?.text === 'Segue a gente')).toBe(false);
+    expect(h.timers('resume').length).toBe(antes + 1);
+    expect(h.timers('resume').at(-1)!.startAfter).toEqual(run.resumeAt!);
+  });
+
+  test('job velho (cursor mudou) ou automação pausada não faz nada', async () => {
+    const h = harness();
+    const run = await ateOLink(h);
+    h.advance(5);
+    expect(await h.engine.processTimer({ timer: 'resume', runId: run.id, cursor: run.cursor - 1, accountRef: 'acc-1' })).toBe('stale');
+    h.automations[0]!.status = 'PAUSED';
+    expect(await h.fire('resume')).toBe('paused');
+    expect(h.sent.some((s) => s.msg?.text === 'Segue a gente')).toBe(false);
+  });
+
+  test('falha transitória no envio atrasado: o job lança e a retentativa envia uma vez com a mesma chave', async () => {
+    const h = harness();
+    const run = await ateOLink(h);
+    h.advance(5);
+    h.failNextSend({ status: 503, body: '{}', errorClass: 'transient' });
+    await expect(h.fire('resume')).rejects.toThrow();
+    await h.fire('resume');
+    const seguir = h.sent.filter((s) => s.msg?.text === 'Segue a gente');
+    expect(seguir).toHaveLength(1);
+    expect(seguir[0]!.key).toBe(`${run.id}:c${run.cursor}:0`);
+  });
+});
+
+describe('lembrete "parou no meio" (add-flow-delay-reminder)', () => {
+  const REM = {
+    version: 2,
+    reminder: { afterMinutes: 60, text: '{tipo}, ficou faltando pouco.' },
+    nodes: [
+      { id: 'opening', type: 'opening', position: P, data: { text: 'Oi!' } },
+      { id: 'tipo', type: 'message', position: P, data: { text: 'Para quem?', format: 'quick', options: [{ id: 'pf', title: 'Pra mim' }, { id: 'pj', title: 'Empresa' }], saveTo: 'tipo' } },
+      { id: 'cidade', type: 'message', position: P, data: { text: 'Em qual cidade?', format: 'quick', options: [{ id: 'mao', title: 'Manaus' }, { id: 'bv', title: 'Boa Vista' }], saveTo: 'cidade' } },
+      { id: 'fim', type: 'end', position: P, data: { text: 'Valeu!' } },
+    ],
+    edges: [
+      ed('opening', 'next', 'tipo'),
+      ed('tipo', 'pf', 'cidade'),
+      ed('tipo', 'pj', 'cidade'),
+      ed('cidade', 'mao', 'fim'),
+      ed('cidade', 'bv', 'fim'),
+    ],
+  };
+
+  async function naCidade(h: ReturnType<typeof harness>, flow: unknown = REM) {
+    await h.seedAutomation(flow, ['iagovieira.ia'], TRIGGER);
+    await h.deliver(h.comment({ text: 'plano' }));
+    await h.deliver(h.message({ text: 'oi' }));
+    await h.deliver(tocar(h, 'Pra mim'));
+    return { ...h.runs[0]! };
+  }
+
+  test('parou na cidade: depois do tempo sai uma mensagem com o lembrete, a pergunta e as opções', async () => {
+    const h = harness();
+    const run = await naCidade(h);
+    const inbound = run.lastInboundAt!.getTime();
+    const job = h.timers('reminder').at(-1)!;
+    expect(job.payload).toEqual({ timer: 'reminder', runId: run.id, cursor: run.cursor, accountRef: 'acc-1' });
+    expect(job.startAfter?.getTime()).toBe(inbound + 60 * 60_000);
+
+    h.advance(3600);
+    expect(await h.fire('reminder')).toBe('reminded');
+    const m = h.sent.at(-1)!;
+    expect(m.key).toBe(`${run.id}:rem${run.cursor}`);
+    expect(m.msg?.text).toBe('Pra mim, ficou faltando pouco.\n\nEm qual cidade?');
+    expect(m.msg?.quickReplies?.map((q) => q.title)).toEqual(['Manaus', 'Boa Vista']);
+    expect(h.runs[0]!.reminderSentAt).not.toBeNull();
+
+    await h.deliver(tocar(h, 'Manaus'));
+    expect(h.runs[0]).toMatchObject({ status: 'COMPLETED', answers: { cidade: 'Manaus' } });
+  });
+
+  test('respondeu antes do lembrete: o job não envia nada', async () => {
+    const h = harness();
+    await naCidade(h);
+    const job = h.timers('reminder').at(-1)!;
+    await h.deliver(tocar(h, 'Manaus'));
+    const enviados = h.sent.length;
+    h.advance(3600);
+    expect(await h.engine.processTimer(job.payload as never)).toBe('stale');
+    expect(h.sent.length).toBe(enviados);
+  });
+
+  test('quem não respondeu a abertura não recebe lembrete', async () => {
+    const h = harness();
+    await h.seedAutomation(REM, ['iagovieira.ia'], TRIGGER);
+    await h.deliver(h.comment({ text: 'plano' }));
+    expect(h.timers('reminder')).toHaveLength(0);
+  });
+
+  test('um lembrete por conversa', async () => {
+    const h = harness();
+    const flow = {
+      ...REM,
+      nodes: [...REM.nodes.filter((n) => n.id !== 'fim'), { id: 'nome', type: 'question', position: P, data: { text: 'Seu nome?', field: 'nome', validate: 'name' } }, { id: 'fim', type: 'end', position: P, data: { text: 'Valeu!' } }],
+      edges: [...REM.edges.filter((x) => x.source !== 'cidade'), ed('cidade', 'mao', 'nome'), ed('cidade', 'bv', 'nome'), ed('nome', 'next', 'fim')],
+    };
+    await naCidade(h, flow);
+    h.advance(3600);
+    await h.fire('reminder');
+    const agendados = h.timers('reminder').length;
+    await h.deliver(tocar(h, 'Manaus'));
+    expect(h.runs[0]!.nodeId).toBe('nome');
+    expect(h.timers('reminder').length).toBe(agendados);
+    h.advance(3600);
+    expect(await h.fire('reminder')).toBe('stale');
+  });
+
+  test('janela de 24 h: agenda no máximo 23 h depois e não envia se a última mensagem passou de 23 h 30', async () => {
+    const h = harness();
+    const run = await naCidade(h, { ...REM, reminder: { afterMinutes: 1380, text: 'Oi de novo' } });
+    expect(h.timers('reminder').at(-1)!.startAfter?.getTime()).toBe(run.lastInboundAt!.getTime() + 23 * 3600_000);
+    h.advance(24 * 3600);
+    expect(await h.fire('reminder')).toBe('window_closed');
+    expect(h.sent.some((s) => s.msg?.text?.startsWith('Oi de novo'))).toBe(false);
+  });
+
+  test('lembrete agendado antes de uma resposta mais nova espera o tempo contar de novo', async () => {
+    const h = harness();
+    await naCidade(h);
+    const velho = h.timers('reminder').at(-1)!;
+    h.advance(1800);
+    await h.deliver(h.message({ text: 'hmm' })); // re-pergunta a cidade
+    h.advance(1800);
+    expect(await h.engine.processTimer(velho.payload as never)).toBe('stale');
+    h.advance(1800);
+    expect(await h.fire('reminder')).toBe('reminded');
+  });
+
+  test('falha transitória no lembrete: retentativa envia uma vez só', async () => {
+    const h = harness();
+    await naCidade(h);
+    h.advance(3600);
+    h.failNextSend({ status: 503, body: '{}', errorClass: 'transient' });
+    await expect(h.fire('reminder')).rejects.toThrow();
+    expect(await h.fire('reminder')).toBe('reminded');
+    expect(h.sent.filter((s) => s.key?.includes(':rem'))).toHaveLength(1);
   });
 });

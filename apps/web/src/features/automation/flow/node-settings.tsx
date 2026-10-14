@@ -12,8 +12,15 @@ import { LIMITS, TEXT_VALIDATIONS } from '../logic';
 import { useFlowActions } from './actions';
 import type { NodeOf } from './logic';
 
-/** opções avançadas do balão (decisão `painel-opcoes`): formato, guardar em, se digitar, modo da abertura */
-export function NodeSettings({ node }: { node: NodeOf<'opening'> | NodeOf<'message'> | NodeOf<'question'> }) {
+/** esperas oferecidas no ⚙ (add-flow-delay-reminder); 0 = envia junto */
+const DELAYS = [0, 2, 5, 10, 30, 60] as const;
+
+/** opções avançadas do balão (decisão `painel-opcoes`): formato, guardar em, se digitar, modo da abertura, espera */
+export function NodeSettings({
+  node,
+}: {
+  node: NodeOf<'opening'> | NodeOf<'message'> | NodeOf<'question'> | NodeOf<'link'> | NodeOf<'end'>;
+}) {
   const t = useTranslations('automation.flow');
   const a = useFlowActions();
   if (a.readOnly) return null;
@@ -126,6 +133,25 @@ export function NodeSettings({ node }: { node: NodeOf<'opening'> | NodeOf<'messa
               </Select>
             </Label>
           </>
+        ) : null}
+
+        {node.type !== 'opening' ? (
+          <Label className="flex flex-col gap-1 text-compact">
+            {t('settingsPanel.delay')}
+            <Select value={String(node.data.delaySec ?? 0)} onValueChange={(v) => set({ delaySec: Number(v) > 0 ? Number(v) : undefined })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[...new Set([...DELAYS, node.data.delaySec ?? 0])].sort((x, y) => x - y).map((v) => (
+                  <SelectItem key={v} value={String(v)}>
+                    {v === 0 ? t('settingsPanel.delayNone') : t('settingsPanel.delaySeconds', { seconds: v })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-meta text-graphite">{t('settingsPanel.delayHint')}</span>
+          </Label>
         ) : null}
       </PopoverContent>
     </Popover>

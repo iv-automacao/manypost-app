@@ -52,12 +52,13 @@ export type FlowNode =
         options: Array<{ id: string; title: string }>;
         saveTo?: string;
         onTyped: (typeof ON_TYPED_MODES)[number];
+        delaySec?: number;
       }
     >
-  | Base<'question', { text: string; field: string; validate: TextValidation }>
+  | Base<'question', { text: string; field: string; validate: TextValidation; delaySec?: number }>
   | Base<'condition', { field: string; op: (typeof CONDITION_OPS)[number]; value: string }>
-  | Base<'link', { text: string; buttonTitle: string; target: LinkTarget }>
-  | Base<'end', { text: string }>;
+  | Base<'link', { text: string; buttonTitle: string; target: LinkTarget; delaySec?: number }>
+  | Base<'end', { text: string; delaySec?: number }>;
 export type NodeOf<T extends FlowNodeType> = Extract<FlowNode, { type: T }>;
 export interface FlowEdge {
   id: string;
@@ -65,10 +66,16 @@ export interface FlowEdge {
   sourceHandle: string;
   target: string;
 }
+/** lembrete único para quem parou de responder (add-flow-delay-reminder) */
+export interface FlowReminder {
+  afterMinutes: number;
+  text: string;
+}
 export interface Flow {
   version: 2;
   nodes: FlowNode[];
   edges: FlowEdge[];
+  reminder?: FlowReminder;
 }
 export interface TriggerConfig {
   mediaIds: string[];
@@ -88,7 +95,10 @@ type Raw = Record<string, unknown>;
 const str = (v: unknown, d = '') => (typeof v === 'string' ? v : d);
 
 /** aplica os padrões do schema (a API já devolve normalizado; as fixtures não) */
-export function normalizeFlow(raw: { nodes?: unknown[]; edges?: unknown[] }): Flow {
+/** atraso gravado só quando é número; 0 some (é o padrão) */
+const delayOf = (d: Raw) => (typeof d.delaySec === 'number' && d.delaySec > 0 ? { delaySec: d.delaySec } : {});
+
+export function normalizeFlow(raw: { nodes?: unknown[]; edges?: unknown[]; reminder?: unknown }): Flow {
   const nodes = (raw.nodes ?? []).map((x): FlowNode => {
     const n = x as Raw;
     const d = (n.data ?? {}) as Raw;
@@ -115,10 +125,15 @@ export function normalizeFlow(raw: { nodes?: unknown[]; edges?: unknown[] }): Fl
             options: ((d.options as Array<{ id: string; title: string }>) ?? []).map((o) => ({ id: o.id, title: o.title })),
             ...(typeof d.saveTo === 'string' && d.saveTo ? { saveTo: d.saveTo } : {}),
             onTyped: (d.onTyped as 'reask' | 'branch') ?? 'reask',
+            ...delayOf(d),
           },
         };
       case 'question':
-        return { ...base, type: 'question', data: { text: str(d.text), field: str(d.field), validate: (d.validate as TextValidation) ?? 'free' } };
+        return {
+          ...base,
+          type: 'question',
+          data: { text: str(d.text), field: str(d.field), validate: (d.validate as TextValidation) ?? 'free', ...delayOf(d) },
+        };
       case 'condition':
         return {
           ...base,
@@ -129,17 +144,20 @@ export function normalizeFlow(raw: { nodes?: unknown[]; edges?: unknown[] }): Fl
         const t = (d.target ?? {}) as Raw;
         const target: LinkTarget =
           t.kind === 'url' ? { kind: 'url', url: str(t.url) } : { kind: 'whatsapp', phone: str(t.phone), message: str(t.message) };
-        return { ...base, type: 'link', data: { text: str(d.text), buttonTitle: str(d.buttonTitle, 'Abrir'), target } };
+        return { ...base, type: 'link', data: { text: str(d.text), buttonTitle: str(d.buttonTitle, 'Abrir'), target, ...delayOf(d) } };
       }
       default:
-        return { ...base, type: 'end', data: { text: str(d.text) } };
+        return { ...base, type: 'end', data: { text: str(d.text), ...delayOf(d) } };
     }
   });
   const edges = (raw.edges ?? []).map((x) => {
     const e = x as FlowEdge;
     return { id: e.id, source: e.source, sourceHandle: e.sourceHandle, target: e.target };
   });
-  return { version: 2, nodes, edges };
+  const r = raw.reminder as Raw | undefined;
+  const reminder =
+    r && typeof r.afterMinutes === 'number' && typeof r.text === 'string' ? { reminder: { afterMinutes: r.afterMinutes, text: r.text } } : {};
+  return { version: 2, nodes, edges, ...reminder };
 }
 
 export function handlesOf(n: FlowNode): string[] {
@@ -257,6 +275,8 @@ export type ShapeKey =
   | 'urlInvalid'
   | 'waMessageTooLong'
   | 'tooManyNodes'
+  | 'delayInvalid'
+  | 'reminderInvalid'
   | 'triggerKeywords'
   | 'triggerReplies';
 export interface ShapeIssue {
@@ -275,13 +295,22 @@ function validHttpsUrl(u: string): boolean {
 }
 
 const validTitle = (t: string) => t.trim().length >= 1 && t.trim().length <= LIMITS.buttonTitle;
+const validDelay = (v: number) => Number.isInteger(v) && v >= 0 && v <= LIMITS.maxDelaySec;
+const validReminder = (r: FlowReminder) =>
+  Number.isInteger(r.afterMinutes) &&
+  r.afterMinutes >= LIMITS.reminderMinMinutes &&
+  r.afterMinutes <= LIMITS.reminderMaxMinutes &&
+  r.text.trim().length >= 1 &&
+  r.text.trim().length <= LIMITS.reminderText;
 
 /** o que a API recusaria com 400 (formato), para travar o Salvar e apontar no balão */
 export function shapeIssues(flow: Flow): ShapeIssue[] {
   const out: ShapeIssue[] = [];
   const add = (nodeId: string | null, key: ShapeKey) => out.push({ nodeId, key });
   if (flow.nodes.length > LIMITS.maxNodes) add(null, 'tooManyNodes');
+  if (flow.reminder && !validReminder(flow.reminder)) add(null, 'reminderInvalid');
   for (const n of flow.nodes) {
+    if ('delaySec' in n.data && n.data.delaySec !== undefined && !validDelay(n.data.delaySec)) add(n.id, 'delayInvalid');
     const text = n.type === 'condition' ? null : n.data.text;
     if (text !== null && n.type !== 'end' && !text.trim()) add(n.id, 'textRequired');
     if (text !== null && text.trim().length > LIMITS.messageText) add(n.id, 'textTooLong');
@@ -459,9 +488,13 @@ export interface SimState {
   answers: Record<string, string>;
   reasks: number;
   status: 'waiting' | 'completed' | 'abandoned' | 'failed';
-  transcript: Array<{ from: 'brand' | 'user'; msg: SimMessage }>;
+  transcript: SimEntry[];
   username: string | null;
+  /** o lembrete único já apareceu nesta simulação */
+  reminderSent?: boolean;
 }
+/** linha da conversa simulada; `typing` = espera do balão com atraso */
+export type SimEntry = { from: 'brand' | 'user'; msg: SimMessage } | { from: 'typing'; seconds: number };
 
 function drive(s: SimState, pending: boolean): SimState {
   let { nodeId, reasks } = s;
@@ -472,6 +505,8 @@ function drive(s: SimState, pending: boolean): SimState {
     if (!n) return { ...s, nodeId, reasks, transcript, status: 'abandoned' };
     if (send) {
       const m = messageFor(n, { answers: s.answers, username: s.username });
+      const delay = 'delaySec' in n.data ? (n.data.delaySec ?? 0) : 0;
+      if (m && delay > 0) transcript.push({ from: 'typing', seconds: delay });
       if (m) transcript.push({ from: 'brand', msg: m });
       send = false;
     }
@@ -531,6 +566,22 @@ export function sendSim(s: SimState, input: SimInput): SimState {
   return drive({ ...withUser, answers, nodeId: to, reasks: 0 }, true);
 }
 
+/** o lembrete pode aparecer: há lembrete, ainda não saiu e a conversa espera num balão depois da abertura */
+export function canSimulateSilence(s: SimState): boolean {
+  const n = nodeById(s.flow, s.nodeId);
+  return Boolean(s.flow.reminder && !s.reminderSent && s.status === 'waiting' && n && n.type !== 'opening' && waits(n));
+}
+
+/** espelho do motor: texto do lembrete + a pergunta em que a pessoa parou, com as mesmas opções */
+export function simulateSilence(s: SimState): SimState {
+  if (!canSimulateSilence(s)) return s;
+  const n = nodeById(s.flow, s.nodeId)!;
+  const m = messageFor(n, { answers: s.answers, username: s.username });
+  if (!m) return s;
+  const text = `${renderTemplate(s.flow.reminder!.text, s.answers, s.username)}\n\n${m.text}`;
+  return { ...s, reminderSent: true, transcript: [...s.transcript, { from: 'brand', msg: { ...m, text } }] };
+}
+
 export function simulateFlow(flow: Flow, inputs: SimInput[], opts: { username?: string | null } = {}) {
   let s = startSim(flow, opts);
   for (const i of inputs) {
@@ -538,7 +589,7 @@ export function simulateFlow(flow: Flow, inputs: SimInput[], opts: { username?: 
     s = sendSim(s, i);
   }
   return {
-    messages: s.transcript.filter((x) => x.from === 'brand').map((x) => x.msg),
+    messages: s.transcript.flatMap((x) => (x.from === 'brand' ? [x.msg] : [])),
     answers: s.answers,
     status: s.status,
     nodeId: s.nodeId,

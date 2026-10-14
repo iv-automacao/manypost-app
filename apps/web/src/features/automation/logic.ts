@@ -21,6 +21,10 @@ export const LIMITS = {
   maxNodes: 40,
   maxEdges: 120,
   conditionValue: 60,
+  maxDelaySec: 60,
+  reminderText: 300,
+  reminderMinMinutes: 5,
+  reminderMaxMinutes: 1380,
 } as const;
 
 export const STATUSES = ['DRAFT', 'TEST', 'ACTIVE', 'PAUSED'] as const;

@@ -257,7 +257,8 @@ describe('abertura em resposta rápida', () => {
     const f = quickFlow();
     expect(FlowV2Schema.safeParse(f).success).toBe(true);
     expect(validateFlow(f)).toEqual([]);
-    const first = startSim(f).transcript[0]!.msg;
+    const e0 = startSim(f).transcript[0]!;
+    const first = e0.from === 'typing' ? ({} as never) : e0.msg;
     expect(first.quick).toEqual(['Quero ver as opções']);
     expect(first.buttons).toBeUndefined();
     expect(first.text).toContain('Responda esta mensagem para continuar.');
@@ -271,6 +272,77 @@ describe('abertura em resposta rápida', () => {
     expect(tap).toBe('next');
     const s1 = sendSim(s0, { tap: tap! });
     expect(s1.nodeId).not.toBe(s0.nodeId);
-    expect(s1.transcript.find((x) => x.from === 'user')?.msg.text).toBe('Quero ver as opções');
+    const user = s1.transcript.find((x) => x.from === 'user');
+    expect(user && user.from === 'user' ? user.msg.text : null).toBe('Quero ver as opções');
+  });
+});
+
+describe('atraso e lembrete (add-flow-delay-reminder)', () => {
+  const RAW = {
+    version: 2,
+    reminder: { afterMinutes: 60, text: '{tipo}, ficou faltando pouco.' },
+    nodes: [
+      { id: 'opening', type: 'opening', position: { x: 0, y: 0 }, data: { text: 'Oi!' } },
+      { id: 'tipo', type: 'message', position: { x: 0, y: 0 }, data: { text: 'Para quem?', format: 'quick', options: [{ id: 'pf', title: 'Pra mim' }], saveTo: 'tipo', delaySec: 2 } },
+      { id: 'cidade', type: 'message', position: { x: 0, y: 0 }, data: { text: 'Em qual cidade?', format: 'quick', options: [{ id: 'mao', title: 'Manaus' }], saveTo: 'cidade' } },
+      { id: 'seguir', type: 'link', position: { x: 0, y: 0 }, data: { text: 'Segue a gente', buttonTitle: 'Seguir', target: { kind: 'url', url: 'https://x.com' }, delaySec: 5 } },
+      { id: 'fim', type: 'end', position: { x: 0, y: 0 }, data: { text: 'Valeu!' } },
+    ],
+    edges: [
+      { id: 'a', source: 'opening', sourceHandle: 'next', target: 'tipo' },
+      { id: 'b', source: 'tipo', sourceHandle: 'pf', target: 'cidade' },
+      { id: 'c', source: 'cidade', sourceHandle: 'mao', target: 'seguir' },
+      { id: 'd', source: 'seguir', sourceHandle: 'next', target: 'fim' },
+    ],
+  };
+
+  test('normalizar preserva delaySec e lembrete (salvar pelo editor não apaga)', () => {
+    const f = normalizeFlow(RAW);
+    expect(f.reminder).toEqual({ afterMinutes: 60, text: '{tipo}, ficou faltando pouco.' });
+    expect(f.nodes.find((n) => n.id === 'seguir')!.data).toMatchObject({ delaySec: 5 });
+    expect(f.nodes.find((n) => n.id === 'cidade')!.data).not.toHaveProperty('delaySec');
+    expect(FlowV2Schema.safeParse(f).success).toBe(true);
+    expect(shapeIssues(f)).toEqual([]);
+    const sem = normalizeFlow({ ...RAW, reminder: undefined });
+    expect(sem).not.toHaveProperty('reminder');
+  });
+
+  test('shapeIssues aponta atraso e lembrete fora do limite', () => {
+    const f = normalizeFlow(RAW);
+    const atraso = updateNodeData(f, 'seguir', { delaySec: 61 });
+    expect(shapeIssues(atraso)).toEqual([{ nodeId: 'seguir', key: 'delayInvalid' }]);
+    expect(shapeIssues({ ...f, reminder: { afterMinutes: 4, text: 'x' } })).toEqual([{ nodeId: null, key: 'reminderInvalid' }]);
+    expect(shapeIssues({ ...f, reminder: { afterMinutes: 60, text: ' ' } })).toEqual([{ nodeId: null, key: 'reminderInvalid' }]);
+    expect(shapeIssues({ ...f, reminder: { afterMinutes: 60, text: 'x'.repeat(301) } })).toEqual([{ nodeId: null, key: 'reminderInvalid' }]);
+  });
+
+  test('simulador mostra "digitando" antes do balão com atraso', async () => {
+    const { startSim, sendSim } = await import('./logic');
+    const s1 = sendSim(startSim(normalizeFlow(RAW)), { text: 'oi' });
+    const tail = s1.transcript.slice(-2);
+    expect(tail[0]).toEqual({ from: 'typing', seconds: 2 });
+    expect(tail[1]).toMatchObject({ from: 'brand', msg: { text: 'Para quem?' } });
+  });
+
+  test('simular silêncio mostra o lembrete com a pergunta e as opções, uma vez só', async () => {
+    const { startSim, sendSim, simulateSilence, canSimulateSilence } = await import('./logic');
+    let s = startSim(normalizeFlow(RAW));
+    expect(canSimulateSilence(s)).toBe(false); // ainda na abertura
+    s = sendSim(s, { text: 'oi' });
+    s = sendSim(s, { tap: 'pf' });
+    expect(canSimulateSilence(s)).toBe(true);
+    s = simulateSilence(s);
+    expect(s.transcript.at(-1)).toEqual({ from: 'brand', msg: { text: 'Pra mim, ficou faltando pouco.\n\nEm qual cidade?', quick: ['Manaus'] } });
+    expect(canSimulateSilence(s)).toBe(false);
+    s = sendSim(s, { tap: 'mao' });
+    expect(s.status).toBe('completed');
+    expect(s.transcript.slice(-3).map((x) => (x.from === 'typing' ? `⏱${x.seconds}` : x.msg.text))).toEqual(['⏱5', 'Segue a gente', 'Valeu!']);
+  });
+
+  test('sem lembrete configurado não há silêncio para simular', async () => {
+    const { startSim, sendSim, canSimulateSilence } = await import('./logic');
+    let s = startSim(normalizeFlow({ ...RAW, reminder: undefined }));
+    s = sendSim(s, { text: 'oi' });
+    expect(canSimulateSilence(s)).toBe(false);
   });
 });

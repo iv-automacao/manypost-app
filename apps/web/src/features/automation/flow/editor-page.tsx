@@ -48,7 +48,7 @@ function docFromApi(a: ApiAutomation, texts: NodeTexts): EditorDoc {
   const t0 = a.triggers[0];
   return {
     name: a.name,
-    flow: a.flow ? normalizeFlow(a.flow as { nodes?: unknown[]; edges?: unknown[] }) : emptyFlow(texts),
+    flow: a.flow ? normalizeFlow(a.flow as { nodes?: unknown[]; edges?: unknown[]; reminder?: unknown }) : emptyFlow(texts),
     trigger: t0
       ? { mediaIds: t0.config.mediaIds ?? [], keywords: t0.config.keywords ?? [], publicReplies: t0.config.publicReplies ?? [] }
       : defaultTrigger(),
@@ -233,6 +233,10 @@ function EditorShell({
         onSave={save}
         onSimulate={() => setSim((s) => ({ startAt: null, n: (s?.n ?? 0) + 1 }))}
         onFocus={(nodeId) => setFocus((f) => ({ id: nodeId, n: (f?.n ?? 0) + 1 }))}
+        onReminder={(reminder, opts) => {
+          const { reminder: _old, ...rest } = doc.flow;
+          history.set({ ...doc, flow: reminder ? { ...rest, reminder } : rest }, opts);
+        }}
         readOnly={readOnly}
       />
       {storedInvalid ? (

@@ -1,12 +1,12 @@
 'use client';
 
-import { ExternalLink, RotateCcw, X } from 'lucide-react';
+import { BellRing, ExternalLink, RotateCcw, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { sendSim, startSim, tapForTitle, type Flow, type SimState } from './logic';
+import { canSimulateSilence, sendSim, simulateSilence, startSim, tapForTitle, type Flow, type SimState } from './logic';
 
 /**
  * Simulação local (design D8): roda o mesmo passo do motor sobre o fluxo em edição, sem chamar a API
@@ -47,47 +47,59 @@ export function Simulator({ flow, startAt, onClose }: { flow: Flow; startAt: str
         <p className="text-meta text-graphite">{t('sim.nothingSent')}</p>
         {startNode ? <p className="text-meta text-graphite">{t('sim.fromNode', { node: t(`node.${startNode.type}`) })}</p> : null}
         <ol className="flex flex-col gap-2">
-          {state.transcript.map((x, i) => (
-            <li key={i} className={cn('flex max-w-[85%] flex-col gap-1', x.from === 'user' ? 'items-end self-end' : 'self-start')}>
-              <span className={cn('whitespace-pre-line rounded-card px-3 py-2 text-compact text-ink', x.from === 'user' ? 'bg-accent-tint' : 'bg-surface-2')}>
-                {x.msg.text}
-              </span>
-              {x.msg.buttons?.map((b, j) =>
-                x.msg.urls?.[j] ? (
-                  <a key={j} href={x.msg.urls[j]} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1 rounded-compact border border-line px-3 py-1.5 text-meta font-medium text-accent">
-                    {b}
-                    <ExternalLink className="size-3" aria-hidden />
-                  </a>
-                ) : (
-                  <button
-                    key={j}
-                    type="button"
-                    disabled={x !== lastBrand || state.status !== 'waiting'}
-                    onClick={() => tap(b)}
-                    className="cursor-pointer rounded-compact border border-line bg-surface px-3 py-1.5 text-meta font-medium text-accent transition-colors duration-200 hover:bg-accent-tint disabled:cursor-default disabled:opacity-60"
-                  >
-                    {b}
-                  </button>
-                ),
-              )}
-              {x.msg.quick?.length ? (
-                <span className="flex flex-wrap gap-1">
-                  {x.msg.quick.map((q, j) => (
+          {state.transcript.map((x, i) =>
+            x.from === 'typing' ? (
+              <li key={i} className="self-start text-meta text-graphite">
+                {t('sim.typing', { seconds: x.seconds })}
+              </li>
+            ) : (
+              <li key={i} className={cn('flex max-w-[85%] flex-col gap-1', x.from === 'user' ? 'items-end self-end' : 'self-start')}>
+                <span className={cn('whitespace-pre-line rounded-card px-3 py-2 text-compact text-ink', x.from === 'user' ? 'bg-accent-tint' : 'bg-surface-2')}>
+                  {x.msg.text}
+                </span>
+                {x.msg.buttons?.map((b, j) =>
+                  x.msg.urls?.[j] ? (
+                    <a key={j} href={x.msg.urls[j]} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1 rounded-compact border border-line px-3 py-1.5 text-meta font-medium text-accent">
+                      {b}
+                      <ExternalLink className="size-3" aria-hidden />
+                    </a>
+                  ) : (
                     <button
                       key={j}
                       type="button"
                       disabled={x !== lastBrand || state.status !== 'waiting'}
-                      onClick={() => tap(q)}
-                      className="cursor-pointer rounded-compact border border-line-strong px-2.5 py-1 text-meta text-ink transition-colors duration-200 hover:bg-surface-2 disabled:cursor-default disabled:opacity-60"
+                      onClick={() => tap(b)}
+                      className="cursor-pointer rounded-compact border border-line bg-surface px-3 py-1.5 text-meta font-medium text-accent transition-colors duration-200 hover:bg-accent-tint disabled:cursor-default disabled:opacity-60"
                     >
-                      {q}
+                      {b}
                     </button>
-                  ))}
-                </span>
-              ) : null}
-            </li>
-          ))}
+                  ),
+                )}
+                {x.msg.quick?.length ? (
+                  <span className="flex flex-wrap gap-1">
+                    {x.msg.quick.map((q, j) => (
+                      <button
+                        key={j}
+                        type="button"
+                        disabled={x !== lastBrand || state.status !== 'waiting'}
+                        onClick={() => tap(q)}
+                        className="cursor-pointer rounded-compact border border-line-strong px-2.5 py-1 text-meta text-ink transition-colors duration-200 hover:bg-surface-2 disabled:cursor-default disabled:opacity-60"
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </span>
+                ) : null}
+              </li>
+            ),
+          )}
         </ol>
+        {canSimulateSilence(state) ? (
+          <Button variant="outline" size="sm" className="self-start" onClick={() => setState((s) => simulateSilence(s))}>
+            <BellRing aria-hidden />
+            {t('sim.silence')}
+          </Button>
+        ) : null}
         {state.status !== 'waiting' ? (
           <p className={cn('text-meta', state.status === 'completed' ? 'text-state-published' : 'text-state-failed')}>{t(`sim.${state.status}`)}</p>
         ) : null}

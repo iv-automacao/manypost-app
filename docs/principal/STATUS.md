@@ -10,6 +10,11 @@
 > **Como manter:** ao fechar uma fatia, atualize as seções abaixo **e** abra uma entrada nova no
 > topo do changelog. Este arquivo é sobre o presente; o changelog é sobre o passado.
 >
+> **Atualização — atraso por balão e lembrete (2026-10-14, onda 48):** cada balão pode esperar 0 a
+> 60 s com "digitando…" antes de sair (job na fila), e o fluxo pode ter um lembrete único para quem
+> parou numa pergunta, dentro de 23 h. E2E local verde. Falta o deploy. Mudança
+> `openspec/changes/add-flow-delay-reminder`.
+>
 > **Atualização — abertura com resposta rápida (2026-10-13, onda 47):** a abertura da automação
 > aceita o modo `quick` (texto + dica + uma resposta rápida). Falta o deploy e o teste em produção
 > com conta que não segue. Mudança `openspec/changes/add-opening-quick-reply`.

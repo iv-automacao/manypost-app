@@ -33,6 +33,13 @@ export const AUTOMATION_LIMITS = {
   maxNodes: 40,
   maxEdges: 120,
   conditionValue: 60,
+  /** espera antes de enviar um balão (segundos) */
+  maxDelaySec: 60,
+  /** texto do lembrete; vai junto do texto do balão (até 600) numa mensagem só (teto 1000 do direct) */
+  reminderText: 300,
+  reminderMinMinutes: 5,
+  /** 23 h: o lembrete precisa sair dentro da janela de 24 h da Meta */
+  reminderMaxMinutes: 1380,
 } as const;
 
 const L = AUTOMATION_LIMITS;
@@ -128,6 +135,8 @@ export interface DirectTransport {
   readonly id: string;
   privateReply(mediaId: string, commentId: string, msg: DirectMessage): Promise<{ messageId: string | null }>;
   sendMessage(conversationId: string, msg: DirectMessage, idempotencyKey: string): Promise<{ messageId: string | null }>;
+  /** "digitando…" na conversa; best-effort (pode não aparecer) */
+  typing?(conversationId: string): Promise<void>;
 }
 
 /** detalhe extra de uma falha de resposta privada */

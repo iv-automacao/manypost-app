@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { AesGcmCryptoService } from '@manypost/core';
 import { channels, createDb, makeAutomationRepository, makeWebhookRepository, organizations } from '@manypost/db';
+import postgres from 'postgres';
 
 /**
  * E2E da automação comentário → direct (openspec add-comment-automation), sem rede externa.
@@ -9,7 +10,8 @@ import { channels, createDb, makeAutomationRepository, makeWebhookRepository, or
  * de desenvolvimento, inicia a API de verdade (MODE=all: rota pública, pg-boss, motor) apontada para
  * a Zernio falsa e conduz o fluxo inteiro: comentário → resposta pública + privada → botão → opção →
  * telefone → fim com WhatsApp → `lead.captured` assinado. Também prova que a reentrega do mesmo
- * evento não envia nada de novo e que assinatura errada é recusada.
+ * evento não envia nada de novo e que assinatura errada é recusada. O fluxo v3 prova o atraso por
+ * balão (job na fila, "digitando…") e o lembrete único (job antecipado direto no pg-boss).
  *
  *   DATABASE_URL=… REDIS_URL=… bun run scripts/e2e-automation.ts
  */
@@ -141,6 +143,27 @@ const automationV2 = await makeAutomationRepository(db).create({
   },
   triggers: [{ kind: 'comment', config: { mediaIds: [], keywords: ['empresarial'], publicReplies: [] }, position: null }],
 });
+// fluxo v3 (add-flow-delay-reminder): lembrete em 5 min e balões com atraso depois da cidade
+const automationV3 = await makeAutomationRepository(db).create({
+  orgId,
+  channelId: channel!.id,
+  name: 'E2E atraso',
+  status: 'ACTIVE',
+  testUsernames: [],
+  createdBy: null,
+  config: {
+    version: 2,
+    reminder: { afterMinutes: 5, text: 'Ficou faltando pouco.' },
+    nodes: [
+      { id: 'opening', type: 'opening', position: P, data: { text: 'Oi!', mode: 'quick', buttonTitle: 'Quero ver', disclosure: false } },
+      { id: 'cidade', type: 'message', position: P, data: { text: 'Em qual cidade?', format: 'quick', options: [{ id: 'mao', title: 'Manaus' }], saveTo: 'cidade', onTyped: 'reask' } },
+      { id: 'wa', type: 'link', position: P, data: { text: 'Fale com a gente', buttonTitle: 'WhatsApp', target: { kind: 'whatsapp', phone: '5592999990000', message: '' }, delaySec: 2 } },
+      { id: 'fim', type: 'end', position: P, data: { text: 'Valeu!', delaySec: 1 } },
+    ],
+    edges: [ed('opening', 'next', 'cidade'), ed('cidade', 'mao', 'wa'), ed('wa', 'next', 'fim')],
+  },
+  triggers: [{ kind: 'comment', config: { mediaIds: [], keywords: ['atraso'], publicReplies: [] }, position: null }],
+});
 await makeWebhookRepository(db).create({
   orgId,
   name: 'e2e',
@@ -255,7 +278,12 @@ try {
     JSON.stringify(done.answers) === JSON.stringify({ plano: 'Vida', whatsapp: '92988887777' }),
     'respostas gravadas',
   );
-  const hook = await until(() => hooks.find((h) => h.event === 'lead.captured'), 'webhook lead.captured', 30_000);
+  // pelo runId: num banco reaproveitado chegam entregas atrasadas de execuções anteriores do script
+  const hook = await until(
+    () => hooks.find((h) => h.event === 'lead.captured' && (h.body.data as { runId?: string })?.runId === run.id),
+    'webhook lead.captured',
+    30_000,
+  );
   check(hook.signature?.startsWith('t=') && hook.signature.includes(',v1='), 'lead.captured assinado');
   check((hook.body.data as { runId?: string })?.runId === run.id, 'lead.captured com o runId');
 
@@ -289,6 +317,58 @@ try {
   const ans2 = done2.answers as Record<string, string>;
   check(Object.keys(ans2).length === 2 && ans2.tipo === 'Minha empresa' && ans2.nome === 'Ana', 'respostas v2 gravadas');
   await until(() => hooks.find((h) => (h.body.data as { runId?: string })?.runId === run2.id), 'lead.captured v2', 30_000);
+
+  console.log('fluxo v3 (atraso e lembrete)');
+  const pg = postgres(process.env.DATABASE_URL ?? '', { max: 1 });
+  try {
+    const message3 = (over: Record<string, unknown>, metadata: Record<string, unknown> = {}) => ({
+      message: { conversationId: 'conv-e2e-3', platform: 'instagram', direction: 'incoming', text: '', sender: { id: 'igsid-e2e-3', username: 'atraso.e2e' }, ...over },
+      conversation: { id: 'conv-e2e-3', participantId: 'igsid-e2e-3' },
+      metadata,
+    });
+    const sends3 = () => calls.filter((c) => c.path === '/api/v1/inbox/conversations/conv-e2e-3/messages');
+    await send('comment.received', {
+      comment: { id: 'c-e2e-3', platformPostId: '1803', platform: 'instagram', text: 'quero ATRASO', author: { id: 'igsid-e2e-3', username: 'atraso.e2e', isOwnAccount: false }, isReply: false, parentCommentId: null },
+    });
+    const pr3 = await until(() => calls.find((c) => c.path.endsWith('/c-e2e-3/private-reply')), 'resposta privada v3');
+    check((pr3.body.quickReplies as Array<{ title: string }>)?.[0]?.title === 'Quero ver' && !pr3.body.buttons, 'abertura com resposta rápida');
+    const run3 = await until(() => db.query.automationRuns.findFirst({ where: (r, { eq }) => eq(r.automationId, automationV3.id) }), 'execução v3');
+    await send('message.received', message3({ text: 'Quero ver' }, { quickReplyPayload: `mp2:${run3.id}:opening:next` }));
+    const cidade = await until(() => sends3()[0], 'pergunta da cidade');
+    check(cidade.body.message === 'Em qual cidade?', 'pergunta da cidade enviada');
+
+    // lembrete: o job fica na fila para daqui a 5 min; antecipa direto no pg-boss
+    const job = await until(async () => {
+      const rows = await pg`SELECT id, start_after FROM pgboss.job WHERE name = 'automation-event' AND data->>'timer' = 'reminder' AND data->>'runId' = ${run3.id} AND state = 'created'`;
+      return rows[0];
+    }, 'job do lembrete');
+    const mins = (new Date(job.start_after as string).getTime() - Date.now()) / 60_000;
+    check(mins > 4 && mins <= 5.1, 'lembrete agendado para ~5 min depois da resposta');
+    // simula os 5 min: a última mensagem da pessoa "fica" 5 min no passado e o job vence agora
+    await pg`UPDATE automation_runs SET last_inbound_at = now() - interval '5 minutes' WHERE id = ${run3.id}`;
+    await pg`UPDATE pgboss.job SET start_after = now() WHERE id = ${job.id as string}`;
+    const rem = await until(() => sends3().find((c) => c.idem === `${run3.id}:rem1`), 'lembrete enviado', 30_000);
+    check(rem.body.message === 'Ficou faltando pouco.' && !rem.body.quickReplies, 'lembrete com o texto sozinho');
+    const remQ = await until(() => sends3().find((c) => c.idem === `${run3.id}:rem1:q`), 'pergunta repetida');
+    check(remQ.body.message === 'Em qual cidade?' && (remQ.body.quickReplies as Array<{ title: string }>)?.[0]?.title === 'Manaus', 'pergunta repetida com as opções');
+
+    // atraso: o link do WhatsApp sai ~2 s depois da resposta, com "digitando…" antes
+    const t0 = Date.now();
+    await send('message.received', message3({ text: 'Manaus' }, { quickReplyPayload: `mp2:${run3.id}:cidade:mao` }));
+    await until(() => calls.find((c) => c.path === '/api/v1/inbox/conversations/conv-e2e-3/typing'), 'digitando');
+    await sleep(800);
+    check(!sends3().some((c) => c.body.message === 'Fale com a gente'), 'link ainda não saiu durante a espera');
+    const wa = await until(() => sends3().find((c) => c.body.message === 'Fale com a gente'), 'link depois da espera', 30_000);
+    check(Date.now() - t0 >= 2000 && wa.idem === `${run3.id}:c2:0`, 'link saiu depois de 2 s com a chave do nó');
+    const done3 = await until(async () => {
+      const r = await db.query.automationRuns.findFirst({ where: (x, { eq }) => eq(x.automationId, automationV3.id) });
+      return r?.status === 'COMPLETED' && r.leadEmittedAt ? r : null;
+    }, 'execução v3 completa', 30_000);
+    check(sends3().filter((c) => c.body.message === 'Valeu!').length === 1 && done3.reminderSentAt !== null, 'fim enviado uma vez e lembrete registrado');
+    check(sends3().filter((c) => c.body.message === 'Fale com a gente').length === 1, 'link enviado uma vez');
+  } finally {
+    await pg.end();
+  }
 } catch (e) {
   failures++;
   console.error(`  FALHOU: ${(e as Error).message}`);

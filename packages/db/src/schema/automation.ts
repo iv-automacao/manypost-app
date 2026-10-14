@@ -87,6 +87,12 @@ export const automationRuns = pgTable(
     finishSentAt: timestamp('finish_sent_at', { withTimezone: true }),
     lastError: text('last_error'),
     lastInteractionAt: timestamp('last_interaction_at', { withTimezone: true }).notNull().defaultNow(),
+    /** hora marcada do envio atrasado do nó atual; null = nenhum atraso pendente */
+    resumeAt: timestamp('resume_at', { withTimezone: true }),
+    /** última mensagem da pessoa (janela de 24 h da Meta para o lembrete) */
+    lastInboundAt: timestamp('last_inbound_at', { withTimezone: true }),
+    /** o lembrete desta execução já saiu (no máximo um) */
+    reminderSentAt: timestamp('reminder_sent_at', { withTimezone: true }),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     leadEmittedAt: timestamp('lead_emitted_at', { withTimezone: true }),
     ...timestamps,

@@ -11,6 +11,7 @@ import {
   MessageSquareText,
   Plus,
   TextCursorInput,
+  Timer,
   Trash2,
   X,
   Zap,
@@ -112,6 +113,7 @@ function NodeShell({
   icon: Icon,
   title,
   settings,
+  delaySec,
   fixed = false,
   target = true,
   children,
@@ -121,6 +123,8 @@ function NodeShell({
   icon: LucideIcon;
   title: string;
   settings?: ReactNode;
+  /** espera antes de enviar (selo no cabeçalho) */
+  delaySec?: number;
   /** abertura e gatilho: sem duplicar/excluir */
   fixed?: boolean;
   target?: boolean;
@@ -150,6 +154,12 @@ function NodeShell({
         <span className="flex items-center gap-2 text-meta font-medium text-graphite">
           <Icon className="size-3.5 text-accent" aria-hidden />
           {title}
+          {delaySec ? (
+            <span className="flex items-center gap-1 rounded-compact bg-surface-2 px-1.5 py-0.5 text-meta font-normal text-graphite" title={t('delayBadgeHint')}>
+              <Timer className="size-3" aria-hidden />
+              {t('delayBadge', { seconds: delaySec })}
+            </span>
+          ) : null}
         </span>
         {settings}
       </header>
@@ -211,7 +221,7 @@ function MessageView({ id, data, selected }: P<'message'>) {
   const n = data.node;
   const max = n.data.format === 'buttons' ? LIMITS.maxButtons : LIMITS.maxOptions;
   return (
-    <NodeShell id={id} selected={selected} icon={MessageSquare} title={t('node.message')} settings={<NodeSettings node={n} />}>
+    <NodeShell id={id} selected={selected} icon={MessageSquare} title={t('node.message')} delaySec={n.data.delaySec} settings={<NodeSettings node={n} />}>
       <InlineText nodeId={id} value={n.data.text} placeholder={t('placeholder.text')} />
       {n.data.format === 'none' ? (
         <OutputRow handleId="next" label={t('output.next')} />
@@ -262,7 +272,7 @@ function QuestionView({ id, data, selected }: P<'question'>) {
   const t = useTranslations('automation.flow');
   const n = data.node;
   return (
-    <NodeShell id={id} selected={selected} icon={TextCursorInput} title={t('node.question')} settings={<NodeSettings node={n} />}>
+    <NodeShell id={id} selected={selected} icon={TextCursorInput} title={t('node.question')} delaySec={n.data.delaySec} settings={<NodeSettings node={n} />}>
       <InlineText nodeId={id} value={n.data.text} placeholder={t('placeholder.text')} />
       <p className="text-meta text-graphite">
         {t('savesTo', { field: n.data.field })} · {t(`settingsPanel.validation.${n.data.validate}`)}
@@ -325,7 +335,7 @@ function LinkView({ id, data, selected }: P<'link'>) {
   const target = n.data.target;
   const setTarget = (next: NodeOf<'link'>['data']['target'], merge = false) => a.update(id, { target: next }, { merge });
   return (
-    <NodeShell id={id} selected={selected} icon={Link2} title={t('node.link')}>
+    <NodeShell id={id} selected={selected} icon={Link2} title={t('node.link')} delaySec={n.data.delaySec} settings={<NodeSettings node={n} />}>
       <InlineText nodeId={id} value={n.data.text} placeholder={t('placeholder.text')} />
       {!a.readOnly ? (
         <div className="nodrag flex gap-1">
@@ -370,7 +380,7 @@ function EndView({ id, data, selected }: P<'end'>) {
   const t = useTranslations('automation.flow');
   const n = data.node;
   return (
-    <NodeShell id={id} selected={selected} icon={Flag} title={t('node.end')}>
+    <NodeShell id={id} selected={selected} icon={Flag} title={t('node.end')} delaySec={n.data.delaySec} settings={<NodeSettings node={n} />}>
       <InlineText nodeId={id} value={n.data.text} placeholder={t('placeholder.endText')} />
       <p className="text-meta text-graphite">{t('endHint')}</p>
     </NodeShell>

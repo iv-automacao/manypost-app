@@ -24,7 +24,8 @@ import { cn } from '@/lib/utils';
 import { useDeleteAutomation, useSetAutomationStatus } from '../hooks';
 import { LIMITS, type Status, statusVariant } from '../logic';
 import { saveBlockedByErrors } from './canvas-logic';
-import type { Flow, Problem, ShapeIssue } from './logic';
+import type { Flow, FlowReminder, Problem, ShapeIssue } from './logic';
+import { ReminderButton } from './reminder-button';
 
 export function TopBar({
   id,
@@ -44,6 +45,8 @@ export function TopBar({
   onSave,
   onSimulate,
   onFocus,
+  onReminder,
+  onSeal,
   readOnly,
 }: {
   id: string | undefined;
@@ -63,6 +66,8 @@ export function TopBar({
   onSave: () => void;
   onSimulate: () => void;
   onFocus: (nodeId: string) => void;
+  onReminder: (next: FlowReminder | undefined, opts?: { merge?: boolean }) => void;
+  onSeal: () => void;
   readOnly: boolean;
 }) {
   const t = useTranslations('automation');
@@ -139,6 +144,7 @@ export function TopBar({
             </Button>
           </>
         ) : null}
+        <ReminderButton reminder={flow.reminder} onChange={onReminder} onSeal={onSeal} readOnly={readOnly} />
         <Button variant="outline" size="sm" onClick={onSimulate}>
           {tf('simulate')}
         </Button>

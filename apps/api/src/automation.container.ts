@@ -6,6 +6,7 @@ import {
   makeAutomations,
   type AuditLogRepository,
   type AutomationGateway,
+  type AutomationTimerJob,
   type ChannelRepository,
 } from '@manypost/core';
 import { makeAutomationRepository, type Db } from '@manypost/db';
@@ -71,8 +72,10 @@ export async function buildAutomation(
   });
   await runtime.registerQueue(
     AUTOMATION_EVENT_QUEUE,
-    async (d: { inboundEventId: string }) => {
-      await engine.process(d.inboundEventId);
+    // eventos da ponte e jobs de tempo (atraso/lembrete) dividem a fila serial
+    async (d: { inboundEventId: string } | AutomationTimerJob) => {
+      if ('timer' in d) await engine.processTimer(d);
+      else await engine.process(d.inboundEventId);
     },
     { workers: 1, expireInSeconds: 300 },
   );

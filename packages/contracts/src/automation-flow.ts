@@ -17,6 +17,8 @@ export const FLOW_ID_RE = /^[a-z0-9_-]{1,24}$/;
 const flowId = z.string().regex(FLOW_ID_RE, 'id: minúsculas, números, _ e -');
 const coord = z.number().finite().min(-100_000).max(100_000);
 const Position = z.object({ x: coord, y: coord });
+/** segundos de espera (com "digitando…") antes de enviar o balão; ausente = 0 */
+const delaySec = z.number().int().min(0).max(L.maxDelaySec).optional();
 
 export const FlowNodeTypes = ['opening', 'message', 'question', 'condition', 'link', 'end'] as const;
 export type FlowNodeType = (typeof FlowNodeTypes)[number];
@@ -68,6 +70,7 @@ const MessageNode = z.object({
       saveTo: field.optional(),
       /** texto que não bate com nenhuma opção: perguntar de novo (`reask`) ou sair por `typed` (`branch`) */
       onTyped: z.enum(FlowOnTypedModes).default('reask'),
+      delaySec,
     })
     .superRefine((d, ctx) => {
       const n = d.options.length;
@@ -89,7 +92,7 @@ const QuestionNode = z.object({
   id: flowId,
   type: z.literal('question'),
   position: Position,
-  data: z.object({ text: text(L.messageText), field, validate: z.enum(AutomationTextValidations) }),
+  data: z.object({ text: text(L.messageText), field, validate: z.enum(AutomationTextValidations), delaySec }),
 });
 
 const ConditionNode = z.object({
@@ -132,6 +135,7 @@ const LinkNode = z.object({
           .refine((u) => u.startsWith('https://'), 'só links https'),
       }),
     ]),
+    delaySec,
   }),
 });
 
@@ -139,7 +143,7 @@ const EndNode = z.object({
   id: flowId,
   type: z.literal('end'),
   position: Position,
-  data: z.object({ text: z.string().trim().max(L.messageText).default('') }),
+  data: z.object({ text: z.string().trim().max(L.messageText).default(''), delaySec }),
 });
 
 export const FlowNodeSchema = z.discriminatedUnion('type', [
@@ -177,11 +181,20 @@ function handlesOf(n: FlowNode): string[] {
   }
 }
 
+export const FlowReminderSchema = z.object({
+  afterMinutes: z.number().int().min(L.reminderMinMinutes).max(L.reminderMaxMinutes),
+  /** aceita {campo}; vai antes do texto do balão em que a pessoa parou */
+  text: text(L.reminderText),
+});
+export type FlowReminder = z.infer<typeof FlowReminderSchema>;
+
 export const FlowV2Schema = z
   .object({
     version: z.literal(2),
     nodes: z.array(FlowNodeSchema).min(1).max(L.maxNodes),
     edges: z.array(FlowEdgeSchema).max(L.maxEdges).default([]),
+    /** lembrete único para quem parou de responder (ausente = desligado) */
+    reminder: FlowReminderSchema.optional(),
   })
   .superRefine((f, ctx) => {
     const byId = new Map<string, FlowNode>();

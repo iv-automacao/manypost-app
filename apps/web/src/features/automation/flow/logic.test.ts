@@ -332,7 +332,10 @@ describe('atraso e lembrete (add-flow-delay-reminder)', () => {
     s = sendSim(s, { tap: 'pf' });
     expect(canSimulateSilence(s)).toBe(true);
     s = simulateSilence(s);
-    expect(s.transcript.at(-1)).toEqual({ from: 'brand', msg: { text: 'Pra mim, ficou faltando pouco.\n\nEm qual cidade?', quick: ['Manaus'] } });
+    expect(s.transcript.slice(-2)).toEqual([
+      { from: 'brand', msg: { text: 'Pra mim, ficou faltando pouco.' } },
+      { from: 'brand', msg: { text: 'Em qual cidade?', quick: ['Manaus'] } },
+    ]);
     expect(canSimulateSilence(s)).toBe(false);
     s = sendSim(s, { tap: 'mao' });
     expect(s.status).toBe('completed');

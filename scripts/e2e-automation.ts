@@ -278,7 +278,12 @@ try {
     JSON.stringify(done.answers) === JSON.stringify({ plano: 'Vida', whatsapp: '92988887777' }),
     'respostas gravadas',
   );
-  const hook = await until(() => hooks.find((h) => h.event === 'lead.captured'), 'webhook lead.captured', 30_000);
+  // pelo runId: num banco reaproveitado chegam entregas atrasadas de execuções anteriores do script
+  const hook = await until(
+    () => hooks.find((h) => h.event === 'lead.captured' && (h.body.data as { runId?: string })?.runId === run.id),
+    'webhook lead.captured',
+    30_000,
+  );
   check(hook.signature?.startsWith('t=') && hook.signature.includes(',v1='), 'lead.captured assinado');
   check((hook.body.data as { runId?: string })?.runId === run.id, 'lead.captured com o runId');
 
@@ -343,8 +348,9 @@ try {
     await pg`UPDATE automation_runs SET last_inbound_at = now() - interval '5 minutes' WHERE id = ${run3.id}`;
     await pg`UPDATE pgboss.job SET start_after = now() WHERE id = ${job.id as string}`;
     const rem = await until(() => sends3().find((c) => c.idem === `${run3.id}:rem1`), 'lembrete enviado', 30_000);
-    check(rem.body.message === 'Ficou faltando pouco.\n\nEm qual cidade?', 'lembrete com o texto e a pergunta');
-    check((rem.body.quickReplies as Array<{ title: string }>)?.[0]?.title === 'Manaus', 'lembrete com as opções da pergunta');
+    check(rem.body.message === 'Ficou faltando pouco.' && !rem.body.quickReplies, 'lembrete com o texto sozinho');
+    const remQ = await until(() => sends3().find((c) => c.idem === `${run3.id}:rem1:q`), 'pergunta repetida');
+    check(remQ.body.message === 'Em qual cidade?' && (remQ.body.quickReplies as Array<{ title: string }>)?.[0]?.title === 'Manaus', 'pergunta repetida com as opções');
 
     // atraso: o link do WhatsApp sai ~2 s depois da resposta, com "digitando…" antes
     const t0 = Date.now();

@@ -37,8 +37,8 @@ no meio; tudo configurado no editor do fluxo e visível no simulador.
 - **Por que no fluxo:** o lembrete é uma configuração do fluxo (não de um balão) e fica junto do
   grafo para seguir o mesmo ciclo de salvar, validar e Teste/Ativa. Um lembrete por balão foi
   descartado: complica o editor e o pedido é "um lembrete".
-- **Texto do lembrete:** até 300 caracteres. Ele vai junto do texto do balão (até 600) numa só
-  mensagem, abaixo do teto de 1000 caracteres do direct do Instagram.
+- **Texto do lembrete:** até 300 caracteres, enviado numa mensagem própria, antes da pergunta. Junto
+  do texto do balão estouraria o teto de 640 caracteres das mensagens com botões (revisão final).
 - **Typing:** `DirectTransport` ganha `typing?(conversationId: string): Promise<void>`, opcional,
   para transportes sem suporte.
 
@@ -55,7 +55,9 @@ Migration `0014_flow-delay-reminder.sql`, só acrescenta colunas que aceitam nul
 - **Payload:** `{ timer: 'resume' | 'reminder', runId, cursor, accountRef }`, na fila
   `automation-event`, com `startAfter`. Ficar na mesma fila mantém tudo serial, então um job de
   tempo nunca corre em paralelo com um evento da mesma conversa.
-- **Deduplicação:** `singletonKey = <runId>:<timer>:<cursor>`.
+- **Deduplicação:** não há. Na política padrão do pg-boss v10, a `singletonKey` sozinha não
+  deduplica. Jobs repetidos são inofensivos: cada um confere `cursor`, `sentCursor` e
+  `reminder_sent_at` na fila serial.
 - **Transporte:** `accountRef` vai no payload porque o `gateway.resolve(accountRef)` é quem monta o
   transporte. Guardar na execução exigiria outra coluna sem ganho.
 - **Despacho:** `process` passa a aceitar os dois formatos. O handler da fila na API repassa o
@@ -89,10 +91,12 @@ não está pausada nem em rascunho. Depois chama `drive`. Uma retentativa após 
   - a automação não está pausada nem em rascunho e o fluxo ainda tem `reminder`;
   - o nó existe, espera resposta e não é a abertura;
   - `agora <= last_inbound_at + 23 h 30 min`.
-- **Mensagem:** uma só, com `renderTemplate(reminder.text) + "\n\n" + messageFor(nó).text` e as
-  mesmas opções do nó.
-- **Idempotência:** a chave é `<runId>:rem<cursor>`. Depois de confirmar o envio, grava
-  `reminder_sent_at`. Uma retentativa repete a mesma chave e a Zernio deduplica.
+- **Mensagens:** duas. Primeiro `renderTemplate(reminder.text)` sozinho (chave `<runId>:rem<cursor>`),
+  depois `messageFor(nó)` com as opções (chave `<runId>:rem<cursor>:q`). Depois de confirmar as
+  duas, grava `reminder_sent_at`. Uma retentativa repete as mesmas chaves e a Zernio deduplica.
+- **Job antes da hora:** é o caso de uma resposta mais nova, um toque antigo, o tempo editado ou o
+  relógio adiantado. O job reagenda para a hora certa em vez de sumir.
+- **Ponte fora do ar:** se `gateway.resolve` falhar, o job lança e a fila tenta de novo.
 - **Resposta depois do lembrete:** é tratada como qualquer resposta ao nó atual. `reasks` não muda.
 - **Cancelamento:** não existe cancelamento explícito. Se a pessoa responde, o `cursor` avança ou o
   `sentCursor` volta por re-pergunta, e o job encontra o estado mudado e não faz nada.

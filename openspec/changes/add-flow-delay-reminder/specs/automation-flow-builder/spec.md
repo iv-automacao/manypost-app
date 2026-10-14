@@ -34,16 +34,17 @@ the engine SHALL schedule one reminder at the participant's last message time pl
 never later than 23 hours after it. When the reminder job runs and the run is still open on the same
 cursor with that node sent, no reminder was sent yet, the automation is not paused or draft, the flow
 still has a reminder and the last participant message is at most 23 hours and 30 minutes old, the
-engine SHALL send one message with the rendered reminder text followed by the node's text and the
-node's options, with an idempotency key derived from the run and cursor, and record that the
-reminder was sent. A run MUST receive at most one reminder, and a run that is still waiting on the
+engine SHALL send the rendered reminder text as a plain message and then the node's message again
+with its options, each with an idempotency key derived from the run and cursor, and record that the
+reminder was sent. A reminder job that runs before the due time SHALL be rescheduled for it, and a
+timer job that cannot reach the bridge SHALL fail so the queue retries it. A run MUST receive at most one reminder, and a run that is still waiting on the
 opening MUST NOT receive any.
 
 #### Scenario: Participant stops at the city question
 - **GIVEN** a flow with a reminder after 60 minutes and a run waiting on "Em qual cidade?" after the
   participant's last answer
 - **WHEN** 60 minutes pass without a new message
-- **THEN** the participant receives the reminder text followed by "Em qual cidade?" with its quick
+- **THEN** the participant receives the reminder text and then "Em qual cidade?" with its quick
   replies, and a tap on "Manaus" continues the flow
 
 #### Scenario: Participant answers before the reminder
@@ -72,5 +73,5 @@ message.
 #### Scenario: Simulating silence
 - **GIVEN** a flow with a reminder and the simulator waiting on the city question
 - **WHEN** the member clicks "Simular silêncio"
-- **THEN** the transcript shows the reminder text followed by the city question with its options, and
+- **THEN** the transcript shows the reminder text and then the city question with its options, and
   the button disappears

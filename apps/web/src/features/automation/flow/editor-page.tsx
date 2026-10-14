@@ -237,6 +237,7 @@ function EditorShell({
           const { reminder: _old, ...rest } = doc.flow;
           history.set({ ...doc, flow: reminder ? { ...rest, reminder } : rest }, opts);
         }}
+        onSeal={history.seal}
         readOnly={readOnly}
       />
       {storedInvalid ? (

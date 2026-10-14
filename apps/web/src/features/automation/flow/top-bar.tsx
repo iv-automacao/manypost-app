@@ -46,6 +46,7 @@ export function TopBar({
   onSimulate,
   onFocus,
   onReminder,
+  onSeal,
   readOnly,
 }: {
   id: string | undefined;
@@ -66,6 +67,7 @@ export function TopBar({
   onSimulate: () => void;
   onFocus: (nodeId: string) => void;
   onReminder: (next: FlowReminder | undefined, opts?: { merge?: boolean }) => void;
+  onSeal: () => void;
   readOnly: boolean;
 }) {
   const t = useTranslations('automation');
@@ -142,7 +144,7 @@ export function TopBar({
             </Button>
           </>
         ) : null}
-        <ReminderButton reminder={flow.reminder} onChange={onReminder} readOnly={readOnly} />
+        <ReminderButton reminder={flow.reminder} onChange={onReminder} onSeal={onSeal} readOnly={readOnly} />
         <Button variant="outline" size="sm" onClick={onSimulate}>
           {tf('simulate')}
         </Button>

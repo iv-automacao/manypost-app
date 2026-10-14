@@ -17,16 +17,19 @@ const DEFAULT_MINUTES = 60;
 
 /**
  * Lembrete único do fluxo (add-flow-delay-reminder): sai uma vez para quem respondeu a abertura e
- * parou numa pergunta, com o texto daqui seguido da pergunta em que a pessoa parou.
+ * parou numa pergunta — o texto daqui e, logo depois, a pergunta em que a pessoa parou.
  */
 export function ReminderButton({
   reminder,
   onChange,
+  onSeal,
   readOnly,
 }: {
   reminder: FlowReminder | undefined;
   /** `merge` junta a digitação num passo só do desfazer */
   onChange: (next: FlowReminder | undefined, opts?: { merge?: boolean }) => void;
+  /** fecha o passo do desfazer ao sair do texto */
+  onSeal: () => void;
   readOnly: boolean;
 }) {
   const t = useTranslations('automation.flow.reminder');
@@ -76,6 +79,7 @@ export function ReminderButton({
                 maxLength={LIMITS.reminderText}
                 disabled={readOnly}
                 onChange={(e) => onChange({ ...reminder, text: e.target.value }, { merge: true })}
+                onBlur={onSeal}
               />
               <span className="self-end text-meta text-graphite">
                 {reminder.text.length}/{LIMITS.reminderText}

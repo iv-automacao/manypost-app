@@ -965,7 +965,7 @@ describe('lembrete "parou no meio" (add-flow-delay-reminder)', () => {
     return { ...h.runs[0]! };
   }
 
-  test('parou na cidade: depois do tempo sai uma mensagem com o lembrete, a pergunta e as opções', async () => {
+  test('parou na cidade: depois do tempo sai o lembrete e, logo depois, a pergunta com as opções', async () => {
     const h = harness();
     const run = await naCidade(h);
     const inbound = run.lastInboundAt!.getTime();
@@ -975,10 +975,12 @@ describe('lembrete "parou no meio" (add-flow-delay-reminder)', () => {
 
     h.advance(3600);
     expect(await h.fire('reminder')).toBe('reminded');
-    const m = h.sent.at(-1)!;
-    expect(m.key).toBe(`${run.id}:rem${run.cursor}`);
-    expect(m.msg?.text).toBe('Pra mim, ficou faltando pouco.\n\nEm qual cidade?');
-    expect(m.msg?.quickReplies?.map((q) => q.title)).toEqual(['Manaus', 'Boa Vista']);
+    // duas mensagens: o texto do lembrete sozinho (sem estourar o limite de 640 com botões) e a pergunta
+    const [lembrete, pergunta] = h.sent.slice(-2);
+    expect(lembrete).toMatchObject({ key: `${run.id}:rem${run.cursor}`, msg: { text: 'Pra mim, ficou faltando pouco.' } });
+    expect(lembrete!.msg).not.toHaveProperty('quickReplies');
+    expect(pergunta).toMatchObject({ key: `${run.id}:rem${run.cursor}:q`, msg: { text: 'Em qual cidade?' } });
+    expect(pergunta!.msg?.quickReplies?.map((q) => q.title)).toEqual(['Manaus', 'Boa Vista']);
     expect(h.runs[0]!.reminderSentAt).not.toBeNull();
 
     await h.deliver(tocar(h, 'Manaus'));
@@ -1030,16 +1032,26 @@ describe('lembrete "parou no meio" (add-flow-delay-reminder)', () => {
     expect(h.sent.some((s) => s.msg?.text?.startsWith('Oi de novo'))).toBe(false);
   });
 
-  test('lembrete agendado antes de uma resposta mais nova espera o tempo contar de novo', async () => {
+  test('lembrete que roda antes da hora (resposta mais nova, toque antigo) reagenda para a hora certa', async () => {
     const h = harness();
     await naCidade(h);
     const velho = h.timers('reminder').at(-1)!;
     h.advance(1800);
-    await h.deliver(h.message({ text: 'hmm' })); // re-pergunta a cidade
+    // toque num botão antigo: só registra a mensagem e não arma lembrete novo
+    await h.deliver(tocar(h, 'Pra mim'));
+    const inbound = h.runs[0]!.lastInboundAt!.getTime();
     h.advance(1800);
-    expect(await h.engine.processTimer(velho.payload as never)).toBe('stale');
+    expect(await h.engine.processTimer(velho.payload as never)).toBe('rescheduled');
+    expect(h.timers('reminder').at(-1)!.startAfter?.getTime()).toBe(inbound + 3600_000);
     h.advance(1800);
     expect(await h.fire('reminder')).toBe('reminded');
+  });
+
+  test('ponte fora do ar no job de tempo: lança para a fila tentar de novo', async () => {
+    const h = harness();
+    const run = await naCidade(h);
+    h.advance(3600);
+    await expect(h.engine.processTimer({ timer: 'reminder', runId: run.id, cursor: run.cursor, accountRef: 'acc-fora' })).rejects.toThrow();
   });
 
   test('falha transitória no lembrete: retentativa envia uma vez só', async () => {
@@ -1049,6 +1061,7 @@ describe('lembrete "parou no meio" (add-flow-delay-reminder)', () => {
     h.failNextSend({ status: 503, body: '{}', errorClass: 'transient' });
     await expect(h.fire('reminder')).rejects.toThrow();
     expect(await h.fire('reminder')).toBe('reminded');
-    expect(h.sent.filter((s) => s.key?.includes(':rem'))).toHaveLength(1);
+    const { id, cursor } = h.runs[0]!;
+    expect(h.sent.filter((s) => s.key?.includes(':rem')).map((s) => s.key)).toEqual([`${id}:rem${cursor}`, `${id}:rem${cursor}:q`]);
   });
 });

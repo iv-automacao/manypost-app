@@ -24,7 +24,7 @@ ponte do CRM: template no WhatsApp 5 minutos depois, só para quem respondeu "Po
 - **Lembrete "parou no meio".** O fluxo ganha `reminder` opcional, com tempo (5 min a 23 h) e texto
   (até 300 caracteres, com `{campo}`).
   - **Quando sai:** se a conversa ficar parada esperando resposta num balão depois da abertura, sai
-    uma vez por conversa. A mensagem leva o texto do lembrete e repete a pergunta com as opções.
+    uma vez por conversa: o texto do lembrete e, logo depois, a pergunta de novo com as opções.
   - **Se a pessoa responder:** o fluxo continua dali.
   - **Nunca sai:** para quem não respondeu a abertura (o Instagram só permite uma resposta
     privada por comentário) nem passadas 23 h da última mensagem da pessoa (janela de 24 h da Meta).

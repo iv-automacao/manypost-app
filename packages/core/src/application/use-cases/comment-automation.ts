@@ -452,7 +452,10 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
     return patch(run, { nodeId: nodeForV1Step(flow, run.step), cursor: 1, sentCursor: delivered ? 1 : 0 });
   }
 
-  /** agenda um job de tempo; a chave inclui a hora, então reagendar a mesma hora não duplica */
+  /**
+   * Agenda um job de tempo. Na fila `automation-event` (política padrão do pg-boss) a `singletonKey`
+   * não deduplica: jobs repetidos são inofensivos porque cada um confere cursor e `reminderSentAt`.
+   */
   async function scheduleTimer(timer: AutomationTimerJob['timer'], run: AutomationRunRecord, bound: Bound, at: Date) {
     const job: AutomationTimerJob = { timer, runId: run.id, cursor: run.cursor, accountRef: bound.accountRef };
     await deps.scheduler.enqueue(AUTOMATION_EVENT_QUEUE, job, {
@@ -502,13 +505,18 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
     const due = reminderDue(flow, run);
     if (run.reminderSentAt || !node || due === null) return 'stale';
     const t = now().getTime();
-    // um job armado antes de uma resposta mais nova: o que foi armado depois dela cuida
-    if (t < due - 1000) return 'stale';
+    // antes da hora (resposta mais nova, toque antigo, tempo editado, relógio adiantado): reagenda
+    if (t < due - 1000) {
+      await scheduleTimer('reminder', run, bound, new Date(due));
+      return 'rescheduled';
+    }
     if (t > run.lastInboundAt!.getTime() + REMINDER_CAP_MS + REMINDER_GRACE_MS) return 'window_closed';
     const msg = messageFor(node, { runId: run.id, answers: run.answers, username: run.participantUsername });
     if (!msg) return 'stale';
-    const text = `${renderTemplate(reminder.text, run.answers, run.participantUsername)}\n\n${msg.text}`;
-    const sent = await sendInConversation(bound, run, { ...msg, text }, `${run.id}:rem${run.cursor}`, 'reminder');
+    // duas mensagens: o texto do lembrete sozinho e a pergunta como saiu (junto, estouraria os 640 com botões)
+    const text = renderTemplate(reminder.text, run.answers, run.participantUsername);
+    let sent = await sendInConversation(bound, run, { text }, `${run.id}:rem${run.cursor}`, 'reminder');
+    if (sent.ok) sent = await sendInConversation(bound, run, msg, `${run.id}:rem${run.cursor}:q`, 'reminder');
     // lembrete recusado não derruba a conversa: só não tenta de novo
     await patch(run, sent.ok ? { reminderSentAt: now() } : { reminderSentAt: now(), lastError: `lembrete: ${sent.error}` });
     deps.log('info', 'automation.reminder', { runId: run.id, cursor: run.cursor, ok: sent.ok });
@@ -809,7 +817,9 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
       const loaded = loadFlow(automation.config);
       if (!loaded) return 'invalid_config';
       const resolved = await deps.gateway.resolve(t.accountRef);
-      if (!resolved || resolved.channel.id !== run.channelId) return 'unknown_account';
+      // ponte fora do ar (ou conta sumiu): lança para a fila tentar de novo, senão o envio se perde
+      if (!resolved) throw new RetryableSendError(`${t.timer}: conta da ponte indisponível`);
+      if (resolved.channel.id !== run.channelId) return 'unknown_account';
       const bound: Bound = { ...resolved, accountRef: t.accountRef };
 
       if (t.timer === 'reminder') return sendReminder(bound, loaded.flow, run);

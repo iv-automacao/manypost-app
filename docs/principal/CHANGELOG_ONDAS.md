@@ -18,10 +18,14 @@
     na hora, com a mesma chave de idempotência. Uma mensagem da pessoa durante a espera fica
     registrada mas não antecipa o envio.
   - **Lembrete:** o fluxo ganha `reminder` (5 a 1380 min, texto até 300). Ele é armado depois de
-    cada resposta quando a conversa espera num balão que não é a abertura, e sai uma vez com o texto
-    do lembrete, a pergunta e as opções (chave `<run>:rem<cursor>`).
+    cada resposta quando a conversa espera num balão que não é a abertura, e sai uma vez: o texto do
+    lembrete sozinho (`<run>:rem<cursor>`) e a pergunta com as opções (`<run>:rem<cursor>:q`).
   - **Limites do lembrete:** a hora conta da última mensagem da pessoa, com teto de 23 h; não sai
-    depois de 23 h 30. Um job armado antes de uma resposta mais nova não faz nada.
+    depois de 23 h 30. Um job que roda antes da hora reagenda para a hora certa, e um job que não
+    alcança a ponte lança para a fila tentar de novo.
+  - **Revisão final:** levou às duas mensagens (juntas estourariam os 640 caracteres das mensagens
+    com botões), ao reagendamento, à retentativa com a ponte fora do ar, às traduções dos erros
+    novos e ao desfazer do texto do lembrete.
   - **Editor:** "Esperar antes de enviar" no ⚙ com selo no balão, botão "Lembrete" na barra de cima
     e "Simular silêncio" no simulador.
   - **Normalização:** a normalização do editor agora preserva `delaySec` e `reminder`. Sem isso,

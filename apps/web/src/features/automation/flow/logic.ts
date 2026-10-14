@@ -572,14 +572,14 @@ export function canSimulateSilence(s: SimState): boolean {
   return Boolean(s.flow.reminder && !s.reminderSent && s.status === 'waiting' && n && n.type !== 'opening' && waits(n));
 }
 
-/** espelho do motor: texto do lembrete + a pergunta em que a pessoa parou, com as mesmas opções */
+/** espelho do motor: o texto do lembrete e, em seguida, a pergunta em que a pessoa parou, com as opções */
 export function simulateSilence(s: SimState): SimState {
   if (!canSimulateSilence(s)) return s;
   const n = nodeById(s.flow, s.nodeId)!;
   const m = messageFor(n, { answers: s.answers, username: s.username });
   if (!m) return s;
-  const text = `${renderTemplate(s.flow.reminder!.text, s.answers, s.username)}\n\n${m.text}`;
-  return { ...s, reminderSent: true, transcript: [...s.transcript, { from: 'brand', msg: { ...m, text } }] };
+  const text = renderTemplate(s.flow.reminder!.text, s.answers, s.username);
+  return { ...s, reminderSent: true, transcript: [...s.transcript, { from: 'brand', msg: { text } }, { from: 'brand', msg: m }] };
 }
 
 export function simulateFlow(flow: Flow, inputs: SimInput[], opts: { username?: string | null } = {}) {

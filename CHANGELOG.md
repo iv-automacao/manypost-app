@@ -8,6 +8,14 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
 
 ### Added
 
+- **Atraso por balão e lembrete "parou no meio" (`add-flow-delay-reminder`).** No editor do fluxo:
+  - **"Esperar antes de enviar":** de 0 a 60 s no ⚙ de cada balão, com "digitando…". O envio fica
+    agendado na fila e não sai antes da hora.
+  - **Botão "Lembrete":** uma mensagem para quem respondeu a abertura e parou numa pergunta. Leva o
+    texto do lembrete, a pergunta e as opções. Sai de 5 min a 23 h depois da última mensagem da
+    pessoa, no máximo uma vez.
+  - **Simulador:** mostra a espera e tem "Simular silêncio".
+  - **Banco:** migration `0014`, que só acrescenta colunas.
 - **Abertura com resposta rápida (`add-opening-quick-reply`).** A resposta privada ao comentário pode
   levar uma sugestão para tocar (modo "Resposta rápida" no ⚙ da abertura), além da dica para responder.
   Quem está em Solicitações não vê a sugestão e responde digitando; as duas coisas seguem o fluxo.

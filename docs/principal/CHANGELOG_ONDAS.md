@@ -10,6 +10,44 @@
 > **Como manter:** ao fechar uma fatia, adicione a onda nova **no topo** e atualize o STATUS.
 > Cada entrada é auto-contida: o que mudou, onde no código, e a prova de que funciona.
 
+## Onda 48 — 2026-10-14 — atraso por balão e lembrete "parou no meio"
+
+- **O que mudou** (mudança `add-flow-delay-reminder`, recorte da entrega 4 do construtor):
+  - **Atraso:** mensagem, pergunta, link e fim ganham `delaySec` (0 a 60 s). O motor mostra
+    "digitando…", marca `resume_at`, agenda um job `resume` na fila serial `automation-event` e envia
+    na hora, com a mesma chave de idempotência. Uma mensagem da pessoa durante a espera fica
+    registrada mas não antecipa o envio.
+  - **Lembrete:** o fluxo ganha `reminder` (5 a 1380 min, texto até 300). Ele é armado depois de
+    cada resposta quando a conversa espera num balão que não é a abertura, e sai uma vez com o texto
+    do lembrete, a pergunta e as opções (chave `<run>:rem<cursor>`).
+  - **Limites do lembrete:** a hora conta da última mensagem da pessoa, com teto de 23 h; não sai
+    depois de 23 h 30. Um job armado antes de uma resposta mais nova não faz nada.
+  - **Editor:** "Esperar antes de enviar" no ⚙ com selo no balão, botão "Lembrete" na barra de cima
+    e "Simular silêncio" no simulador.
+  - **Normalização:** a normalização do editor agora preserva `delaySec` e `reminder`. Sem isso,
+    salvar pelo editor apagaria o lembrete.
+- **Por quê:** a Triagem Invista funcionou de ponta a ponta em 14/10 e o Iago pediu uma pausa entre
+  as mensagens em sequência e um follow-up dentro do fluxo. O follow-up depois do fim fica com a
+  ponte do CRM (template no WhatsApp para quem respondeu "Pode chamar").
+- **Onde:**
+  - `packages/contracts` (`delaySec`, `FlowReminderSchema`, `DirectTransport.typing`);
+  - `packages/core/src/application/use-cases/comment-automation.ts` (`processTimer`, `armReminder`,
+    `sendReminder`, atraso no `drive`);
+  - `packages/db` (migration `0014`, repositório);
+  - `packages/providers/src/zernio` (typing);
+  - `apps/api/src/automation.container.ts`;
+  - `apps/web/src/features/automation/flow/*` (`reminder-button.tsx` novo).
+- **Provas:**
+  - testes novos no contrato, no motor (11), no repositório com Postgres real, na ponte e na web
+    (6);
+  - `bun run check` com 1845 testes passando (as 2 falhas conhecidas de `catalog.test.ts` seguem);
+  - typecheck, typecheck:web, fronteiras, ai-providers, brand, `db:check` e `spec:validate` verdes;
+  - E2E `scripts/e2e-automation.ts` em banco isolado com o fluxo v3: abertura com resposta rápida,
+    lembrete no pg-boss (antecipado recuando `last_inbound_at`), link 2 s depois com "digitando…",
+    fim e lead, cada envio uma vez.
+- **Falta:** deploy pelo Iago e configurar na Triagem (por exemplo, o "Seguir" com 5 s e um
+  lembrete de 1 h).
+
 ## Onda 47 — 2026-10-13 — abertura com resposta rápida
 
 - **O que mudou:** a abertura ganhou o modo `quick` (mudança `add-opening-quick-reply`). A resposta

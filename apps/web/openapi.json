@@ -878,6 +878,11 @@
                                 "branch"
                               ],
                               "default": "reask"
+                            },
+                            "delaySec": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 60
                             }
                           },
                           "required": [
@@ -944,6 +949,11 @@
                                 "email",
                                 "free"
                               ]
+                            },
+                            "delaySec": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 60
                             }
                           },
                           "required": [
@@ -1120,6 +1130,11 @@
                                   ]
                                 }
                               ]
+                            },
+                            "delaySec": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 60
                             }
                           },
                           "required": [
@@ -1174,6 +1189,11 @@
                               "type": "string",
                               "maxLength": 600,
                               "default": ""
+                            },
+                            "delaySec": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 60
                             }
                           }
                         }
@@ -1222,6 +1242,25 @@
                 },
                 "maxItems": 120,
                 "default": []
+              },
+              "reminder": {
+                "type": "object",
+                "properties": {
+                  "afterMinutes": {
+                    "type": "integer",
+                    "minimum": 5,
+                    "maximum": 1380
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "afterMinutes",
+                  "text"
+                ]
               }
             },
             "required": [
@@ -1545,6 +1584,11 @@
                             "branch"
                           ],
                           "default": "reask"
+                        },
+                        "delaySec": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 60
                         }
                       },
                       "required": [
@@ -1611,6 +1655,11 @@
                             "email",
                             "free"
                           ]
+                        },
+                        "delaySec": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 60
                         }
                       },
                       "required": [
@@ -1787,6 +1836,11 @@
                               ]
                             }
                           ]
+                        },
+                        "delaySec": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 60
                         }
                       },
                       "required": [
@@ -1841,6 +1895,11 @@
                           "type": "string",
                           "maxLength": 600,
                           "default": ""
+                        },
+                        "delaySec": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 60
                         }
                       }
                     }
@@ -1889,6 +1948,25 @@
             },
             "maxItems": 120,
             "default": []
+          },
+          "reminder": {
+            "type": "object",
+            "properties": {
+              "afterMinutes": {
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 1380
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              }
+            },
+            "required": [
+              "afterMinutes",
+              "text"
+            ]
           }
         },
         "required": [

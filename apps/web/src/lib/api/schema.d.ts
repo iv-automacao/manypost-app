@@ -7603,6 +7603,7 @@ export type components = {
                          * @enum {string}
                          */
                         onTyped: "reask" | "branch";
+                        delaySec?: number;
                     };
                 } | {
                     id: string;
@@ -7617,6 +7618,7 @@ export type components = {
                         field: string;
                         /** @enum {string} */
                         validate: "name" | "phone" | "email" | "free";
+                        delaySec?: number;
                     };
                 } | {
                     id: string;
@@ -7657,6 +7659,7 @@ export type components = {
                             /** Format: uri */
                             url: string;
                         };
+                        delaySec?: number;
                     };
                 } | {
                     id: string;
@@ -7669,6 +7672,7 @@ export type components = {
                     data: {
                         /** @default  */
                         text: string;
+                        delaySec?: number;
                     };
                 })[];
                 /** @default [] */
@@ -7678,6 +7682,10 @@ export type components = {
                     sourceHandle: string;
                     target: string;
                 }[];
+                reminder?: {
+                    afterMinutes: number;
+                    text: string;
+                };
             } | null;
             triggers: {
                 id: string | null;
@@ -7758,6 +7766,7 @@ export type components = {
                      * @enum {string}
                      */
                     onTyped: "reask" | "branch";
+                    delaySec?: number;
                 };
             } | {
                 id: string;
@@ -7772,6 +7781,7 @@ export type components = {
                     field: string;
                     /** @enum {string} */
                     validate: "name" | "phone" | "email" | "free";
+                    delaySec?: number;
                 };
             } | {
                 id: string;
@@ -7812,6 +7822,7 @@ export type components = {
                         /** Format: uri */
                         url: string;
                     };
+                    delaySec?: number;
                 };
             } | {
                 id: string;
@@ -7824,6 +7835,7 @@ export type components = {
                 data: {
                     /** @default  */
                     text: string;
+                    delaySec?: number;
                 };
             })[];
             /** @default [] */
@@ -7833,6 +7845,10 @@ export type components = {
                 sourceHandle: string;
                 target: string;
             }[];
+            reminder?: {
+                afterMinutes: number;
+                text: string;
+            };
         };
         AutomationTriggerInput: {
             /** @enum {string} */

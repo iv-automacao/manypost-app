@@ -147,6 +147,16 @@ describe('automação com PostgreSQL real', () => {
     expect(u).toMatchObject({ nodeId: 'q0', cursor: 1, sentCursor: 1, status: 'ABANDONED' });
   });
 
+  pgTest('atraso e lembrete: colunas nascem nulas e gravam/limpam pelo patch', async () => {
+    const s = await seed(`${Date.now()}k`);
+    const { run: r } = await repo().createRun(run(s, 'c-10'));
+    expect(r).toMatchObject({ resumeAt: null, lastInboundAt: null, reminderSentAt: null });
+    const at = new Date('2026-10-14T12:00:05Z');
+    const u = await repo().updateRun(r.id, { resumeAt: at, lastInboundAt: at, reminderSentAt: at });
+    expect(u).toMatchObject({ resumeAt: at, lastInboundAt: at, reminderSentAt: at });
+    expect((await repo().updateRun(r.id, { resumeAt: null })).resumeAt).toBeNull();
+  });
+
   pgTest('backfill cria um gatilho por automação v1 e é idempotente', async () => {
     const s = await seed(`${Date.now()}j`);
     await repo().update(s.orgId, s.automation.id, {

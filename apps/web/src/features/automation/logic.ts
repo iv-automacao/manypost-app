@@ -25,6 +25,7 @@ export const LIMITS = {
   reminderText: 300,
   reminderMinMinutes: 5,
   reminderMaxMinutes: 1380,
+  notifyText: 280,
 } as const;
 
 export const STATUSES = ['DRAFT', 'TEST', 'ACTIVE', 'PAUSED'] as const;

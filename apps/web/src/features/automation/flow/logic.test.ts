@@ -70,12 +70,14 @@ describe('paridade com @manypost/contracts', () => {
 
   test('todo bloco novo passa no schema (WhatsApp com telefone preenchido)', () => {
     let f = emptyFlow(TEXTS);
-    for (const kind of ['message', 'question', 'condition', 'link', 'follow', 'end'] as const) {
+    for (const kind of ['message', 'question', 'condition', 'link', 'follow', 'end', 'action'] as const) {
       let n = createNode(kind, { x: 10, y: 20 }, f, TEXTS, 'sua.conta');
       if (n.type === 'link' && n.data.target.kind === 'whatsapp') {
         n = { ...n, data: { ...n.data, target: { kind: 'whatsapp', phone: '5592999990000', message: '' } } };
       }
       if (n.type === 'condition') n = { ...n, data: { ...n.data, field: 'nome' } };
+      // a ação nasce sem rótulo (o Salvar trava até preencher)
+      if (n.type === 'action') n = { ...n, data: { kind: 'send_data', label: 'dados' } };
       f = { ...f, nodes: [...f.nodes, n] };
     }
     expect(FlowV2Schema.safeParse(f).success).toBe(true);
@@ -347,5 +349,43 @@ describe('atraso e lembrete (add-flow-delay-reminder)', () => {
     let s = startSim(normalizeFlow({ ...RAW, reminder: undefined }));
     s = sendSim(s, { text: 'oi' });
     expect(canSimulateSilence(s)).toBe(false);
+  });
+});
+
+describe('balão de ação', () => {
+  test('nasce como enviar dados sem rótulo e trava o Salvar até preencher', () => {
+    const f = emptyFlow(TEXTS);
+    const n = createNode('action', { x: 0, y: 0 }, f, TEXTS, null);
+    expect(n).toMatchObject({ type: 'action', data: { kind: 'send_data', label: '' } });
+    expect(shapeIssues({ ...f, nodes: [...f.nodes, n] })).toEqual([{ nodeId: n.id, key: 'labelInvalid' }]);
+  });
+
+  test('formato: rótulo de campo, aviso de 1 a 280', () => {
+    const base = emptyFlow(TEXTS);
+    const com = (data: unknown) => ({ ...base, nodes: [...base.nodes, { id: 'a', type: 'action', position: { x: 0, y: 0 }, data } as never] });
+    expect(shapeIssues(com({ kind: 'send_data', label: 'WhatsApp' }))).toEqual([{ nodeId: 'a', key: 'labelInvalid' }]);
+    expect(shapeIssues(com({ kind: 'send_data', label: 'whatsapp_coletado' }))).toEqual([]);
+    expect(shapeIssues(com({ kind: 'notify', text: ' ' }))).toEqual([{ nodeId: 'a', key: 'textRequired' }]);
+    expect(shapeIssues(com({ kind: 'notify', text: 'x'.repeat(281) }))).toEqual([{ nodeId: 'a', key: 'notifyTooLong' }]);
+  });
+
+  test('normalizeFlow limpa o campo do outro tipo', () => {
+    const f = normalizeFlow({
+      nodes: [
+        { id: 'a', type: 'action', position: { x: 0, y: 0 }, data: { kind: 'notify', text: 'Oi', label: 'velho' } },
+        { id: 'b', type: 'action', position: { x: 0, y: 0 }, data: { kind: 'send_data', label: 'x', text: 'velho', delaySec: 5 } },
+      ],
+    });
+    expect(f.nodes[0]!.data).toEqual({ kind: 'notify', text: 'Oi' });
+    expect(f.nodes[1]!.data).toEqual({ kind: 'send_data', label: 'x' });
+  });
+
+  test('trocar o tipo pelo patch do editor não deixa dado velho', () => {
+    let f = emptyFlow(TEXTS);
+    const n = createNode('action', { x: 0, y: 0 }, f, TEXTS, null);
+    f = { ...f, nodes: [...f.nodes, n] };
+    f = updateNodeData(f, n.id, { kind: 'notify', text: 'Oi', label: undefined });
+    expect(normalizeFlow(f).nodes.find((x) => x.id === n.id)!.data).toEqual({ kind: 'notify', text: 'Oi' });
+    expect(FlowV2Schema.safeParse(normalizeFlow(f)).success).toBe(true);
   });
 });

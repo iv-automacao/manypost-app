@@ -534,7 +534,7 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
    */
   /**
    * Efeito do balão de ação (add-flow-action-node). Pelo menos uma vez: falha aqui lança e o job é
-   * refeito; quem recebe o `lead.updated` deduplica por runId + nodeId.
+   * refeito; quem recebe o `lead.updated` deduplica por runId + nodeId + cursor.
    */
   async function runAction(effect: ActionEffect, nodeId: string, run: AutomationRunRecord, automation: AutomationRecord, flow: FlowV2) {
     const ctx = { runId: run.id, answers: run.answers, username: run.participantUsername };
@@ -546,6 +546,8 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
         data: {
           label: effect.label,
           nodeId,
+          // cada passagem pelo balão tem o próprio cursor (laço que corrige um dado sai de novo)
+          cursor: run.cursor,
           runId: run.id,
           automationId: automation.id,
           automationName: automation.name,

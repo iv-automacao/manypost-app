@@ -24,7 +24,7 @@ própria, sem n8n no meio.
     organização inteira, com link para /leads.
 - **Evento novo `lead.updated`** no catálogo de webhooks de saída. Mesmo envelope, assinatura,
   tentativas e log de entregas dos outros eventos. Leva os campos do `lead.captured` (menos
-  `completedAt`) mais `label`, `nodeId`, `status: "OPEN"`, `test` e `sentAt`.
+  `completedAt`) mais `label`, `nodeId`, `cursor`, `status: "OPEN"`, `test` e `sentAt`.
 - **`lead.captured` não muda.** Continua saindo uma vez, ao concluir.
 - **Validação:** segue o padrão dos outros balões. Rótulo fora do formato ou texto vazio é erro de
   formato: a API recusa com 400 e o editor trava o Salvar apontando o balão (`shapeIssues`). Saída
@@ -60,4 +60,4 @@ humano, espera longa, mídia.
 - **Testes:** fixtures em `testdata/automation-flows/`, testes do motor e o E2E
   `scripts/e2e-automation.ts`.
 - **Quem recebe:** o CRM (ou qualquer sistema) assina `lead.updated` e deduplica por
-  `runId` + `nodeId`.
+  `runId` + `nodeId` + `cursor`.

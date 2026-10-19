@@ -35,11 +35,12 @@ or too long text with 400.
 ### Requirement: Send data emits lead.updated
 The webhook event catalog SHALL include `lead.updated`. An executed `send_data` action SHALL emit
 `lead.updated` through the outgoing webhook pipeline (signed envelope, delivery log, retries, event and
-channel filters) with `label`, `nodeId`, `runId`, `automationId`, `automationName`, `channelId`,
+channel filters) with `label`, `nodeId`, `cursor` (the run cursor of that pass), `runId`, `automationId`, `automationName`, `channelId`,
 `mediaId`, `commentId`, `commentText`, `participantId`, `participantUsername`, the answers collected so
 far, `whatsappUrl` (null when the flow has no WhatsApp link yet), `status` `OPEN`, `test` true when the
-automation is in Test mode and `sentAt`. Delivery is at least once; receivers deduplicate by `runId`
-and `nodeId`. A failure to deliver to a webhook MUST NOT stop or fail the run. A failure to record the
+automation is in Test mode and `sentAt`. Delivery is at least once; receivers deduplicate by `runId`,
+`nodeId` and `cursor`, so a later pass through the same node (a loop that corrects an answer) is a
+new event. A failure to deliver to a webhook MUST NOT stop or fail the run. A failure to record the
 emission SHALL make the job fail so the queue retries it. With no subscribed webhook the action SHALL
 be a no-op. The `lead.captured` event MUST keep its payload and SHALL still be emitted once when the
 run completes.
@@ -60,6 +61,12 @@ run completes.
 - **GIVEN** an automation in Test mode
 - **WHEN** a tester passes a `send_data` action
 - **THEN** the `lead.updated` payload has `test` true
+
+#### Scenario: A loop corrects the answer
+- **GIVEN** "WhatsApp?" → `send_data` action → "Está certo?" with "Corrigir" going back to "WhatsApp?"
+- **WHEN** the participant answers, taps "Corrigir" and answers again
+- **THEN** two `lead.updated` are emitted with different `cursor` values, the second with the
+  corrected answer
 
 #### Scenario: Receiver is down
 - **GIVEN** a subscribed webhook that answers 500

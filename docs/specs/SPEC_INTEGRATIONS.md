@@ -184,10 +184,10 @@ Um ManyChat próprio sobre a mesma ponte:
   deduplicação de quem recebe.
 - **Lead no meio do fluxo (`add-flow-action-node`):** o balão Ação "Enviar dados" dispara
   `lead.updated` no ponto em que está no fluxo, pelo mesmo pipeline (assinatura, tentativas, log).
-  - **Payload:** `label`, `nodeId`, `runId`, `automationId`, `automationName`, `channelId`,
+  - **Payload:** `label`, `nodeId`, `cursor` (a passagem pelo balão), `runId`, `automationId`, `automationName`, `channelId`,
     `mediaId`, `commentId`, `commentText`, `participantId`, `participantUsername`, `answers` (o que
     foi respondido até ali), `whatsappUrl`, `status: "OPEN"`, `test` (true em modo Teste) e `sentAt`.
-  - **Entrega:** pelo menos uma vez; quem recebe deduplica por `runId` + `nodeId`. A entrega pode
+  - **Entrega:** pelo menos uma vez; quem recebe deduplica por `runId` + `nodeId` + `cursor`. A entrega pode
     chegar depois do `lead.captured` do mesmo `runId`: a ordem de emissão é a do `createdAt` do
     envelope.
   - **O `lead.captured` não mudou:** continua saindo uma vez, ao concluir.

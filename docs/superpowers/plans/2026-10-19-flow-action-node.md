@@ -742,7 +742,7 @@ Em `comment-automation.ts`:
 ```ts
   /**
    * Efeito do balão de ação (add-flow-action-node). Pelo menos uma vez: falha aqui lança e o job é
-   * refeito; quem recebe o `lead.updated` deduplica por runId + nodeId.
+   * refeito; quem recebe o `lead.updated` deduplica por runId + nodeId + cursor.
    */
   async function runAction(effect: ActionEffect, nodeId: string, run: AutomationRunRecord, automation: AutomationRecord, flow: FlowV2) {
     const ctx = { runId: run.id, answers: run.answers, username: run.participantUsername };
@@ -1041,7 +1041,7 @@ Expected: todas as checagens OK, incluindo as quatro novas do `lead.updated`. O 
 - `docs/specs/SPEC_INTEGRATIONS.md`: ao lado do `lead.captured`, descreva o `lead.updated`:
   - quando sai (balão Ação "Enviar dados");
   - o payload (campos da Global Constraints);
-  - a deduplicação por `runId` + `nodeId`;
+  - a deduplicação por `runId` + `nodeId` + `cursor`;
   - que `test: true` marca o modo Teste;
   - que o `lead.captured` não mudou.
 - `docs/principal/RUNBOOK_FLOW_BUILDER.md`, no roteiro do dono, acrescente:
@@ -1088,6 +1088,6 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ## Depois do merge (fora deste plano, com o Iago)
 
 1. Deploy manual no Easypanel (o Iago clica).
-2. Função `instagram-lead` no CRM: confere `x-manypost-signature` (HMAC-SHA256 de `"<t>.<corpo>"`), faz upsert por `runId`, deduplica `lead.updated` por `runId` + `nodeId` e ignora `test: true`.
+2. Função `instagram-lead` no CRM: confere `x-manypost-signature` (HMAC-SHA256 de `"<t>.<corpo>"`), faz upsert por `runId`, deduplica `lead.updated` por `runId` + `nodeId` + `cursor` e ignora `test: true`.
 3. Configurações → Webhooks: URL da função, eventos `lead.captured` e `lead.updated`.
 4. Na Triagem Invista (PLANO): Ação "Enviar dados" `whatsapp_coletado` logo depois da pergunta do WhatsApp; testar em modo Teste antes de Ativar.

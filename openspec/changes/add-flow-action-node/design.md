@@ -82,7 +82,7 @@ Dentro do bloco `if (run.sentCursor < run.cursor)` de `drive`, onde o nó "sai":
 
    ```ts
    {
-     label, nodeId: node.id, runId, automationId, automationName, channelId, mediaId, commentId,
+     label, nodeId: node.id, cursor: run.cursor, runId, automationId, automationName, channelId, mediaId, commentId,
      commentText, participantId, participantUsername, answers,
      whatsappUrl: leadWhatsappUrl(flow, ctx()),   // null se o fluxo ainda não tem link do WhatsApp
      status: 'OPEN', test: automation.status === 'TEST', sentAt: now().toISOString(),
@@ -94,7 +94,7 @@ Dentro do bloco `if (run.sentCursor < run.cursor)` de `drive`, onde o nó "sai":
 4. Grava `sentCursor = cursor`, como depois de uma mensagem. Retomar o run não repete a ação.
 
 - **Garantia:** pelo menos uma vez. Se o processo cair entre o efeito e a gravação de `sentCursor`, o
-  job é refeito e a ação sai de novo. Quem recebe deduplica por `runId` + `nodeId`; a notificação
+  job é refeito e a ação sai de novo. Quem recebe deduplica por `runId` + `nodeId` + `cursor`; a notificação
   repetida é aceitável.
 - **Falha do webhook não trava o fluxo:** `emit` só grava a entrega e enfileira. A entrega tenta de
   novo sozinha e fica no log.
@@ -134,7 +134,7 @@ Dentro do bloco `if (run.sentCursor < run.cursor)` de `drive`, onde o nó "sai":
 
 ## Risks / Trade-offs
 
-- **Evento repetido** em queda no meio do passo → o receptor deduplica por `runId` + `nodeId`
+- **Evento repetido** em queda no meio do passo → o receptor deduplica por `runId` + `nodeId` + `cursor`
   (documentado no payload e no INTEGRATIONS_SETUP).
 - **Muitos avisos** se a ação ficar num caminho muito usado → é escolha de quem desenha o fluxo; o
   aviso vai só para o sino, sem e-mail.

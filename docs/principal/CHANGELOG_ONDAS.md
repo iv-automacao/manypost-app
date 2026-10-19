@@ -16,11 +16,13 @@
   - **Balão `action`:** uma saída `next`, sem mensagem para a pessoa, sem espera e sem atraso. O
     motor executa o efeito no ponto em que o balão "sai" e grava `sentCursor`, então retomar,
     reprocessar ou lembrar não repete.
-  - **Enviar dados:** dispara `lead.updated` (evento novo no catálogo) com `label`, `nodeId`, as
+  - **Enviar dados:** dispara `lead.updated` (evento novo no catálogo) com `label`, `nodeId`, `cursor`, as
     respostas até ali, `status: "OPEN"`, `test` e `sentAt`. Falha ao gravar o evento lança e o job
     é refeito; falha do receptor fica nas tentativas do webhook e não trava o fluxo.
   - **Avisar a equipe:** notificação da organização (`automation.notify`) com o nome da automação
     como título, o texto com `{campo}` preenchido e link para /leads.
+  - **Revisão final:** a deduplicação passou a ser `runId` + `nodeId` + `cursor`; só `runId` +
+    `nodeId` descartaria a segunda passagem de um laço que corrige o dado.
   - **Validação:** rótulo no formato de campo e aviso de 1 a 280 caracteres são formato (400 na
     API, Salvar travado no editor). Saída sem ligação é o `missing_edge` de sempre. Nenhum código
     de problema novo.
@@ -37,12 +39,12 @@
   - `apps/web/src/features/automation/flow/*` (espelho, balão, dock, menu, simulador) e
     `apps/web/src/features/settings/*`; snapshot OpenAPI regenerado.
 - **Provas:**
-  - `bun run check`: 1915 testes, 1868 passam, 45 pulados. As 2 falhas são do
+  - `bun run check`: 1916 testes, 1869 passam, 45 pulados. As 2 falhas são do
     `apps/web/src/features/search/catalog.test.ts`, que já falhava antes (o caminho com espaço vira
     `%20`; conferido sem as mudanças). Typecheck (api e web), fronteiras, grep de IA e brand OK.
   - Testes novos: contrato (5), passo (2), fixtures 17 a 19 (core e web), espelho da web (4) e
-    motor (5: efeito no mesmo evento, modo Teste, retentativa sem repetir, falha ao gravar, sem
-    notificações).
+    motor (6: efeito no mesmo evento, modo Teste, retentativa sem repetir, falha ao gravar, sem
+    notificações e laço que corrige o dado, com `cursor` diferente por passagem).
   - E2E `scripts/e2e-automation.ts` em stack isolada (Postgres 5599, Redis 6379): 31 checagens
     OK, incluindo `lead.updated` assinado, com rótulo, nó e respostas, emitido antes do
     `lead.captured` e uma vez só.

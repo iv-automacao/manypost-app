@@ -1152,6 +1152,32 @@ describe('balão de ação', () => {
     expect(h.sent.filter((s) => s.msg?.text === 'Obrigado, Ana!')).toHaveLength(1);
   });
 
+  test('laço que corrige o dado: cada passagem leva o próprio cursor (dedup por runId + nodeId + cursor)', async () => {
+    const LACO = {
+      version: 2,
+      nodes: [
+        { id: 'opening', type: 'opening', position: P, data: { text: 'Oi!' } },
+        { id: 'wa', type: 'question', position: P, data: { text: 'Seu WhatsApp?', field: 'whatsapp', validate: 'phone' } },
+        { id: 'dados', type: 'action', position: P, data: { kind: 'send_data', label: 'whatsapp_coletado' } },
+        { id: 'conf', type: 'message', position: P, data: { text: 'Está certo?', options: [{ id: 'sim', title: 'Sim' }, { id: 'corrigir', title: 'Corrigir' }] } },
+        { id: 'fim', type: 'end', position: P, data: { text: 'Valeu!' } },
+      ],
+      edges: [ed('opening', 'next', 'wa'), ed('wa', 'next', 'dados'), ed('dados', 'next', 'conf'), ed('conf', 'sim', 'fim'), ed('conf', 'corrigir', 'wa')],
+    };
+    const h = harness();
+    await h.seedAutomation(LACO, ['iagovieira.ia'], TRIGGER);
+    await h.deliver(h.comment({ text: 'quero o PLANO' }));
+    await h.deliver(h.message({ text: 'oi' }));
+    await h.deliver(h.message({ text: '92 99999-0000' }));
+    await h.deliver(tocar(h, 'Corrigir'));
+    await h.deliver(h.message({ text: '92 98888-1111' }));
+    const ups = h.emitted.filter((e) => e.event === 'lead.updated').map((e) => e.data);
+    expect(ups).toHaveLength(2);
+    expect(ups.map((d) => (d.answers as Record<string, string>).whatsapp)).toEqual(['92999990000', '92988881111']);
+    expect(typeof ups[0]!.cursor).toBe('number');
+    expect(ups[0]!.cursor).not.toBe(ups[1]!.cursor);
+  });
+
   test('sem notificações ligadas o aviso é ignorado e o fluxo conclui', async () => {
     const h = harness({ noNotifications: true });
     await aberto(h);

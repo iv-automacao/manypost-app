@@ -1,0 +1,17 @@
+{
+  "name": "ação sem ligação na saída: saída sem ligação e fluxo sem fim",
+  "flow": {
+    "version": 2,
+    "nodes": [
+      { "id": "opening", "type": "opening", "position": { "x": 0, "y": 0 }, "data": { "text": "Olá!" } },
+      { "id": "acao", "type": "action", "position": { "x": 0, "y": 160 }, "data": { "kind": "send_data", "label": "x" } }
+    ],
+    "edges": [{ "id": "e1", "source": "opening", "sourceHandle": "next", "target": "acao" }]
+  },
+  "expect": {
+    "problems": [
+      { "code": "missing_edge", "severity": "error", "nodeId": "acao", "handle": "next" },
+      { "code": "no_finish", "severity": "error" }
+    ]
+  }
+}

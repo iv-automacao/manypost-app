@@ -70,7 +70,18 @@ export function messageFor(node: FlowNode, ctx: StepContext): DirectMessage | nu
       return { text: r(node.data.text), buttons: [{ title: node.data.buttonTitle, url: linkUrl(node, ctx) }] };
     case 'end':
       return node.data.text.trim() ? { text: r(node.data.text) } : null;
+    case 'action':
+      return null;
   }
+}
+
+export type ActionEffect = { kind: 'send_data'; label: string } | { kind: 'notify'; text: string };
+
+/** efeito do balão de ação, com o texto do aviso já preenchido; `null` = o nó não é ação */
+export function actionFor(node: FlowNode, ctx: StepContext): ActionEffect | null {
+  if (node.type !== 'action') return null;
+  const d = node.data;
+  return d.kind === 'send_data' ? { kind: 'send_data', label: d.label } : { kind: 'notify', text: renderTemplate(d.text, ctx.answers, ctx.username) };
 }
 
 export function conditionHolds(node: FlowNodeOf<'condition'>, answers: Record<string, string>): boolean {

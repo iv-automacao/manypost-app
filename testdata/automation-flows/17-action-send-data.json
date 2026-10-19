@@ -1,0 +1,28 @@
+{
+  "name": "enviar dados no meio do fluxo não manda mensagem e segue",
+  "flow": {
+    "version": 2,
+    "nodes": [
+      { "id": "opening", "type": "opening", "position": { "x": 0, "y": 0 }, "data": { "text": "Olá!" } },
+      { "id": "nome", "type": "question", "position": { "x": 0, "y": 160 }, "data": { "text": "Qual é o seu nome?", "field": "nome", "validate": "name" } },
+      { "id": "dados", "type": "action", "position": { "x": 0, "y": 320 }, "data": { "kind": "send_data", "label": "nome_coletado" } },
+      { "id": "fim", "type": "end", "position": { "x": 0, "y": 480 }, "data": { "text": "Obrigado, {nome}!" } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "opening", "sourceHandle": "next", "target": "nome" },
+      { "id": "e2", "source": "nome", "sourceHandle": "next", "target": "dados" },
+      { "id": "e3", "source": "dados", "sourceHandle": "next", "target": "fim" }
+    ]
+  },
+  "inputs": [{ "text": "oi" }, { "text": "Ana" }],
+  "expect": {
+    "messages": [
+      { "text": "Olá!\n\nResponda esta mensagem para continuar.\n\nMensagem automática." },
+      { "text": "Qual é o seu nome?" },
+      { "action": { "kind": "send_data", "label": "nome_coletado" } },
+      { "text": "Obrigado, Ana!" }
+    ],
+    "status": "completed",
+    "answers": { "nome": "Ana" }
+  }
+}

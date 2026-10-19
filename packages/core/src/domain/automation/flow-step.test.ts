@@ -1,8 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 import { FlowV2Schema, type FlowNode, type FlowV2Input } from '@manypost/contracts';
+import { outputsOf, waits } from './flow-graph';
 import {
+  actionFor,
   autoNext,
   conditionHolds,
+  delayOf,
   decideInput,
   decodePayloadV2,
   encodePayloadV2,
@@ -154,5 +157,38 @@ describe('decideInput', () => {
     expect(decideInput(FLOW, node('zap'), { handle: null, text: '  ' }, 0)).toEqual({ kind: 'ignore' });
     expect(decideInput(FLOW, plano, { handle: null, text: '' }, 0)).toEqual({ kind: 'ignore' });
     expect(decideInput(FLOW, node('opening'), { handle: null, text: '' }, 0)).toEqual({ kind: 'advance', handle: 'next' });
+  });
+});
+
+describe('balão de ação', () => {
+  const fluxo = FlowV2Schema.parse({
+    version: 2,
+    nodes: [
+      { id: 'opening', type: 'opening', position: P, data: { text: 'Oi' } },
+      { id: 'dados', type: 'action', position: P, data: { kind: 'send_data', label: 'nome_coletado' } },
+      { id: 'avisa', type: 'action', position: P, data: { kind: 'notify', text: 'Lead novo: {nome} (@{username})' } },
+      { id: 'fim', type: 'end', position: P, data: {} },
+    ],
+    edges: [
+      { id: 'e1', source: 'opening', sourceHandle: 'next', target: 'dados' },
+      { id: 'e2', source: 'dados', sourceHandle: 'next', target: 'avisa' },
+    ],
+  });
+  const ctx = { runId: 'r', answers: { nome: 'Ana' }, username: 'ana.s' };
+  const no = (id: string) => fluxo.nodes.find((n) => n.id === id)!;
+
+  test('actionFor resolve o efeito com os campos preenchidos', () => {
+    expect(actionFor(no('dados'), ctx)).toEqual({ kind: 'send_data', label: 'nome_coletado' });
+    expect(actionFor(no('avisa'), ctx)).toEqual({ kind: 'notify', text: 'Lead novo: Ana (@ana.s)' });
+    expect(actionFor(no('opening'), ctx)).toBeNull();
+  });
+
+  test('a ação não manda mensagem, não espera, não atrasa e segue por next', () => {
+    expect(messageFor(no('dados'), ctx)).toBeNull();
+    expect(waits(no('dados'))).toBe(false);
+    expect(delayOf(no('dados'))).toBe(0);
+    expect(autoNext(fluxo, no('dados'), ctx.answers)).toEqual({ kind: 'goto', to: 'avisa' });
+    expect(autoNext(fluxo, no('avisa'), ctx.answers)).toEqual({ kind: 'dead_end', handle: 'next' });
+    expect(outputsOf(no('dados'))).toEqual([{ handle: 'next', required: true }]);
   });
 });

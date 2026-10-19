@@ -142,3 +142,36 @@ describe('atraso e lembrete', () => {
     expect(ok({ afterMinutes: 60, text: 'x'.repeat(301) })).toBe(false);
   });
 });
+
+describe('balão de ação', () => {
+  const acao = (data: unknown, extra: Record<string, unknown> = {}) => ({ id: 'acao', type: 'action', position: { x: 0, y: 100 }, data, ...extra });
+  const comAcao = (data: unknown) => flow([opening, acao(data), end], [edge('opening', 'next', 'acao'), edge('acao', 'next', 'fim')]);
+
+  test('enviar dados: rótulo no formato de campo', () => {
+    expect(FlowV2Schema.safeParse(comAcao({ kind: 'send_data', label: 'whatsapp_coletado' })).success).toBe(true);
+    expect(FlowV2Schema.safeParse(comAcao({ kind: 'send_data', label: 'WhatsApp coletado' })).success).toBe(false);
+    expect(FlowV2Schema.safeParse(comAcao({ kind: 'send_data', label: '' })).success).toBe(false);
+    expect(FlowV2Schema.safeParse(comAcao({ kind: 'send_data', label: `a${'b'.repeat(32)}` })).success).toBe(false);
+  });
+
+  test('avisar a equipe: texto de 1 a 280 caracteres', () => {
+    expect(FlowV2Schema.safeParse(comAcao({ kind: 'notify', text: 'Lead novo: {nome}' })).success).toBe(true);
+    expect(FlowV2Schema.safeParse(comAcao({ kind: 'notify', text: '   ' })).success).toBe(false);
+    expect(FlowV2Schema.safeParse(comAcao({ kind: 'notify', text: 'x'.repeat(281) })).success).toBe(false);
+    expect(FlowV2Schema.safeParse(comAcao({ kind: 'notify', text: 'x'.repeat(280) })).success).toBe(true);
+  });
+
+  test('tipo de ação desconhecido é recusado', () => {
+    expect(FlowV2Schema.safeParse(comAcao({ kind: 'tag', label: 'x' })).success).toBe(false);
+  });
+
+  test('a ação não tem atraso: delaySec é descartado', () => {
+    const r = FlowV2Schema.parse(comAcao({ kind: 'send_data', label: 'x', delaySec: 5 }));
+    expect(r.nodes[1]).not.toHaveProperty('data.delaySec');
+  });
+
+  test('saída única next', () => {
+    const outra = flow([opening, acao({ kind: 'send_data', label: 'x' }), end], [edge('opening', 'next', 'acao'), edge('acao', 'yes', 'fim')]);
+    expect(issues(outra)).toContain('saída inexistente no nó de origem');
+  });
+});

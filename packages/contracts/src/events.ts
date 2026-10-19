@@ -8,6 +8,8 @@ export const WebhookEvents = {
   MentionReceived: 'mention.received', // fase 2
   // lead completo de uma automação comentário → direct (add-comment-automation)
   LeadCaptured: 'lead.captured',
+  // lead no meio do fluxo, disparado pelo balão Ação "Enviar dados" (add-flow-action-node)
+  LeadUpdated: 'lead.updated',
 } as const;
 
 export type WebhookEvent = (typeof WebhookEvents)[keyof typeof WebhookEvents];

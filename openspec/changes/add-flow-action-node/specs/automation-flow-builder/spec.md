@@ -3,13 +3,13 @@
 ### Requirement: Action nodes run an effect and continue
 The flow graph SHALL accept an `action` node with exactly one required output `next` and data of one
 of two kinds: `send_data` with a `label` matching `^[a-z][a-z0-9_]{0,31}$`, or `notify` with a `text`
-of 1 to 280 characters that MAY contain `{field}` placeholders. An action node MUST NOT accept
-`delaySec`, MUST NOT send any message to the participant and MUST NOT wait for an answer. When a run
+of 1 to 280 characters that MAY contain `{field}` placeholders. An action node has no
+`delaySec` (a value sent for it is dropped, as for the opening), MUST NOT send any message to the participant and MUST NOT wait for an answer. When a run
 reaches an action node that was not executed yet on its cursor, the engine SHALL execute the effect,
 record the node as executed on that cursor and follow `next` in the same step, counting toward the
 limit of automatic steps. Resuming or reprocessing the run on the same cursor MUST NOT execute the
-effect again once it was recorded. The API MUST reject an action node with an invalid label, an empty
-or too long text, or a `delaySec` with 400.
+effect again once it was recorded. The API MUST reject an action node with an invalid label or an empty
+or too long text with 400.
 
 #### Scenario: Action between two questions
 - **GIVEN** a flow "WhatsApp?" question → action `send_data` `whatsapp_coletado` → "Pode chamar?" message

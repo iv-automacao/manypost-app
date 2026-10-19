@@ -1,6 +1,6 @@
 ## 1. Contrato
 
-- [ ] 1.1 Testes em `packages/contracts`: nó `action` com `send_data` (rótulo válido; `WhatsApp coletado`, vazio e 33 caracteres recusados) e `notify` (texto 1..280; vazio e 281 recusados); `delaySec` recusado na ação; `handlesOf(action) = ['next']`
+- [ ] 1.1 Testes em `packages/contracts`: nó `action` com `send_data` (rótulo válido; `WhatsApp coletado`, vazio e 33 caracteres recusados) e `notify` (texto 1..280; vazio e 281 recusados); `delaySec` descartado na ação (como na abertura); `handlesOf(action) = ['next']`
 - [ ] 1.2 `ActionNode` no `FlowNodeSchema`, `FlowNodeTypes` com `action`, `AUTOMATION_LIMITS.notifyText = 280`, `WebhookEvents.LeadUpdated`, enum de eventos da API
 
 ## 2. Grafo e passo (test-first)

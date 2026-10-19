@@ -34,7 +34,7 @@ atribuição. Por isso esta mudança fica só em enviar dados e avisar a equipe.
 
 ### 1. Contrato
 
-- **Nó:** `ActionNode` no `FlowNodeSchema`, `type: 'action'`, sem `delaySec`:
+- **Nó:** `ActionNode` no `FlowNodeSchema`, `type: 'action'`, sem `delaySec` (se vier, o schema descarta, como na abertura):
 
   ```ts
   data: z.discriminatedUnion('kind', [
@@ -122,7 +122,7 @@ Dentro do bloco `if (run.sentCursor < run.cursor)` de `drive`, onde o nó "sai":
   - duas ações seguidas;
   - `notify` com `{nome}`;
   - ação sem saída (`missing_edge`).
-- **Contrato:** rótulo inválido e texto vazio ou longo recusados; `delaySec` recusado na ação.
+- **Contrato:** rótulo inválido e texto vazio ou longo recusados; `delaySec` descartado na ação, como na abertura.
 - **Motor** (`comment-automation.test.ts`, fakes em memória):
   - `lead.updated` uma vez por passagem, com `test` conforme o modo;
   - retomar não repete;

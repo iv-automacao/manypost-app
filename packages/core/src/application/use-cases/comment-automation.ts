@@ -698,6 +698,8 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
           answers: run.answers,
           whatsappUrl: leadWhatsappUrl(flow, ctx()),
           completedAt: (run.completedAt ?? now()).toISOString(),
+          // acréscimo compatível: quem recebe ignora o lead das contas de teste
+          test: automation.status === 'TEST',
         },
       });
       run = await patch(run, { leadEmittedAt: now() });

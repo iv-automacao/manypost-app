@@ -138,8 +138,8 @@ Dentro do bloco `if (run.sentCursor < run.cursor)` de `drive`, onde o nó "sai":
   (documentado no payload e no INTEGRATIONS_SETUP).
 - **Muitos avisos** se a ação ficar num caminho muito usado → é escolha de quem desenha o fluxo; o
   aviso vai só para o sino, sem e-mail.
-- **Teste também dispara** → o campo `test` deixa o receptor ignorar; o `lead.captured` não tem o
-  campo (fica igual), e isso já acontece hoje.
+- **Teste também dispara** → o campo `test` deixa o receptor ignorar. O `lead.captured` ganhou o
+  mesmo campo depois do merge (19/10/2026), só como acréscimo, para o CRM descartar as contas de teste.
 
 ## Migration Plan
 

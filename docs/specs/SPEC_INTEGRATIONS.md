@@ -190,7 +190,8 @@ Um ManyChat próprio sobre a mesma ponte:
   - **Entrega:** pelo menos uma vez; quem recebe deduplica por `runId` + `nodeId` + `cursor`. A entrega pode
     chegar depois do `lead.captured` do mesmo `runId`: a ordem de emissão é a do `createdAt` do
     envelope.
-  - **O `lead.captured` não mudou:** continua saindo uma vez, ao concluir.
+  - **`lead.captured`:** continua saindo uma vez, ao concluir, e ganhou `test` (true em modo Teste),
+    como acréscimo compatível.
   - **"Avisar a equipe":** cria uma notificação da organização (`automation.notify`) no sino; não
     sai em webhook.
 - **Troca de transporte:** quando o App Review do app próprio sair, um transporte Meta direto

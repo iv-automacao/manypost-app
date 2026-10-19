@@ -8,6 +8,8 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
 
 ### Added
 
+- **`test` no `lead.captured`:** true quando a automação está em modo Teste, para quem recebe
+  ignorar as contas de teste. Só acréscimo; os outros campos não mudaram.
 - **Balão Ação no construtor de fluxo (`add-flow-action-node`).** Em qualquer ponto do fluxo, sem
   mandar mensagem para a pessoa:
   - **Enviar dados:** dispara o evento novo `lead.updated` com as respostas até ali e um rótulo

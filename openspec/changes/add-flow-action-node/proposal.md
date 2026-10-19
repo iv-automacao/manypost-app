@@ -25,7 +25,7 @@ própria, sem n8n no meio.
 - **Evento novo `lead.updated`** no catálogo de webhooks de saída. Mesmo envelope, assinatura,
   tentativas e log de entregas dos outros eventos. Leva os campos do `lead.captured` (menos
   `completedAt`) mais `label`, `nodeId`, `cursor`, `status: "OPEN"`, `test` e `sentAt`.
-- **`lead.captured` não muda.** Continua saindo uma vez, ao concluir.
+- **`lead.captured` só ganha `test`** (acréscimo compatível, pedido em 19/10/2026 para o CRM ignorar as contas de teste). Continua saindo uma vez, ao concluir.
 - **Validação:** segue o padrão dos outros balões. Rótulo fora do formato ou texto vazio é erro de
   formato: a API recusa com 400 e o editor trava o Salvar apontando o balão (`shapeIssues`). Saída
   `next` sem ligação é o `missing_edge` que já existe. Nenhum código de problema novo.

@@ -1121,11 +1121,19 @@ describe('balão de ação', () => {
     expect(h.runs[0]!.status).toBe('COMPLETED');
   });
 
-  test('em modo Teste o lead.updated sai com test: true', async () => {
+  test('em modo Teste o lead.updated e o lead.captured saem com test: true', async () => {
     const h = harness({ status: 'TEST' });
     await aberto(h, ['cliente']);
     await h.deliver(h.message({ text: 'Ana' }));
     expect(h.emitted[0]).toMatchObject({ event: 'lead.updated', data: { test: true } });
+    expect(h.emitted[1]).toMatchObject({ event: 'lead.captured', data: { test: true } });
+  });
+
+  test('automação ativa: lead.captured sai com test: false', async () => {
+    const h = harness();
+    await aberto(h);
+    await h.deliver(h.message({ text: 'Ana' }));
+    expect(h.emitted[1]).toMatchObject({ event: 'lead.captured', data: { test: false } });
   });
 
   test('retry depois da ação não repete o evento nem o aviso', async () => {

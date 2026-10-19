@@ -42,8 +42,8 @@ automation is in Test mode and `sentAt`. Delivery is at least once; receivers de
 `nodeId` and `cursor`, so a later pass through the same node (a loop that corrects an answer) is a
 new event. A failure to deliver to a webhook MUST NOT stop or fail the run. A failure to record the
 emission SHALL make the job fail so the queue retries it. With no subscribed webhook the action SHALL
-be a no-op. The `lead.captured` event MUST keep its payload and SHALL still be emitted once when the
-run completes.
+be a no-op. The `lead.captured` event MUST keep its fields, SHALL gain `test` (true when the automation is in
+Test mode, an additive change) and SHALL still be emitted once when the run completes.
 
 #### Scenario: CRM receives the lead before the end
 - **GIVEN** a webhook subscribed to `lead.updated` and `lead.captured`, and the Triagem flow with a
@@ -67,6 +67,11 @@ run completes.
 - **WHEN** the participant answers, taps "Corrigir" and answers again
 - **THEN** two `lead.updated` are emitted with different `cursor` values, the second with the
   corrected answer
+
+#### Scenario: Test mode on the completed lead
+- **GIVEN** an automation in Test mode
+- **WHEN** a tester completes the flow
+- **THEN** `lead.captured` has `test` true; for an active automation it has `test` false
 
 #### Scenario: Receiver is down
 - **GIVEN** a subscribed webhook that answers 500

@@ -8,6 +8,14 @@ e o projeto pretende seguir versionamento semântico quando publicar releases.
 
 ### Added
 
+- **Balão Ação no construtor de fluxo (`add-flow-action-node`).** Em qualquer ponto do fluxo, sem
+  mandar mensagem para a pessoa:
+  - **Enviar dados:** dispara o evento novo `lead.updated` com as respostas até ali e um rótulo
+    (ex.: `whatsapp_coletado`), pelos webhooks de saída. Quem recebe deduplica por `runId` + `nodeId`.
+  - **Avisar a equipe:** cria uma notificação no sino do manypost, com `{campo}` preenchido.
+  - **Editor:** sai do "em breve" no dock e no menu; o simulador mostra "⚡ Enviaria dados…" /
+    "⚡ Avisaria a equipe…". `lead.updated` entra na lista de eventos dos webhooks.
+  - O `lead.captured` não mudou. Sem migration.
 - **Atraso por balão e lembrete "parou no meio" (`add-flow-delay-reminder`).** No editor do fluxo:
   - **"Esperar antes de enviar":** de 0 a 60 s no ⚙ de cada balão, com "digitando…". O envio fica
     agendado na fila e não sai antes da hora.

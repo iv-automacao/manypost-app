@@ -58,6 +58,12 @@ API_URL=http://localhost:3100 bun run --cwd apps/web generate:api
 ## Conferência no navegador (roteiro do dono)
 Com `bun run dev:all` e o banco local, abrir `http://localhost:3000/automacoes/nova`.
 
+Ação (`add-flow-action-node`):
+- [ ] "Ação" aparece no dock e no menu "Próximo passo" (Espera e Imagem ou vídeo continuam "em breve").
+- [ ] Balão nasce em "Enviar dados" sem rótulo e o Salvar trava até preencher (ex.: `whatsapp_coletado`).
+- [ ] Trocar para "Avisar a equipe", escrever "Lead novo: {nome}" e simular: aparece "⚡ Avisaria a equipe: Lead novo: <nome>" e a conversa segue.
+- [ ] Em Configurações → Webhooks, `lead.updated` aparece na lista de eventos.
+
 Fluxo e edição:
 - [ ] O fluxo inicial (abertura, pergunta do nome, fim) aparece sem problemas.
 - [ ] Puxar a saída "Respondeu" para o vazio abre o menu "Próximo passo". Soltar a ligação em cima

@@ -10,6 +10,46 @@
 > **Como manter:** ao fechar uma fatia, adicione a onda nova **no topo** e atualize o STATUS.
 > Cada entrada é auto-contida: o que mudou, onde no código, e a prova de que funciona.
 
+## Onda 50 — 2026-10-19 — balão Ação (enviar dados e avisar a equipe)
+
+- **O que mudou** (mudança `add-flow-action-node`, primeiro recorte da entrega 3 do construtor):
+  - **Balão `action`:** uma saída `next`, sem mensagem para a pessoa, sem espera e sem atraso. O
+    motor executa o efeito no ponto em que o balão "sai" e grava `sentCursor`, então retomar,
+    reprocessar ou lembrar não repete.
+  - **Enviar dados:** dispara `lead.updated` (evento novo no catálogo) com `label`, `nodeId`, as
+    respostas até ali, `status: "OPEN"`, `test` e `sentAt`. Falha ao gravar o evento lança e o job
+    é refeito; falha do receptor fica nas tentativas do webhook e não trava o fluxo.
+  - **Avisar a equipe:** notificação da organização (`automation.notify`) com o nome da automação
+    como título, o texto com `{campo}` preenchido e link para /leads.
+  - **Validação:** rótulo no formato de campo e aviso de 1 a 280 caracteres são formato (400 na
+    API, Salvar travado no editor). Saída sem ligação é o `missing_edge` de sempre. Nenhum código
+    de problema novo.
+  - **Editor:** a Ação sai do "em breve" no dock e no menu; balão com seletor de tipo; linha ⚡ no
+    simulador; `lead.updated` em Configurações → Webhooks.
+- **Por quê:** a Triagem Invista só entregava o lead no Fim. Quem dava o WhatsApp e parava antes
+  nunca chegava ao CRM. O Iago escolheu fatiar a entrega 3 (19/10/2026) e mandar direto para o CRM
+  pelo webhook, sem n8n obrigatório.
+- **Onde:**
+  - `packages/contracts` (`ActionNode`, `AUTOMATION_LIMITS.notifyText`, `WebhookEvents.LeadUpdated`);
+  - `packages/core/src/domain/automation` (`actionFor`, `outputsOf`, simulador);
+  - `packages/core/src/application/use-cases/comment-automation.ts` (`runAction` no `drive`) e
+    `apps/api/src/automation.container.ts` (repositório de notificações);
+  - `apps/web/src/features/automation/flow/*` (espelho, balão, dock, menu, simulador) e
+    `apps/web/src/features/settings/*`; snapshot OpenAPI regenerado.
+- **Provas:**
+  - `bun run check`: 1915 testes, 1868 passam, 45 pulados. As 2 falhas são do
+    `apps/web/src/features/search/catalog.test.ts`, que já falhava antes (o caminho com espaço vira
+    `%20`; conferido sem as mudanças). Typecheck (api e web), fronteiras, grep de IA e brand OK.
+  - Testes novos: contrato (5), passo (2), fixtures 17 a 19 (core e web), espelho da web (4) e
+    motor (5: efeito no mesmo evento, modo Teste, retentativa sem repetir, falha ao gravar, sem
+    notificações).
+  - E2E `scripts/e2e-automation.ts` em stack isolada (Postgres 5599, Redis 6379): 31 checagens
+    OK, incluindo `lead.updated` assinado, com rótulo, nó e respostas, emitido antes do
+    `lead.captured` e uma vez só.
+- **Ficou de fora:** contatos com tags e campos, condição por tag, passar para humano, espera longa
+  e mídia. A função `instagram-lead` do CRM e a ligação na Triagem são passos do Iago depois do
+  deploy.
+
 ## Onda 48 — 2026-10-14 — atraso por balão e lembrete "parou no meio"
 
 - **O que mudou** (mudança `add-flow-delay-reminder`, recorte da entrega 4 do construtor):

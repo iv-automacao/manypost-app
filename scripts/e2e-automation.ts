@@ -134,12 +134,14 @@ const automationV2 = await makeAutomationRepository(db).create({
       { id: 'tipo', type: 'message', position: P, data: { text: 'Para quem?', format: 'buttons', options: [{ id: 'pf', title: 'Pessoa física' }, { id: 'pj', title: 'Minha empresa' }], saveTo: 'tipo', onTyped: 'reask' } },
       { id: 'info', type: 'message', position: P, data: { text: 'Empresarial tem condições especiais.', format: 'none', options: [], onTyped: 'reask' } },
       { id: 'nome', type: 'question', position: P, data: { text: 'Seu nome?', field: 'nome', validate: 'name' } },
+      // balão de ação (add-flow-action-node): o lead sai no lead.updated assim que tem o nome
+      { id: 'dados', type: 'action', position: P, data: { kind: 'send_data', label: 'nome_coletado' } },
       { id: 'c', type: 'condition', position: P, data: { field: 'tipo', op: 'equals', value: 'minha empresa' } },
       { id: 'wa', type: 'link', position: P, data: { text: 'Fale com a gente', buttonTitle: 'WhatsApp', target: { kind: 'whatsapp', phone: '5592999990000', message: 'Sou {nome}' } } },
       { id: 'seguir', type: 'link', position: P, data: { text: 'Segue a gente', buttonTitle: 'Seguir', target: { kind: 'url', url: 'https://instagram.com/e2e.conta' } } },
       { id: 'fim', type: 'end', position: P, data: { text: 'Obrigado, {nome}!' } },
     ],
-    edges: [ed('opening', 'next', 'tipo'), ed('tipo', 'pf', 'nome'), ed('tipo', 'pj', 'info'), ed('info', 'next', 'nome'), ed('nome', 'next', 'c'), ed('c', 'yes', 'wa'), ed('c', 'no', 'fim'), ed('wa', 'next', 'seguir')],
+    edges: [ed('opening', 'next', 'tipo'), ed('tipo', 'pf', 'nome'), ed('tipo', 'pj', 'info'), ed('info', 'next', 'nome'), ed('nome', 'next', 'dados'), ed('dados', 'next', 'c'), ed('c', 'yes', 'wa'), ed('c', 'no', 'fim'), ed('wa', 'next', 'seguir')],
   },
   triggers: [{ kind: 'comment', config: { mediaIds: [], keywords: ['empresarial'], publicReplies: [] }, position: null }],
 });
@@ -168,7 +170,7 @@ await makeWebhookRepository(db).create({
   orgId,
   name: 'e2e',
   url: `http://localhost:${FAKE_PORT}/hook`,
-  events: ['lead.captured'],
+  events: ['lead.captured', 'lead.updated'],
   channelIds: [],
   ...(await crypto.encrypt('whsec_e2e', `webhook:${orgId}`).then((e) => ({
     secretEnc: e.ciphertext,
@@ -316,7 +318,22 @@ try {
   // jsonb não preserva a ordem das chaves: compara os campos
   const ans2 = done2.answers as Record<string, string>;
   check(Object.keys(ans2).length === 2 && ans2.tipo === 'Minha empresa' && ans2.nome === 'Ana', 'respostas v2 gravadas');
-  await until(() => hooks.find((h) => (h.body.data as { runId?: string })?.runId === run2.id), 'lead.captured v2', 30_000);
+  const captured2 = await until(
+    () => hooks.find((h) => h.event === 'lead.captured' && (h.body.data as { runId?: string })?.runId === run2.id),
+    'lead.captured v2',
+    30_000,
+  );
+  const updated2 = await until(
+    () => hooks.find((h) => h.event === 'lead.updated' && (h.body.data as { runId?: string })?.runId === run2.id),
+    'lead.updated v2',
+    30_000,
+  );
+  check(updated2.signature?.startsWith('t=') && updated2.signature.includes(',v1='), 'lead.updated assinado');
+  const up = updated2.body.data as { label?: string; nodeId?: string; status?: string; test?: boolean; answers?: Record<string, string> };
+  check(up.label === 'nome_coletado' && up.nodeId === 'dados' && up.status === 'OPEN' && up.test === false && up.answers?.nome === 'Ana', 'lead.updated com rótulo, nó e respostas');
+  // as entregas correm em paralelo na fila: a ordem que vale é a da emissão (createdAt do envelope)
+  check(String(updated2.body.createdAt) <= String(captured2.body.createdAt), 'lead.updated emitido antes do lead.captured');
+  check(hooks.filter((h) => h.event === 'lead.updated' && (h.body.data as { runId?: string })?.runId === run2.id).length === 1, 'um lead.updated só');
 
   console.log('fluxo v3 (atraso e lembrete)');
   const pg = postgres(process.env.DATABASE_URL ?? '', { max: 1 });

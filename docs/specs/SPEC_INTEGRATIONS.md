@@ -182,6 +182,17 @@ Um ManyChat próprio sobre a mesma ponte:
   remetente; o IGSID e, como reserva, o username cobrem o texto livre.
 - **Leads:** saem em `lead.captured`, com pelo menos uma entrega; `runId` é a chave de
   deduplicação de quem recebe.
+- **Lead no meio do fluxo (`add-flow-action-node`):** o balão Ação "Enviar dados" dispara
+  `lead.updated` no ponto em que está no fluxo, pelo mesmo pipeline (assinatura, tentativas, log).
+  - **Payload:** `label`, `nodeId`, `runId`, `automationId`, `automationName`, `channelId`,
+    `mediaId`, `commentId`, `commentText`, `participantId`, `participantUsername`, `answers` (o que
+    foi respondido até ali), `whatsappUrl`, `status: "OPEN"`, `test` (true em modo Teste) e `sentAt`.
+  - **Entrega:** pelo menos uma vez; quem recebe deduplica por `runId` + `nodeId`. A entrega pode
+    chegar depois do `lead.captured` do mesmo `runId`: a ordem de emissão é a do `createdAt` do
+    envelope.
+  - **O `lead.captured` não mudou:** continua saindo uma vez, ao concluir.
+  - **"Avisar a equipe":** cria uma notificação da organização (`automation.notify`) no sino; não
+    sai em webhook.
 - **Troca de transporte:** quando o App Review do app próprio sair, um transporte Meta direto
   implementa as mesmas duas interfaces e a assinatura `X-Hub-Signature-256` entra num adaptador
   irmão.

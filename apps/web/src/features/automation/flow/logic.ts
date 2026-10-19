@@ -7,7 +7,7 @@ import { LIMITS, type TextValidation, fieldFromPrompt, normalize, renderTemplate
  * A API valida de novo — aqui é para orientar quem edita e para o simulador.
  */
 
-export const FLOW_NODE_TYPES = ['opening', 'message', 'question', 'condition', 'link', 'end'] as const;
+export const FLOW_NODE_TYPES = ['opening', 'message', 'question', 'condition', 'link', 'end', 'action'] as const;
 export type FlowNodeType = (typeof FLOW_NODE_TYPES)[number];
 export const OPENING_MODES = ['text', 'button', 'quick'] as const;
 export type OpeningMode = (typeof OPENING_MODES)[number];
@@ -41,6 +41,9 @@ interface Base<T extends FlowNodeType, D> {
   position: Position;
   data: D;
 }
+/** balão de ação (add-flow-action-node): só o campo do tipo escolhido */
+export type ActionData = { kind: 'send_data'; label: string } | { kind: 'notify'; text: string };
+export type ActionEffect = ActionData;
 export type LinkTarget = { kind: 'whatsapp'; phone: string; message: string } | { kind: 'url'; url: string };
 export type FlowNode =
   | Base<'opening', { text: string; mode: (typeof OPENING_MODES)[number]; buttonTitle: string; disclosure: boolean }>
@@ -58,7 +61,8 @@ export type FlowNode =
   | Base<'question', { text: string; field: string; validate: TextValidation; delaySec?: number }>
   | Base<'condition', { field: string; op: (typeof CONDITION_OPS)[number]; value: string }>
   | Base<'link', { text: string; buttonTitle: string; target: LinkTarget; delaySec?: number }>
-  | Base<'end', { text: string; delaySec?: number }>;
+  | Base<'end', { text: string; delaySec?: number }>
+  | Base<'action', ActionData>;
 export type NodeOf<T extends FlowNodeType> = Extract<FlowNode, { type: T }>;
 export interface FlowEdge {
   id: string;
@@ -146,6 +150,13 @@ export function normalizeFlow(raw: { nodes?: unknown[]; edges?: unknown[]; remin
           t.kind === 'url' ? { kind: 'url', url: str(t.url) } : { kind: 'whatsapp', phone: str(t.phone), message: str(t.message) };
         return { ...base, type: 'link', data: { text: str(d.text), buttonTitle: str(d.buttonTitle, 'Abrir'), target, ...delayOf(d) } };
       }
+      case 'action':
+        return {
+          ...base,
+          type: 'action',
+          // só o campo do tipo escolhido (trocar o tipo no editor não deixa resto)
+          data: d.kind === 'notify' ? { kind: 'notify', text: str(d.text) } : { kind: 'send_data', label: str(d.label) },
+        };
       default:
         return { ...base, type: 'end', data: { text: str(d.text), ...delayOf(d) } };
     }
@@ -165,6 +176,7 @@ export function handlesOf(n: FlowNode): string[] {
     case 'opening':
     case 'question':
     case 'link':
+    case 'action':
       return ['next'];
     case 'message':
       return n.data.format === 'none' ? ['next'] : [...n.data.options.map((o) => o.id), 'typed'];
@@ -179,6 +191,7 @@ export function outputsOf(n: FlowNode): Array<{ handle: string; required: boolea
   switch (n.type) {
     case 'opening':
     case 'question':
+    case 'action':
       return [{ handle: 'next', required: true }];
     case 'message':
       if (n.data.format === 'none') return [{ handle: 'next', required: true }];
@@ -265,6 +278,8 @@ export function validateFlow(flow: Flow): Problem[] {
 export type ShapeKey =
   | 'textRequired'
   | 'textTooLong'
+  | 'labelInvalid'
+  | 'notifyTooLong'
   | 'optionCount'
   | 'optionTitleInvalid'
   | 'buttonTitleInvalid'
@@ -311,7 +326,7 @@ export function shapeIssues(flow: Flow): ShapeIssue[] {
   if (flow.reminder && !validReminder(flow.reminder)) add(null, 'reminderInvalid');
   for (const n of flow.nodes) {
     if ('delaySec' in n.data && n.data.delaySec !== undefined && !validDelay(n.data.delaySec)) add(n.id, 'delayInvalid');
-    const text = n.type === 'condition' ? null : n.data.text;
+    const text = n.type === 'condition' || n.type === 'action' ? null : n.data.text;
     if (text !== null && n.type !== 'end' && !text.trim()) add(n.id, 'textRequired');
     if (text !== null && text.trim().length > LIMITS.messageText) add(n.id, 'textTooLong');
     switch (n.type) {
@@ -343,6 +358,13 @@ export function shapeIssues(flow: Flow): ShapeIssue[] {
         if (n.data.target.kind === 'url' && !validHttpsUrl(n.data.target.url)) add(n.id, 'urlInvalid');
         break;
       case 'end':
+        break;
+      case 'action':
+        if (n.data.kind === 'send_data' && !FIELD_RE.test(n.data.label)) add(n.id, 'labelInvalid');
+        if (n.data.kind === 'notify') {
+          if (!n.data.text.trim()) add(n.id, 'textRequired');
+          else if (n.data.text.trim().length > LIMITS.notifyText) add(n.id, 'notifyTooLong');
+        }
         break;
     }
   }
@@ -409,7 +431,15 @@ export function messageFor(n: FlowNode, ctx: Ctx): SimMessage | null {
       return { text: r(n.data.text), buttons: [n.data.buttonTitle], urls: [linkUrl(n, ctx)] };
     case 'end':
       return n.data.text.trim() ? { text: r(n.data.text) } : null;
+    case 'action':
+      return null;
   }
+}
+
+/** espelho de `actionFor` do core: efeito do balão de ação com o aviso preenchido */
+export function actionFor(n: FlowNode, ctx: Ctx): ActionEffect | null {
+  if (n.type !== 'action') return null;
+  return n.data.kind === 'send_data' ? { kind: 'send_data', label: n.data.label } : { kind: 'notify', text: renderTemplate(n.data.text, ctx.answers, ctx.username) };
 }
 
 function validateAnswer(kind: TextValidation, raw: string): { ok: true; value: string } | { ok: false } {
@@ -494,7 +524,11 @@ export interface SimState {
   reminderSent?: boolean;
 }
 /** linha da conversa simulada; `typing` = espera do balão com atraso */
-export type SimEntry = { from: 'brand' | 'user'; msg: SimMessage } | { from: 'typing'; seconds: number };
+export type SimEntry =
+  | { from: 'brand' | 'user'; msg: SimMessage }
+  | { from: 'typing'; seconds: number }
+  /** balão de ação: nada vai para a pessoa */
+  | { from: 'action'; action: ActionEffect };
 
 function drive(s: SimState, pending: boolean): SimState {
   let { nodeId, reasks } = s;
@@ -508,6 +542,8 @@ function drive(s: SimState, pending: boolean): SimState {
       const delay = 'delaySec' in n.data ? (n.data.delaySec ?? 0) : 0;
       if (m && delay > 0) transcript.push({ from: 'typing', seconds: delay });
       if (m) transcript.push({ from: 'brand', msg: m });
+      const act = actionFor(n, { answers: s.answers, username: s.username });
+      if (act) transcript.push({ from: 'action', action: act });
       send = false;
     }
     if (waits(n)) return { ...s, nodeId, reasks, transcript, status: 'waiting' };
@@ -589,7 +625,9 @@ export function simulateFlow(flow: Flow, inputs: SimInput[], opts: { username?: 
     s = sendSim(s, i);
   }
   return {
-    messages: s.transcript.flatMap((x) => (x.from === 'brand' ? [x.msg] : [])),
+    messages: s.transcript.flatMap((x): Array<SimMessage | { action: ActionEffect }> =>
+      x.from === 'brand' ? [x.msg] : x.from === 'action' ? [{ action: x.action }] : [],
+    ),
     answers: s.answers,
     status: s.status,
     nodeId: s.nodeId,
@@ -692,6 +730,8 @@ export function createNode(kind: BlockKind, position: Position, flow: Flow, t: N
       return { id, type: 'link', position, data: { text: t.follow, buttonTitle: t.followButton, target: { kind: 'url', url: profileUrl(username) } } };
     case 'end':
       return { id, type: 'end', position, data: { text: t.end } };
+    case 'action':
+      return { id, type: 'action', position, data: { kind: 'send_data', label: '' } };
   }
 }
 

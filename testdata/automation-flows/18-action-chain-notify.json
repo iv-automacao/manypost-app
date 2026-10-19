@@ -1,0 +1,31 @@
+{
+  "name": "duas ações seguidas e fim sem texto: aviso preenchido e conversa concluída",
+  "username": "ana.s",
+  "flow": {
+    "version": 2,
+    "nodes": [
+      { "id": "opening", "type": "opening", "position": { "x": 0, "y": 0 }, "data": { "text": "Olá!" } },
+      { "id": "nome", "type": "question", "position": { "x": 0, "y": 160 }, "data": { "text": "Qual é o seu nome?", "field": "nome", "validate": "name" } },
+      { "id": "avisa", "type": "action", "position": { "x": 0, "y": 320 }, "data": { "kind": "notify", "text": "Lead novo: {nome} (@{username})" } },
+      { "id": "dados", "type": "action", "position": { "x": 0, "y": 480 }, "data": { "kind": "send_data", "label": "lead_novo" } },
+      { "id": "fim", "type": "end", "position": { "x": 0, "y": 640 }, "data": { "text": "" } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "opening", "sourceHandle": "next", "target": "nome" },
+      { "id": "e2", "source": "nome", "sourceHandle": "next", "target": "avisa" },
+      { "id": "e3", "source": "avisa", "sourceHandle": "next", "target": "dados" },
+      { "id": "e4", "source": "dados", "sourceHandle": "next", "target": "fim" }
+    ]
+  },
+  "inputs": [{ "text": "oi" }, { "text": "Ana" }],
+  "expect": {
+    "messages": [
+      { "text": "Olá!\n\nResponda esta mensagem para continuar.\n\nMensagem automática." },
+      { "text": "Qual é o seu nome?" },
+      { "action": { "kind": "notify", "text": "Lead novo: Ana (@ana.s)" } },
+      { "action": { "kind": "send_data", "label": "lead_novo" } }
+    ],
+    "status": "completed",
+    "answers": { "nome": "Ana" }
+  }
+}

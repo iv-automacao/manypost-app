@@ -48,7 +48,11 @@ export function Simulator({ flow, startAt, onClose }: { flow: Flow; startAt: str
         {startNode ? <p className="text-meta text-graphite">{t('sim.fromNode', { node: t(`node.${startNode.type}`) })}</p> : null}
         <ol className="flex flex-col gap-2">
           {state.transcript.map((x, i) =>
-            x.from === 'typing' ? (
+            x.from === 'action' ? (
+              <li key={i} className="self-start text-meta text-graphite">
+                {x.action.kind === 'send_data' ? t('sim.actionSend', { label: x.action.label }) : t('sim.actionNotify', { text: x.action.text })}
+              </li>
+            ) : x.from === 'typing' ? (
               <li key={i} className="self-start text-meta text-graphite">
                 {t('sim.typing', { seconds: x.seconds })}
               </li>

@@ -40,6 +40,8 @@ export const AUTOMATION_LIMITS = {
   reminderMinMinutes: 5,
   /** 23 h: o lembrete precisa sair dentro da janela de 24 h da Meta */
   reminderMaxMinutes: 1380,
+  /** texto do balão "Avisar a equipe" (notificação no sino) */
+  notifyText: 280,
 } as const;
 
 const L = AUTOMATION_LIMITS;

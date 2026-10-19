@@ -27,16 +27,18 @@ import { flowFromV1, nodeForV1Step, tapFromV1, triggerFromV1 } from '../../domai
 import { nodeById, openingOf, targetOf, waits } from '../../domain/automation/flow-graph';
 import {
   MAX_AUTO_STEPS,
+  actionFor,
   autoNext,
   decideInput,
   decodePayloadV2,
   delayOf,
   leadWhatsappUrl,
   messageFor,
+  type ActionEffect,
 } from '../../domain/automation/flow-step';
 import { hasErrors, validateFlow } from '../../domain/automation/flow-validate';
 import { DomainError } from '../../domain/shared/result';
-import type { AuditLogRepository } from '../ports/approvals';
+import type { AuditLogRepository, NotificationRepository } from '../ports/approvals';
 import type {
   AutomationGateway,
   AutomationRecord,
@@ -384,6 +386,8 @@ export interface AutomationEngineDeps {
   gateway: AutomationGateway;
   scheduler: Pick<JobScheduler, 'enqueue'>;
   events?: EventPublisher;
+  /** balão "Avisar a equipe"; ausente = o aviso vira no-op */
+  notifications?: Pick<NotificationRepository, 'create'>;
   log: (level: 'info' | 'warn' | 'error', msg: string, data?: object) => void;
   now?: () => Date;
   random?: () => number;
@@ -528,6 +532,50 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
    * resposta pública, resposta privada (abertura), mensagens dos nós até o próximo que espera, fim e
    * `lead.captured`. Reprocessar o mesmo evento nunca envia duas vezes.
    */
+  /**
+   * Efeito do balão de ação (add-flow-action-node). Pelo menos uma vez: falha aqui lança e o job é
+   * refeito; quem recebe o `lead.updated` deduplica por runId + nodeId + cursor.
+   */
+  async function runAction(effect: ActionEffect, nodeId: string, run: AutomationRunRecord, automation: AutomationRecord, flow: FlowV2) {
+    const ctx = { runId: run.id, answers: run.answers, username: run.participantUsername };
+    if (effect.kind === 'send_data') {
+      await deps.events?.emit({
+        orgId: run.orgId,
+        event: WebhookEvents.LeadUpdated,
+        channelId: run.channelId,
+        data: {
+          label: effect.label,
+          nodeId,
+          // cada passagem pelo balão tem o próprio cursor (laço que corrige um dado sai de novo)
+          cursor: run.cursor,
+          runId: run.id,
+          automationId: automation.id,
+          automationName: automation.name,
+          channelId: run.channelId,
+          mediaId: run.mediaId,
+          commentId: run.commentId,
+          commentText: run.commentText,
+          participantId: run.participantId,
+          participantUsername: run.participantUsername,
+          answers: run.answers,
+          whatsappUrl: leadWhatsappUrl(flow, ctx),
+          status: 'OPEN',
+          test: automation.status === 'TEST',
+          sentAt: now().toISOString(),
+        },
+      });
+      return;
+    }
+    await deps.notifications?.create({
+      orgId: run.orgId,
+      userId: null,
+      kind: 'automation.notify',
+      title: automation.name,
+      body: effect.text,
+      link: '/leads',
+    });
+  }
+
   async function drive(
     bound: Bound,
     automation: AutomationRecord,
@@ -599,6 +647,9 @@ export const makeAutomationEngine = (deps: AutomationEngineDeps) => {
               break;
             }
           }
+          // balão de ação: efeito sem mensagem; o sentCursor abaixo impede repetir ao retomar
+          const effect = actionFor(node, ctx());
+          if (effect) await runAction(effect, node.id, run, automation, flow);
           const msg = messageFor(node, ctx());
           if (msg) {
             const sent = await sendInConversation(bound, run, msg, `${run.id}:c${run.cursor}:${run.reasks}`, node.type);

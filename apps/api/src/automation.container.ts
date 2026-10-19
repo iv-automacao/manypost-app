@@ -9,7 +9,7 @@ import {
   type AutomationTimerJob,
   type ChannelRepository,
 } from '@manypost/core';
-import { makeAutomationRepository, type Db } from '@manypost/db';
+import { makeAutomationRepository, makeNotificationRepository, type Db } from '@manypost/db';
 import { parseZernioEvent, type ZernioBridge } from '@manypost/providers';
 import type { PublishingRuntime } from '@manypost/queue';
 import { log } from './log';
@@ -67,6 +67,8 @@ export async function buildAutomation(
     gateway,
     scheduler: runtime.scheduler,
     events: runtime.events,
+    // balão "Avisar a equipe" (add-flow-action-node)
+    notifications: makeNotificationRepository(db),
     // só ids e status nos logs do motor — nunca texto, username nem resposta
     log: (level, msg, data) => log(level, msg, data as Record<string, unknown> | undefined),
   });

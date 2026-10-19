@@ -180,13 +180,15 @@ function memRepo() {
 
 type Sent = { op: string; target: string; msg?: DirectMessage; key?: string; text?: string };
 
-function harness(opts: { privateReplyError?: unknown; sendErrors?: unknown[]; status?: 'ACTIVE' | 'TEST' } = {}) {
+function harness(opts: { privateReplyError?: unknown; sendErrors?: unknown[]; status?: 'ACTIVE' | 'TEST'; emitErrors?: unknown[]; noNotifications?: boolean } = {}) {
   const mem = memRepo();
   const sent: Sent[] = [];
   const emitted: Array<{ event: string; data: Record<string, unknown> }> = [];
   const enqueued: unknown[] = [];
   const scheduled: Array<{ payload: Record<string, unknown>; startAfter?: Date; singletonKey?: string }> = [];
   const sendErrors = [...(opts.sendErrors ?? [])];
+  const emitErrors = [...(opts.emitErrors ?? [])];
+  const notified: Array<{ orgId: string; userId?: string | null; kind: string; title: string; body?: string; link?: string }> = [];
   let clock = new Date('2026-10-12T12:05:00Z');
 
   const comments: CommentTransport = {
@@ -238,9 +240,20 @@ function harness(opts: { privateReplyError?: unknown; sendErrors?: unknown[]; st
     },
     events: {
       async emit(e) {
+        const err = emitErrors.shift();
+        if (err) throw err;
         emitted.push({ event: e.event, data: e.data });
       },
     },
+    ...(opts.noNotifications
+      ? {}
+      : {
+          notifications: {
+            async create(n) {
+              notified.push(n);
+            },
+          },
+        }),
     log: () => {},
     now: () => clock,
     random: () => 0,
@@ -308,7 +321,7 @@ function harness(opts: { privateReplyError?: unknown; sendErrors?: unknown[]; st
   };
   const failNextSend = (e: unknown) => sendErrors.push(e);
 
-  return { ...mem, engine, sent, emitted, enqueued, scheduled, seedAutomation, deliver, comment, message, advance, timers, fire, failNextSend, now: () => clock };
+  return { ...mem, engine, sent, emitted, notified, enqueued, scheduled, seedAutomation, deliver, comment, message, advance, timers, fire, failNextSend, now: () => clock };
 }
 
 /** toca o botão pelo título usando o payload que a própria mensagem levou */
@@ -1063,5 +1076,113 @@ describe('lembrete "parou no meio" (add-flow-delay-reminder)', () => {
     expect(await h.fire('reminder')).toBe('reminded');
     const { id, cursor } = h.runs[0]!;
     expect(h.sent.filter((s) => s.key?.includes(':rem')).map((s) => s.key)).toEqual([`${id}:rem${cursor}`, `${id}:rem${cursor}:q`]);
+  });
+});
+
+describe('balão de ação', () => {
+  const FLOW_ACAO = {
+    version: 2,
+    nodes: [
+      { id: 'opening', type: 'opening', position: P, data: { text: 'Oi!' } },
+      { id: 'nome', type: 'question', position: P, data: { text: 'Seu nome?', field: 'nome', validate: 'name' } },
+      { id: 'dados', type: 'action', position: P, data: { kind: 'send_data', label: 'nome_coletado' } },
+      { id: 'avisa', type: 'action', position: P, data: { kind: 'notify', text: 'Lead novo: {nome}' } },
+      { id: 'fim', type: 'end', position: P, data: { text: 'Obrigado, {nome}!' } },
+    ],
+    edges: [ed('opening', 'next', 'nome'), ed('nome', 'next', 'dados'), ed('dados', 'next', 'avisa'), ed('avisa', 'next', 'fim')],
+  };
+  async function aberto(h: ReturnType<typeof harness>, testers = ['iagovieira.ia']) {
+    await h.seedAutomation(FLOW_ACAO, testers, TRIGGER);
+    expect(await h.deliver(h.comment({ text: 'quero o PLANO' }))).toBe('run');
+    await h.deliver(h.message({ text: 'oi' }));
+    expect(h.sent.at(-1)?.msg?.text).toBe('Seu nome?');
+  }
+
+  test('enviar dados e avisar rodam no mesmo evento e o fluxo segue até o fim', async () => {
+    const h = harness();
+    await aberto(h);
+    await h.deliver(h.message({ text: 'Ana' }));
+    expect(h.sent.at(-1)?.msg?.text).toBe('Obrigado, Ana!');
+    expect(h.emitted.map((e) => e.event)).toEqual(['lead.updated', 'lead.captured']);
+    expect(h.emitted[0]!.data).toMatchObject({
+      label: 'nome_coletado',
+      nodeId: 'dados',
+      runId: h.runs[0]!.id,
+      automationName: 'Cotação',
+      participantUsername: 'cliente',
+      answers: { nome: 'Ana' },
+      whatsappUrl: null,
+      status: 'OPEN',
+      test: false,
+    });
+    expect(typeof h.emitted[0]!.data.sentAt).toBe('string');
+    expect(h.emitted[1]!.data).not.toHaveProperty('label');
+    expect(h.notified).toEqual([{ orgId: ORG, userId: null, kind: 'automation.notify', title: 'Cotação', body: 'Lead novo: Ana', link: '/leads' }]);
+    expect(h.runs[0]!.status).toBe('COMPLETED');
+  });
+
+  test('em modo Teste o lead.updated sai com test: true', async () => {
+    const h = harness({ status: 'TEST' });
+    await aberto(h, ['cliente']);
+    await h.deliver(h.message({ text: 'Ana' }));
+    expect(h.emitted[0]).toMatchObject({ event: 'lead.updated', data: { test: true } });
+  });
+
+  test('retry depois da ação não repete o evento nem o aviso', async () => {
+    const h = harness({ sendErrors: [undefined, { status: 503, body: '{}', errorClass: 'transient' }] });
+    await aberto(h);
+    const ev = await h.engine.ingest({ eventId: 'z-ana', eventType: 'message', payload: h.message({ text: 'Ana' }) });
+    const id = (ev as { id: string }).id;
+    await expect(h.engine.process(id)).rejects.toThrow();
+    await h.engine.process(id);
+    expect(h.emitted.filter((e) => e.event === 'lead.updated')).toHaveLength(1);
+    expect(h.notified).toHaveLength(1);
+    expect(h.sent.filter((s) => s.msg?.text === 'Obrigado, Ana!')).toHaveLength(1);
+  });
+
+  test('falha ao gravar o evento faz o job lançar e a ação sai na retentativa', async () => {
+    const h = harness({ emitErrors: [new Error('banco fora')] });
+    await aberto(h);
+    const ev = await h.engine.ingest({ eventId: 'z-ana', eventType: 'message', payload: h.message({ text: 'Ana' }) });
+    const id = (ev as { id: string }).id;
+    await expect(h.engine.process(id)).rejects.toThrow('banco fora');
+    expect(h.sent.filter((s) => s.msg?.text === 'Obrigado, Ana!')).toHaveLength(0);
+    await h.engine.process(id);
+    expect(h.emitted.filter((e) => e.event === 'lead.updated')).toHaveLength(1);
+    expect(h.sent.filter((s) => s.msg?.text === 'Obrigado, Ana!')).toHaveLength(1);
+  });
+
+  test('laço que corrige o dado: cada passagem leva o próprio cursor (dedup por runId + nodeId + cursor)', async () => {
+    const LACO = {
+      version: 2,
+      nodes: [
+        { id: 'opening', type: 'opening', position: P, data: { text: 'Oi!' } },
+        { id: 'wa', type: 'question', position: P, data: { text: 'Seu WhatsApp?', field: 'whatsapp', validate: 'phone' } },
+        { id: 'dados', type: 'action', position: P, data: { kind: 'send_data', label: 'whatsapp_coletado' } },
+        { id: 'conf', type: 'message', position: P, data: { text: 'Está certo?', options: [{ id: 'sim', title: 'Sim' }, { id: 'corrigir', title: 'Corrigir' }] } },
+        { id: 'fim', type: 'end', position: P, data: { text: 'Valeu!' } },
+      ],
+      edges: [ed('opening', 'next', 'wa'), ed('wa', 'next', 'dados'), ed('dados', 'next', 'conf'), ed('conf', 'sim', 'fim'), ed('conf', 'corrigir', 'wa')],
+    };
+    const h = harness();
+    await h.seedAutomation(LACO, ['iagovieira.ia'], TRIGGER);
+    await h.deliver(h.comment({ text: 'quero o PLANO' }));
+    await h.deliver(h.message({ text: 'oi' }));
+    await h.deliver(h.message({ text: '92 99999-0000' }));
+    await h.deliver(tocar(h, 'Corrigir'));
+    await h.deliver(h.message({ text: '92 98888-1111' }));
+    const ups = h.emitted.filter((e) => e.event === 'lead.updated').map((e) => e.data);
+    expect(ups).toHaveLength(2);
+    expect(ups.map((d) => (d.answers as Record<string, string>).whatsapp)).toEqual(['92999990000', '92988881111']);
+    expect(typeof ups[0]!.cursor).toBe('number');
+    expect(ups[0]!.cursor).not.toBe(ups[1]!.cursor);
+  });
+
+  test('sem notificações ligadas o aviso é ignorado e o fluxo conclui', async () => {
+    const h = harness({ noNotifications: true });
+    await aberto(h);
+    await h.deliver(h.message({ text: 'Ana' }));
+    expect(h.runs[0]!.status).toBe('COMPLETED');
+    expect(h.notified).toHaveLength(0);
   });
 });

@@ -10,6 +10,12 @@
 > **Como manter:** ao fechar uma fatia, atualize as seções abaixo **e** abra uma entrada nova no
 > topo do changelog. Este arquivo é sobre o presente; o changelog é sobre o passado.
 >
+> **Atualização — balão Ação (2026-10-19, onda 50):** o construtor ganhou o balão Ação, fora do
+> "em breve": "Enviar dados" dispara `lead.updated` (webhook de saída, com as respostas até ali e um
+> rótulo) e "Avisar a equipe" cria uma notificação no sino. O CRM pode receber o lead no meio do
+> fluxo, sem n8n. Contatos, tags, condição por tag e passar para humano ficam para as próximas
+> mudanças. Mudança `add-flow-action-node`; histórico em [CHANGELOG_ONDAS](CHANGELOG_ONDAS.md).
+>
 > **Atualização — atraso por balão e lembrete (2026-10-14, onda 48):** cada balão pode esperar 0 a
 > 60 s com "digitando…" antes de sair (job na fila), e o fluxo pode ter um lembrete único para quem
 > parou numa pergunta, dentro de 23 h. E2E local verde. Falta o deploy. Mudança

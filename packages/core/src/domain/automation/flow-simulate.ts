@@ -1,6 +1,6 @@
 import type { DirectMessage, FlowV2 } from '@manypost/contracts';
 import { nodeById, openingOf, targetOf, waits } from './flow-graph';
-import { MAX_AUTO_STEPS, autoNext, decideInput, messageFor } from './flow-step';
+import { MAX_AUTO_STEPS, actionFor, autoNext, decideInput, messageFor, type ActionEffect } from './flow-step';
 
 /**
  * Percurso puro do fluxo, sem I/O (design D8/D9): é o mesmo caminho que o motor faz, com as mesmas
@@ -20,8 +20,13 @@ export interface SimMessage {
   urls?: string[];
 }
 
+/** linha de sistema: o balão de ação rodou (nada vai para a pessoa) */
+export interface SimActionLine {
+  action: ActionEffect;
+}
+
 export interface SimResult {
-  messages: SimMessage[];
+  messages: Array<SimMessage | SimActionLine>;
   answers: Record<string, string>;
   status: 'waiting' | 'completed' | 'abandoned' | 'failed';
   nodeId: string | null;
@@ -49,7 +54,7 @@ export function simulateFlow(
   let reasks = 0;
   let pending = true;
   let status: SimResult['status'] = 'waiting';
-  const messages: SimMessage[] = [];
+  const messages: Array<SimMessage | SimActionLine> = [];
   const ctx = () => ({ runId: 'sim', answers, username: opts.username ?? null });
 
   const drive = () => {
@@ -62,6 +67,8 @@ export function simulateFlow(
       if (pending) {
         const m = messageFor(node, ctx());
         if (m) messages.push(toSimMessage(m));
+        const a = actionFor(node, ctx());
+        if (a) messages.push({ action: a });
         pending = false;
       }
       if (waits(node)) return;

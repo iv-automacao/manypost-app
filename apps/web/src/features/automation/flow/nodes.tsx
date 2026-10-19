@@ -29,7 +29,19 @@ import { NodeSettings } from './node-settings';
 const INPUT =
   'nodrag w-full rounded-compact border border-transparent bg-surface-2 px-2 py-1.5 text-compact text-ink outline-none transition-colors duration-200 focus:border-accent';
 
-function InlineText({ nodeId, value, placeholder, field = 'text' }: { nodeId: string; value: string; placeholder: string; field?: string }) {
+function InlineText({
+  nodeId,
+  value,
+  placeholder,
+  field = 'text',
+  maxLength = LIMITS.messageText,
+}: {
+  nodeId: string;
+  value: string;
+  placeholder: string;
+  field?: string;
+  maxLength?: number;
+}) {
   const a = useFlowActions();
   if (a.readOnly) return <p className="whitespace-pre-line text-compact text-ink">{value}</p>;
   return (
@@ -37,7 +49,7 @@ function InlineText({ nodeId, value, placeholder, field = 'text' }: { nodeId: st
       className={cn(INPUT, 'nowheel resize-none')}
       value={value}
       rows={Math.min(8, Math.max(2, value.split('\n').length))}
-      maxLength={LIMITS.messageText}
+      maxLength={maxLength}
       placeholder={placeholder}
       onChange={(e) => a.update(nodeId, { [field]: e.target.value }, { merge: true })}
       onBlur={a.seal}
@@ -186,7 +198,7 @@ function Chip({ children }: { children: ReactNode }) {
   );
 }
 
-type P<T extends 'opening' | 'message' | 'question' | 'condition' | 'link' | 'end'> = NodeProps<Node<{ node: NodeOf<T> } & Record<string, unknown>, T>>;
+type P<T extends 'opening' | 'message' | 'question' | 'condition' | 'link' | 'end' | 'action'> = NodeProps<Node<{ node: NodeOf<T> } & Record<string, unknown>, T>>;
 
 function OpeningView({ id, data, selected }: P<'opening'>) {
   const t = useTranslations('automation.flow');
@@ -387,6 +399,51 @@ function EndView({ id, data, selected }: P<'end'>) {
   );
 }
 
+/** balão de ação (add-flow-action-node): enviar dados (lead.updated) ou avisar a equipe; sem ⚙ e sem atraso */
+function ActionView({ id, data, selected }: P<'action'>) {
+  const t = useTranslations('automation.flow');
+  const a = useFlowActions();
+  const n = data.node;
+  const kind = n.data.kind;
+  return (
+    <NodeShell id={id} selected={selected} icon={Zap} title={t('node.action')}>
+      {!a.readOnly ? (
+        <div className="nodrag flex gap-1">
+          {(['send_data', 'notify'] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              aria-pressed={kind === k}
+              // trocar o tipo zera o campo do outro (normalizeFlow também limpa)
+              onClick={() => kind !== k && a.update(id, k === 'notify' ? { kind: 'notify', text: '', label: undefined } : { kind: 'send_data', label: '', text: undefined })}
+              className={cn(
+                'flex-1 cursor-pointer rounded-compact border px-2 py-1 text-meta font-medium transition-colors duration-200',
+                kind === k ? 'border-accent bg-accent-tint text-accent' : 'border-line text-graphite hover:bg-surface-2',
+              )}
+            >
+              {t(k === 'notify' ? 'action.notify' : 'action.sendData')}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="text-meta font-medium text-graphite">{t(kind === 'notify' ? 'action.notify' : 'action.sendData')}</p>
+      )}
+      {n.data.kind === 'send_data' ? (
+        <>
+          <InlineInput value={n.data.label} placeholder={t('action.labelPlaceholder')} maxLength={32} onChange={(v) => a.update(id, { label: v.trim() }, { merge: true })} />
+          <p className="text-meta text-graphite">{t('action.sendDataHint')}</p>
+        </>
+      ) : (
+        <>
+          <InlineText nodeId={id} value={n.data.text} placeholder={t.raw('action.notifyPlaceholder') as string} maxLength={LIMITS.notifyText} />
+          <p className="text-meta text-graphite">{t.raw('action.notifyHint') as string}</p>
+        </>
+      )}
+      <OutputRow handleId="next" label={t('output.next')} />
+    </NodeShell>
+  );
+}
+
 function TriggerView({ selected, data }: NodeProps<Node<{ trigger: TriggerConfig }, 'trigger'>>) {
   const t = useTranslations('automation.flow');
   const a = useFlowActions();
@@ -423,4 +480,5 @@ export const NODE_TYPES = {
   condition: ConditionView,
   link: LinkView,
   end: EndView,
+  action: ActionView,
 } as unknown as NodeTypes;

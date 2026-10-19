@@ -20,12 +20,13 @@ const Position = z.object({ x: coord, y: coord });
 /** segundos de espera (com "digitando…") antes de enviar o balão; ausente = 0 */
 const delaySec = z.number().int().min(0).max(L.maxDelaySec).optional();
 
-export const FlowNodeTypes = ['opening', 'message', 'question', 'condition', 'link', 'end'] as const;
+export const FlowNodeTypes = ['opening', 'message', 'question', 'condition', 'link', 'end', 'action'] as const;
 export type FlowNodeType = (typeof FlowNodeTypes)[number];
 export const FlowOpeningModes = ['text', 'button', 'quick'] as const;
 export const FlowMessageFormats = ['none', 'buttons', 'quick'] as const;
 export const FlowOnTypedModes = ['reask', 'branch'] as const;
 export const FlowConditionOps = ['equals', 'contains', 'filled', 'empty'] as const;
+export const FlowActionKinds = ['send_data', 'notify'] as const;
 export const FlowProblemCodes = [
   'unreachable',
   'missing_edge',
@@ -146,6 +147,19 @@ const EndNode = z.object({
   data: z.object({ text: z.string().trim().max(L.messageText).default(''), delaySec }),
 });
 
+/** efeito sem mensagem para a pessoa: dispara `lead.updated` ou avisa a equipe, e segue por `next` */
+const ActionNode = z.object({
+  id: flowId,
+  type: z.literal('action'),
+  position: Position,
+  data: z.discriminatedUnion('kind', [
+    // o rótulo vira chave no sistema que recebe: mesmo formato dos campos
+    z.object({ kind: z.literal('send_data'), label: field }),
+    /** aceita {campo} e {username} */
+    z.object({ kind: z.literal('notify'), text: text(L.notifyText) }),
+  ]),
+});
+
 export const FlowNodeSchema = z.discriminatedUnion('type', [
   OpeningNode,
   MessageNode,
@@ -153,6 +167,7 @@ export const FlowNodeSchema = z.discriminatedUnion('type', [
   ConditionNode,
   LinkNode,
   EndNode,
+  ActionNode,
 ]);
 export type FlowNode = z.infer<typeof FlowNodeSchema>;
 export type FlowNodeOf<T extends FlowNodeType> = Extract<FlowNode, { type: T }>;
@@ -171,6 +186,7 @@ function handlesOf(n: FlowNode): string[] {
     case 'opening':
     case 'question':
     case 'link':
+    case 'action':
       return ['next'];
     case 'message':
       return n.data.format === 'none' ? ['next'] : [...n.data.options.map((o) => o.id), 'typed'];

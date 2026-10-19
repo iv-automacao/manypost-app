@@ -12,6 +12,7 @@ export function outputsOf(node: FlowNode): FlowOutput[] {
   switch (node.type) {
     case 'opening':
     case 'question':
+    case 'action':
       return [{ handle: 'next', required: true }];
     case 'message':
       if (node.data.format === 'none') return [{ handle: 'next', required: true }];

@@ -11,13 +11,13 @@ export const BLOCKS: Array<{ kind: BlockKind; icon: LucideIcon }> = [
   { kind: 'condition', icon: GitBranch },
   { kind: 'link', icon: Link2 },
   { kind: 'follow', icon: UserPlus },
+  { kind: 'action', icon: Zap },
   { kind: 'end', icon: Flag },
 ];
-/** blocos das entregas 3 e 4 — aparecem desabilitados */
-export const SOON: Array<{ key: 'delay' | 'media' | 'action'; icon: LucideIcon }> = [
+/** blocos da entrega 4 — aparecem desabilitados */
+export const SOON: Array<{ key: 'delay' | 'media'; icon: LucideIcon }> = [
   { key: 'delay', icon: Clock },
   { key: 'media', icon: ImageIcon },
-  { key: 'action', icon: Zap },
 ];
 
 export function NextStepMenu({ x, y, onPick, onClose, followDisabled }: { x: number; y: number; followDisabled: boolean; onPick: (k: BlockKind) => void; onClose: () => void }) {

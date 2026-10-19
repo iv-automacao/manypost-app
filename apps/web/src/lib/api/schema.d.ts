@@ -2719,7 +2719,7 @@ export type paths = {
                         name: string;
                         /** Format: uri */
                         url: string;
-                        events: ("post.scheduled" | "post.published" | "post.failed" | "channel.refresh_required" | "channel.disconnected" | "mention.received" | "lead.captured")[];
+                        events: ("post.scheduled" | "post.published" | "post.failed" | "channel.refresh_required" | "channel.disconnected" | "mention.received" | "lead.captured" | "lead.updated")[];
                         channelIds?: string[];
                     };
                 };
@@ -6852,7 +6852,7 @@ export type paths = {
                         name: string;
                         /** Format: uri */
                         url: string;
-                        events: ("post.scheduled" | "post.published" | "post.failed" | "channel.refresh_required" | "channel.disconnected" | "mention.received" | "lead.captured")[];
+                        events: ("post.scheduled" | "post.published" | "post.failed" | "channel.refresh_required" | "channel.disconnected" | "mention.received" | "lead.captured" | "lead.updated")[];
                         channelIds?: string[];
                     };
                 };
@@ -7674,6 +7674,23 @@ export type components = {
                         text: string;
                         delaySec?: number;
                     };
+                } | {
+                    id: string;
+                    /** @enum {string} */
+                    type: "action";
+                    position: {
+                        x: number;
+                        y: number;
+                    };
+                    data: {
+                        /** @enum {string} */
+                        kind: "send_data";
+                        label: string;
+                    } | {
+                        /** @enum {string} */
+                        kind: "notify";
+                        text: string;
+                    };
                 })[];
                 /** @default [] */
                 edges: {
@@ -7836,6 +7853,23 @@ export type components = {
                     /** @default  */
                     text: string;
                     delaySec?: number;
+                };
+            } | {
+                id: string;
+                /** @enum {string} */
+                type: "action";
+                position: {
+                    x: number;
+                    y: number;
+                };
+                data: {
+                    /** @enum {string} */
+                    kind: "send_data";
+                    label: string;
+                } | {
+                    /** @enum {string} */
+                    kind: "notify";
+                    text: string;
                 };
             })[];
             /** @default [] */

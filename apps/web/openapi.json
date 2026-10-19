@@ -1204,6 +1204,89 @@
                         "position",
                         "data"
                       ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9_-]{1,24}$"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "action"
+                          ]
+                        },
+                        "position": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            },
+                            "y": {
+                              "type": "number",
+                              "minimum": -100000,
+                              "maximum": 100000
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "y"
+                          ]
+                        },
+                        "data": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "send_data"
+                                  ]
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "label"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "notify"
+                                  ]
+                                },
+                                "text": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 280
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "text"
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type",
+                        "position",
+                        "data"
+                      ]
                     }
                   ]
                 },
@@ -1902,6 +1985,89 @@
                           "maximum": 60
                         }
                       }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "position",
+                    "data"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]{1,24}$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "action"
+                      ]
+                    },
+                    "position": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        },
+                        "y": {
+                          "type": "number",
+                          "minimum": -100000,
+                          "maximum": 100000
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    },
+                    "data": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "send_data"
+                              ]
+                            },
+                            "label": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "label"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "notify"
+                              ]
+                            },
+                            "text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 280
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "text"
+                          ]
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -8338,7 +8504,8 @@
                         "channel.refresh_required",
                         "channel.disconnected",
                         "mention.received",
-                        "lead.captured"
+                        "lead.captured",
+                        "lead.updated"
                       ]
                     },
                     "minItems": 1
@@ -13267,7 +13434,8 @@
                         "channel.refresh_required",
                         "channel.disconnected",
                         "mention.received",
-                        "lead.captured"
+                        "lead.captured",
+                        "lead.updated"
                       ]
                     },
                     "minItems": 1

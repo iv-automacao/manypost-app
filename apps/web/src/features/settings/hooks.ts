@@ -21,7 +21,8 @@ export type WebhookEvent =
   | 'channel.refresh_required'
   | 'channel.disconnected'
   | 'mention.received'
-  | 'lead.captured';
+  | 'lead.captured'
+  | 'lead.updated';
 
 export function useApiKeys() {
   return useQuery({
